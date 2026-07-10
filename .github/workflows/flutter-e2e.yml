@@ -1,0 +1,84 @@
+# On-device Flutter e2e (docs/11-e2e-sdk-matrix.md).
+#
+# Runner choice is deliberate:
+#   - Android emulator runs on ubuntu-latest, which has KVM. GitHub's modern
+#     macOS runners (macos-14+) are arm64 WITHOUT nested virtualization, so
+#     the Android emulator cannot boot there.
+#   - iOS simulator runs on macos-latest (simulators are not VMs).
+#
+# The automated test drives the device-code flow (no browser needed). The
+# flutter_appauth auth-code flow opens an external system browser that
+# integration tests can't drive — it ships as a manual screen in the app.
+name: Flutter e2e
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * *' # nightly
+
+jobs:
+  android:
+    name: Android emulator (ubuntu + KVM)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - name: Build and start the emulator (plain HTTP for device reachability)
+        run: |
+          go build -o /tmp/entra-emulator ./cmd/entra-emulator
+          mkdir -p /tmp/emu && cd /tmp/emu
+          TLS_ENABLED=false PORT=8443 ORIGIN_MODE=compat \
+            PUBLIC_ORIGIN=http://10.0.2.2:8443 \
+            nohup /tmp/entra-emulator > server.log 2>&1 &
+          for i in $(seq 1 50); do curl -s http://localhost:8443/health && break; sleep 0.2; done
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run integration test on the Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          working-directory: e2e/flutter
+          script: flutter test integration_test --dart-define=EMU_ORIGIN=http://10.0.2.2:8443
+
+  ios:
+    name: iOS simulator (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - name: Build and start the emulator (plain HTTP on loopback)
+        run: |
+          go build -o /tmp/entra-emulator ./cmd/entra-emulator
+          mkdir -p /tmp/emu && cd /tmp/emu
+          TLS_ENABLED=false PORT=8443 ORIGIN_MODE=compat \
+            nohup /tmp/entra-emulator > server.log 2>&1 &
+          for i in $(seq 1 50); do curl -s http://localhost:8443/health && break; sleep 0.2; done
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Boot an iOS simulator
+        id: sim
+        uses: futureware-tech/simulator-action@v4
+        with:
+          model: 'iPhone 15'
+      - name: Run integration test on the iOS simulator
+        working-directory: e2e/flutter
+        run: flutter test integration_test -d ${{ steps.sim.outputs.udid }} --dart-define=EMU_ORIGIN=http://localhost:8443
