@@ -30,8 +30,10 @@ The features only a Go implementation can offer; cheap and differentiating.
    **env-var endpoint**, not raw IMDS (`169.254.169.254` is link-local and can't be
    redirected without network shims). Proven by an `azidentity` e2e test.
    Ref: `entra-docs/docs/identity/managed-identities-azure-resources/how-to-use-vm-token.md`.
-4. ⬜ **Distribution.** Cross-compiled release binaries (darwin/linux/windows, amd64/arm64),
-   `FROM scratch` Docker image, Homebrew tap. All near-free with the Go toolchain.
+4. ✅ **Distribution.** ~13 MB distroless Docker image (pure-Go, no cgo) with a
+   built-in HEALTHCHECK, GHCR publish on tag, and GoReleaser cross-platform binaries
+   (linux/darwin/windows × amd64/arm64). CI smoke-tests the image on every push.
+   (Homebrew tap still open.)
 
 ## Phase 2 — Testing ergonomics beyond the real Entra
 
