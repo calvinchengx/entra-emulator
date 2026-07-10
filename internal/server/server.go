@@ -35,6 +35,7 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service, cert *tlscert.
 	// login surface: OIDC only + /health-free root descriptor.
 	loginMux := http.NewServeMux()
 	id.Register(loginMux)
+	id.RegisterMSI(loginMux)
 	loginMux.HandleFunc("GET /{$}", surfaceDescriptor("login"))
 
 	// graph surface: unprefixed Graph + userinfo.
@@ -50,6 +51,7 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service, cert *tlscert.
 	// compat surface: everything (graph under /graph).
 	compatMux := http.NewServeMux()
 	id.Register(compatMux)
+	id.RegisterMSI(compatMux)
 	gr.Register(compatMux, "/graph")
 	ad.Register(compatMux)
 	compatMux.HandleFunc("/", portalFallback)

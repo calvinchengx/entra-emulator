@@ -16,6 +16,9 @@ const (
 	DefaultTenantID   = "11111111-1111-1111-1111-111111111111"
 	DefaultBaseDomain = "entra.localhost"
 	DefaultConfigFile = "./entra-emulator.config.json"
+	// DefaultManagedIdentityClientID is the seeded daemon app — the default
+	// system-assigned managed identity (matches store.SeedAppDaemonID).
+	DefaultManagedIdentityClientID = "cccccccc-0000-0000-0000-000000000002"
 )
 
 type TokenLifetimes struct {
@@ -53,6 +56,10 @@ type Config struct {
 	DeviceInterval  int
 	GraphResourceID string
 	LogLevel        string
+
+	// Managed-identity emulation (App Service protocol; roadmap #3).
+	ManagedIdentitySecret   string // matched against the X-IDENTITY-HEADER
+	ManagedIdentityClientID string // the system-assigned identity's appId
 }
 
 // fileConfig mirrors the JSON config file shape.
@@ -76,6 +83,9 @@ type fileConfig struct {
 	LogLevel        *string         `json:"logLevel"`
 	TLS             *fileTLS        `json:"tls"`
 	TokenLifetimes  *fileTLifetimes `json:"tokenLifetimes"`
+
+	ManagedIdentitySecret   *string `json:"managedIdentitySecret"`
+	ManagedIdentityClientID *string `json:"managedIdentityClientId"`
 }
 
 type fileTLS struct {
@@ -115,6 +125,9 @@ func Load(getenv func(string) string) (*Config, error) {
 		TLSCertDir:      "./data/tls",
 		GraphResourceID: resolveStr(getenv("GRAPH_RESOURCE_ID"), file.GraphResourceID, "https://graph.microsoft.com"),
 		LogLevel:        resolveStr(getenv("LOG_LEVEL"), file.LogLevel, "info"),
+		// Public dev value, like the seeded secrets — documented insecure.
+		ManagedIdentitySecret:   resolveStr(getenv("MANAGED_IDENTITY_SECRET"), file.ManagedIdentitySecret, "managed-identity-secret"),
+		ManagedIdentityClientID: strings.ToLower(resolveStr(getenv("MANAGED_IDENTITY_CLIENT_ID"), file.ManagedIdentityClientID, DefaultManagedIdentityClientID)),
 	}
 
 	c.Port = resolveInt(getenv("PORT"), intp(file.Port), 8443, "PORT", fail)

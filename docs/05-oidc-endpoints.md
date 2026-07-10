@@ -169,3 +169,23 @@ infer client_id), `state`. Behavior: delete the session row + expire the cookie
 (idempotent). Redirect only when `post_logout_redirect_uri` exactly matches a registered
 redirect URI of a resolvable client — else render the "signed out" page (200). `state`
 appended on redirect.
+
+## Managed identity — `GET /msi/token` (App Service protocol)
+
+Emulates the App Service / Functions / Container Apps managed-identity endpoint
+(roadmap #3). Served on the login and compat surfaces.
+
+- **Auth:** header `X-IDENTITY-HEADER: <MANAGED_IDENTITY_SECRET>` (SSRF mitigation in
+  real Azure); missing/wrong → 401.
+- **Query:** `resource`* (the audience), `api-version`, and optionally
+  `client_id`/`object_id`/`mi_res_id` to select a user-assigned identity. No id →
+  system-assigned (`MANAGED_IDENTITY_CLIENT_ID`, default the seeded daemon app).
+- **Response (App Service format):** `{ access_token, expires_on (string), expires_in
+  (string), not_before (string), resource, token_type: "Bearer", client_id }`. The
+  token is app-only (`sub`=`appid`=identity, no `oid`), `aud`=resource, `roles`
+  auto-granted from the resource app's Application roles.
+
+A workload sets `IDENTITY_ENDPOINT=<origin>/msi/token` + `IDENTITY_HEADER=<secret>`;
+`azidentity.ManagedIdentityCredential` / `DefaultAzureCredential` then acquires a token
+with no secret in the app. We emulate the env-var endpoint, not raw IMDS
+(`169.254.169.254` is link-local and unroutable to the emulator).

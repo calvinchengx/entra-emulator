@@ -32,6 +32,8 @@ key(s)** — no partial boot.
 | `TOKEN_LIFETIME_DEVICE_CODE_SECONDS` | `tokenLifetimes.deviceCode` | int | `900` | Device code TTL. |
 | `DEVICE_CODE_INTERVAL_SECONDS` | `deviceCodeInterval` | int | `5` | Advertised device-code poll interval. |
 | `GRAPH_RESOURCE_ID` | `graphResourceId` | string | `https://graph.microsoft.com` | Default audience for Graph access tokens. |
+| `MANAGED_IDENTITY_SECRET` | `managedIdentitySecret` | string | `managed-identity-secret` | Matched against `X-IDENTITY-HEADER` on `/msi/token` (dev value). |
+| `MANAGED_IDENTITY_CLIENT_ID` | `managedIdentityClientId` | GUID | seeded daemon app | The system-assigned managed identity's appId. |
 | `LOG_LEVEL` | `logLevel` | enum | `info` | `error|warn|info|debug`. |
 | `CONFIG_FILE` | — | path | `./entra-emulator.config.json` | Config-file location. |
 

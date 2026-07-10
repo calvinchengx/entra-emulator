@@ -17,17 +17,18 @@ The features only a Go implementation can offer; cheap and differentiating.
    token — any user/app, scopes, roles, groups, custom expiry (including already
    expired), even deliberately malformed claims — without running a flow. Resource-API
    teams get "a token with `scp=Tasks.Read` that expired 5 min ago" in one curl.
-3. ⬜ **Managed-identity endpoint.** Emulate the App Service / Functions / Container
-   Apps managed-identity protocol: expose `GET /msi/token?resource=<r>&api-version=…`
-   guarded by the `X-IDENTITY-HEADER` secret, returning the App Service token JSON
+3. ✅ **Managed-identity endpoint.** Emulates the App Service / Functions / Container
+   Apps managed-identity protocol: `GET /msi/token?resource=<r>&api-version=…` guarded
+   by the `X-IDENTITY-HEADER` secret, returning the App Service token JSON
    (`access_token`, `expires_on`, `resource`, `token_type`, `client_id`). A workload
-   sets `IDENTITY_ENDPOINT=http://localhost:<port>/msi/token` + `IDENTITY_HEADER=<secret>`
-   and `azidentity.ManagedIdentityCredential` / `DefaultAzureCredential` acquires an
+   sets `IDENTITY_ENDPOINT=<origin>/msi/token` + `IDENTITY_HEADER=<secret>` and
+   `azidentity.ManagedIdentityCredential` / `DefaultAzureCredential` acquires an
    app-only token with **no secret in the app** — exactly the production experience.
-   Backed by our existing app-only minting; the identity maps to a designated seed
-   service principal (system-assigned) or a `client_id`/`object_id`-selected one
-   (user-assigned). We emulate the **env-var endpoint**, not raw IMDS
-   (`169.254.169.254` is link-local and can't be redirected without network shims).
+   Backed by the existing app-only minting; the identity maps to a designated seed
+   service principal (system-assigned, default the daemon app) or a
+   `client_id`/`object_id`/`mi_res_id`-selected one (user-assigned). We emulate the
+   **env-var endpoint**, not raw IMDS (`169.254.169.254` is link-local and can't be
+   redirected without network shims). Proven by an `azidentity` e2e test.
    Ref: `entra-docs/docs/identity/managed-identities-azure-resources/how-to-use-vm-token.md`.
 4. ⬜ **Distribution.** Cross-compiled release binaries (darwin/linux/windows, amd64/arm64),
    `FROM scratch` Docker image, Homebrew tap. All near-free with the Go toolchain.
