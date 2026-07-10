@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/calvinchengx/entra-emulator/internal/httpx"
 	"github.com/calvinchengx/entra-emulator/internal/store"
@@ -13,6 +14,20 @@ import (
 
 // handleToken multiplexes the token endpoint across the four grants.
 func (i *Identity) handleToken(w http.ResponseWriter, r *http.Request) {
+	// Fault injection (roadmap #5): apply configured latency, then force an
+	// OAuth error if one is armed — before any real work.
+	if latencyMs, code, desc, fire := i.Faults.TokenFault(); latencyMs > 0 || fire {
+		if latencyMs > 0 {
+			time.Sleep(time.Duration(latencyMs) * time.Millisecond)
+		}
+		if fire {
+			if desc == "" {
+				desc = "Injected fault (roadmap #5 fault injection)."
+			}
+			httpx.WriteOAuthError(w, code, desc)
+			return
+		}
+	}
 	if _, ok := i.tenantSegment(r); !ok {
 		httpx.WriteOAuthError(w, "invalid_request", "AADSTS90002: Unknown tenant.")
 		return

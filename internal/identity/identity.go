@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/calvinchengx/entra-emulator/internal/config"
+	"github.com/calvinchengx/entra-emulator/internal/faults"
 	"github.com/calvinchengx/entra-emulator/internal/store"
 	"github.com/calvinchengx/entra-emulator/internal/tokens"
 )
@@ -32,15 +33,19 @@ type Identity struct {
 	Cfg      *config.Config
 	Store    *store.Store
 	Tokens   *tokens.Service
+	Faults   *faults.Store
 	stateKey []byte // per-process HMAC key for signed form state
 }
 
-func New(cfg *config.Config, st *store.Store, ts *tokens.Service) *Identity {
+func New(cfg *config.Config, st *store.Store, ts *tokens.Service, fs *faults.Store) *Identity {
 	key := make([]byte, 32)
 	if _, err := rand.Read(key); err != nil {
 		panic(err)
 	}
-	return &Identity{Cfg: cfg, Store: st, Tokens: ts, stateKey: key}
+	if fs == nil {
+		fs = faults.New()
+	}
+	return &Identity{Cfg: cfg, Store: st, Tokens: ts, Faults: fs, stateKey: key}
 }
 
 // Register mounts the tenant-scoped OIDC routes on mux. Paths carry a

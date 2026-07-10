@@ -12,6 +12,7 @@ import (
 
 	"github.com/calvinchengx/entra-emulator/internal/admin"
 	"github.com/calvinchengx/entra-emulator/internal/config"
+	"github.com/calvinchengx/entra-emulator/internal/faults"
 	"github.com/calvinchengx/entra-emulator/internal/graph"
 	"github.com/calvinchengx/entra-emulator/internal/httpx"
 	"github.com/calvinchengx/entra-emulator/internal/identity"
@@ -28,9 +29,12 @@ type Server struct {
 
 // New assembles the full handler stack.
 func New(cfg *config.Config, st *store.Store, ts *tokens.Service, cert *tlscert.Material, version string) *Server {
-	id := identity.New(cfg, st, ts)
+	// One fault-injection store shared between the STS (applies faults) and
+	// the admin API (controls them).
+	fs := faults.New()
+	id := identity.New(cfg, st, ts, fs)
 	gr := graph.New(cfg, st, ts)
-	ad := admin.New(cfg, st, ts, cert, version)
+	ad := admin.New(cfg, st, ts, fs, cert, version)
 
 	// login surface: OIDC only + /health-free root descriptor.
 	loginMux := http.NewServeMux()
