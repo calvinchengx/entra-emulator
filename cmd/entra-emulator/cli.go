@@ -1,10 +1,13 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
+	"net/http"
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/calvinchengx/entra-emulator/internal/config"
 	"github.com/calvinchengx/entra-emulator/internal/tlscert"
@@ -38,6 +41,8 @@ func runSubcommand(cfg *config.Config, args []string) error {
 		}
 		printTrustCommand(cert.CertPath)
 		return nil
+	case "healthcheck":
+		return runHealthcheck(cfg)
 	case "help", "--help", "-h":
 		printHelp()
 		return nil
@@ -45,6 +50,29 @@ func runSubcommand(cfg *config.Config, args []string) error {
 		printHelp()
 		return fmt.Errorf("unknown subcommand %q", args[0])
 	}
+}
+
+// runHealthcheck probes the running instance's /health for container
+// HEALTHCHECK (distroless has no shell/curl). Non-zero exit = unhealthy.
+func runHealthcheck(cfg *config.Config) error {
+	scheme := "http"
+	if cfg.TLSEnabled {
+		scheme = "https"
+	}
+	client := &http.Client{
+		Timeout: 3 * time.Second,
+		// Self-probe over the emulator's own self-signed cert.
+		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
+	}
+	resp, err := client.Get(fmt.Sprintf("%s://localhost:%d/health", scheme, cfg.Port))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("health returned %d", resp.StatusCode)
+	}
+	return nil
 }
 
 func printHelp() {
@@ -55,7 +83,8 @@ Usage:
   entra-emulator hosts      print the hosts-file block (--apply to write it)
   entra-emulator trust      print the platform command to trust the TLS cert
   entra-emulator cert-path  print the path to cert.pem
-  entra-emulator show-cert  print the cert path + SHA-256 fingerprint`)
+  entra-emulator show-cert  print the cert path + SHA-256 fingerprint
+  entra-emulator healthcheck  probe /health (exit 0 healthy) — for containers`)
 }
 
 const hostsMarkerBegin = "# entra-emulator BEGIN"

@@ -28,6 +28,19 @@ deterministic seed directory. Subdomain names need hosts entries
 (`./entra-emulator hosts --apply`), or set `ORIGIN_MODE=compat` to keep everything on
 `https://localhost:8443`.
 
+### Docker
+
+A ~13 MB distroless image (pure-Go, no cgo) with a built-in `HEALTHCHECK`:
+
+```bash
+docker run -p 8443:8443 -v entra-emulator-data:/app/data \
+  ghcr.io/calvinchengx/entra-emulator:latest
+```
+
+The image defaults to `ORIGIN_MODE=compat` and binds `0.0.0.0`; mount a volume at
+`/app/data` to persist the store and cert. Tagged releases also publish cross-platform
+binaries (linux/darwin/windows × amd64/arm64) via GoReleaser.
+
 ## What works
 
 - **Flows:** Authorization Code + PKCE (S256/plain), Client Credentials
