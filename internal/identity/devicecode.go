@@ -104,13 +104,15 @@ func (i *Identity) handleDeviceAuthorization(w http.ResponseWriter, r *http.Requ
 
 	verificationURI := fmt.Sprintf("%s/%s/oauth2/v2.0/devicecode", i.Cfg.Origins.Login, tenantSeg)
 	httpx.NoStore(w)
+	// verification_uri_complete is intentionally omitted: real Entra does not
+	// return it (documented in entra-docs v2-oauth2-device-code), even though
+	// RFC 8628 lists it as optional. We match Entra for client fidelity.
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
-		"device_code":               deviceCode,
-		"user_code":                 userCode,
-		"verification_uri":          verificationURI,
-		"verification_uri_complete": verificationURI + "?user_code=" + userCode,
-		"expires_in":                i.Cfg.Lifetimes.DeviceCode,
-		"interval":                  i.Cfg.DeviceInterval,
+		"device_code":      deviceCode,
+		"user_code":        userCode,
+		"verification_uri": verificationURI,
+		"expires_in":       i.Cfg.Lifetimes.DeviceCode,
+		"interval":         i.Cfg.DeviceInterval,
 		"message": fmt.Sprintf(
 			"To sign in, open %s in a browser and enter the code %s to authenticate.",
 			verificationURI, userCode),
@@ -133,11 +135,12 @@ func (i *Identity) grantDeviceCode(w http.ResponseWriter, r *http.Request) {
 	hash := store.HashToken(plaintext)
 	row, err := i.Store.GetDeviceCodeByHash(hash)
 	if err != nil {
-		httpx.WriteOAuthError(w, "invalid_grant", "AADSTS70019: The device code is unknown or already redeemed.")
+		// entra-docs names an unrecognized device_code bad_verification_code.
+		httpx.WriteOAuthError(w, "bad_verification_code", "AADSTS70019: The device code is unknown or already redeemed.")
 		return
 	}
 	if row.AppID != app.ID {
-		httpx.WriteOAuthError(w, "invalid_grant", "AADSTS70019: The device code is bound to a different client.")
+		httpx.WriteOAuthError(w, "bad_verification_code", "AADSTS70019: The device code is bound to a different client.")
 		return
 	}
 	now := i.Store.Now()
@@ -148,7 +151,8 @@ func (i *Identity) grantDeviceCode(w http.ResponseWriter, r *http.Request) {
 		return
 	case row.Status == "denied":
 		_ = i.Store.DeleteDeviceCode(hash)
-		httpx.WriteOAuthError(w, "access_denied", "AADSTS65004: The user declined the request.")
+		// entra-docs names user-denial authorization_declined (not access_denied).
+		httpx.WriteOAuthError(w, "authorization_declined", "AADSTS70018: The user declined the request.")
 		return
 	case row.Status == "pending":
 		httpx.WriteOAuthError(w, "authorization_pending",
@@ -159,7 +163,7 @@ func (i *Identity) grantDeviceCode(w http.ResponseWriter, r *http.Request) {
 	// approved → atomic single-use redemption (TOCTOU-safe).
 	consumed, err := i.Store.ConsumeApprovedDeviceCode(hash, app.ID, now)
 	if err != nil || consumed == nil {
-		httpx.WriteOAuthError(w, "invalid_grant", "AADSTS70019: The device code is unknown or already redeemed.")
+		httpx.WriteOAuthError(w, "bad_verification_code", "AADSTS70019: The device code is unknown or already redeemed.")
 		return
 	}
 	user, err := i.Store.GetUser(consumed.UserID)

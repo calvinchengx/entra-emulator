@@ -74,7 +74,7 @@ JSON, correct 4xx, `Cache-Control: no-store`:
 | Bad/expired/replayed code, PKCE mismatch, redirect mismatch, RT invalid/reused, client_id≠binding | `invalid_grant` | 400 |
 | Unknown client, wrong/missing secret, public client sending a secret, non-confidential on client_credentials | `invalid_client` | 401 |
 | Unregistered/invalid scope, non-subset narrowing, bad `.default` | `invalid_scope` | 400 |
-| Device poll pending / denied / expired | `authorization_pending` (70016) / `access_denied` (65004) / `expired_token` (70020) | 400 |
+| Device poll pending / denied / expired / unknown code | `authorization_pending` (70016) / `authorization_declined` (70018) / `expired_token` (70020) / `bad_verification_code` (70019) | 400 |
 
 ## Authorize — `GET|POST /{tenant}/oauth2/v2.0/authorize`
 
@@ -128,11 +128,12 @@ Graph). Response has NO id_token/refresh_token/client_info. Public client → `i
 `grant_type` accepts **both** `urn:ietf:params:oauth:grant-type:device_code` (canonical,
 advertised) **and** bare `device_code` (what msal-node actually sends). Params:
 `device_code`*, `client_id`*. Extra params (`scope`, `client_info=1`, telemetry) are
-**ignored** — granted scopes come solely from the stored row. Status mapping: pending →
-`authorization_pending`; approved → atomic `ConsumeApproved` then mint (loser of a race →
-`invalid_grant`); denied → `access_denied` + delete; expired → `expired_token` + delete
-(lazy); unknown/consumed → `invalid_grant`; app mismatch → `invalid_grant`. `slow_down`
-is never emitted (interval advertised only).
+**ignored** — granted scopes come solely from the stored row. Status mapping (error
+names match entra-docs, not the RFC): pending → `authorization_pending`; approved →
+atomic `ConsumeApproved` then mint (loser of a race → `bad_verification_code`); denied →
+`authorization_declined` + delete; expired → `expired_token` + delete (lazy);
+unknown/consumed → `bad_verification_code`; app mismatch → `bad_verification_code`.
+`slow_down` is never emitted (interval advertised only).
 
 ## Device authorization — `POST /{tenant}/oauth2/v2.0/devicecode`
 
@@ -144,13 +145,14 @@ authorize). Success:
   "device_code": "<opaque 256-bit>",
   "user_code": "BCDF-GHJK",
   "verification_uri": "<loginOrigin>/{tenant-as-requested}/oauth2/v2.0/devicecode",
-  "verification_uri_complete": "...devicecode?user_code=BCDF-GHJK",
   "expires_in": 900, "interval": 5,
   "message": "To sign in, open ... and enter the code ..."
 }
 ```
 
-`verification_uri` echoes the requested tenant alias.
+`verification_uri` echoes the requested tenant alias. **`verification_uri_complete` is
+deliberately omitted** — real Entra does not return it (entra-docs
+`v2-oauth2-device-code`), even though RFC 8628 lists it as optional; we match Entra.
 
 **Approval page:** GET renders code entry (pre-filled from `?user_code=`); POST
 `/verify` is a 3-step state machine (`__ee_step` = `lookup` → `signin` → `decide`)

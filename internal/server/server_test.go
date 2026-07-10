@@ -454,12 +454,24 @@ func TestDeviceCodeFlow(t *testing.T) {
 	if !regexp.MustCompile(`^[BCDFGHJKLMNPQRSTVWXZ]{4}-[BCDFGHJKLMNPQRSTVWXZ]{4}$`).MatchString(userCode) {
 		t.Fatalf("bad user_code format: %q", userCode)
 	}
+	// Fidelity with entra-docs: real Entra omits verification_uri_complete.
+	if _, present := da["verification_uri_complete"]; present {
+		t.Fatalf("verification_uri_complete must be omitted to match Entra: %v", da)
+	}
 
 	poll := url.Values{"grant_type": {"device_code"}, "device_code": {da["device_code"].(string)},
 		"client_id": {spaID}, "scope": {"stray-ignored"}, "client_info": {"1"}}
 	resp, body := postForm(t, http.DefaultClient, base+"/token", poll)
 	if resp.StatusCode != 400 || body["error"] != "authorization_pending" {
 		t.Fatalf("pending poll: want authorization_pending, got %d %v", resp.StatusCode, body)
+	}
+
+	// Unknown device_code → bad_verification_code (entra-docs name, not invalid_grant).
+	resp, body = postForm(t, http.DefaultClient, base+"/token", url.Values{
+		"grant_type": {"device_code"}, "device_code": {"not-a-real-code"}, "client_id": {spaID},
+	})
+	if resp.StatusCode != 400 || body["error"] != "bad_verification_code" {
+		t.Fatalf("unknown code: want bad_verification_code, got %d %v", resp.StatusCode, body)
 	}
 
 	// Approve server-side (the HTML state machine has its own smoke tests).
@@ -477,10 +489,30 @@ func TestDeviceCodeFlow(t *testing.T) {
 	if idc["oid"] != aliceID {
 		t.Fatalf("approving user should be alice, got %v", idc["oid"])
 	}
-	// Single-use.
+	// Single-use: re-poll of a consumed code → bad_verification_code (unknown).
 	resp, body = postForm(t, http.DefaultClient, base+"/token", poll)
-	if resp.StatusCode != 400 || body["error"] != "invalid_grant" {
-		t.Fatalf("re-poll after mint: want invalid_grant, got %d %v", resp.StatusCode, body)
+	if resp.StatusCode != 400 || body["error"] != "bad_verification_code" {
+		t.Fatalf("re-poll after mint: want bad_verification_code, got %d %v", resp.StatusCode, body)
+	}
+}
+
+// TestDeviceCodeDenied asserts the entra-docs denial error name.
+func TestDeviceCodeDenied(t *testing.T) {
+	hts, _, st := newTestServer(t)
+	base := hts.URL + "/" + tenant + "/oauth2/v2.0"
+
+	_, da := postForm(t, http.DefaultClient, base+"/devicecode", url.Values{
+		"client_id": {spaID}, "scope": {"openid profile"},
+	})
+	userCode := da["user_code"].(string)
+	if err := st.SetDeviceCodeDecision(userCode, "denied", ""); err != nil {
+		t.Fatal(err)
+	}
+	resp, body := postForm(t, http.DefaultClient, base+"/token", url.Values{
+		"grant_type": {"device_code"}, "device_code": {da["device_code"].(string)}, "client_id": {spaID},
+	})
+	if resp.StatusCode != 400 || body["error"] != "authorization_declined" {
+		t.Fatalf("denied poll: want authorization_declined, got %d %v", resp.StatusCode, body)
 	}
 }
 
