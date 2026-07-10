@@ -31,7 +31,7 @@ func WriteJSON(w http.ResponseWriter, status int, v any) {
 type OAuthError struct {
 	Error            string `json:"error"`
 	ErrorDescription string `json:"error_description"`
-	ErrorCodes       []int  `json:"error_codes"`
+	ErrorCodes       []int  `json:"error_codes,omitempty"`
 	Timestamp        string `json:"timestamp"`
 	TraceID          string `json:"trace_id"`
 	CorrelationID    string `json:"correlation_id"`
@@ -53,20 +53,32 @@ var aadstsCodes = map[string]int{
 
 // oauthStatus maps error codes to HTTP status.
 func oauthStatus(code string) int {
-	if code == "invalid_client" {
+	switch code {
+	case "invalid_client":
 		return http.StatusUnauthorized
+	case "temporarily_unavailable":
+		return http.StatusServiceUnavailable
+	case "server_error":
+		return http.StatusInternalServerError
+	default:
+		return http.StatusBadRequest
 	}
-	return http.StatusBadRequest
 }
 
 // WriteOAuthError emits the canonical OAuth error JSON with no-store headers.
 func WriteOAuthError(w http.ResponseWriter, code, description string) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
+	// Omit error_codes for codes without a known AADSTS number (e.g. injected
+	// or standard OAuth codes) rather than emitting a bogus [0].
+	var codes []int
+	if n := aadstsCodes[code]; n != 0 {
+		codes = []int{n}
+	}
 	WriteJSON(w, oauthStatus(code), OAuthError{
 		Error:            code,
 		ErrorDescription: description,
-		ErrorCodes:       []int{aadstsCodes[code]},
+		ErrorCodes:       codes,
 		Timestamp:        time.Now().UTC().Format(time.RFC3339),
 		TraceID:          store.NewGUID(),
 		CorrelationID:    store.NewGUID(),

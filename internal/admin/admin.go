@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/calvinchengx/entra-emulator/internal/config"
+	"github.com/calvinchengx/entra-emulator/internal/faults"
 	"github.com/calvinchengx/entra-emulator/internal/httpx"
 	"github.com/calvinchengx/entra-emulator/internal/store"
 	"github.com/calvinchengx/entra-emulator/internal/tlscert"
@@ -21,13 +22,17 @@ type Admin struct {
 	Cfg     *config.Config
 	Store   *store.Store
 	Tokens  *tokens.Service
+	Faults  *faults.Store
 	Cert    *tlscert.Material
 	Version string
 	Started time.Time
 }
 
-func New(cfg *config.Config, st *store.Store, ts *tokens.Service, cert *tlscert.Material, version string) *Admin {
-	return &Admin{Cfg: cfg, Store: st, Tokens: ts, Cert: cert, Version: version, Started: time.Now()}
+func New(cfg *config.Config, st *store.Store, ts *tokens.Service, fs *faults.Store, cert *tlscert.Material, version string) *Admin {
+	if fs == nil {
+		fs = faults.New()
+	}
+	return &Admin{Cfg: cfg, Store: st, Tokens: ts, Faults: fs, Cert: cert, Version: version, Started: time.Now()}
 }
 
 func (a *Admin) Register(mux *http.ServeMux) {
@@ -67,6 +72,9 @@ func (a *Admin) Register(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /admin/api/apps/{id}/roles/{roleId}", a.deleteRole)
 
 	mux.HandleFunc("POST /admin/api/tokens", a.forgeToken)
+	mux.HandleFunc("GET /admin/api/faults", a.getFaults)
+	mux.HandleFunc("POST /admin/api/faults", a.setFaults)
+	mux.HandleFunc("DELETE /admin/api/faults", a.clearFaults)
 	mux.HandleFunc("POST /admin/api/seed", a.seed)
 	mux.HandleFunc("POST /admin/api/reset", a.reset)
 	mux.HandleFunc("GET /admin/api/certificate", a.certificateMeta)

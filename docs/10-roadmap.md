@@ -37,10 +37,11 @@ The features only a Go implementation can offer; cheap and differentiating.
 
 ## Phase 2 — Testing ergonomics beyond the real Entra
 
-5. ⬜ **Fault injection.** Admin-togglable failure modes: return chosen AADSTS errors,
-   inject latency, serve an unknown `kid`, rotate the signing key mid-session, drop
-   refresh tokens. Lets apps test failure handling that a real tenant can't reproduce
-   on demand.
+5. ✅ **Fault injection.** Admin-togglable failure modes on the token endpoint:
+   force a chosen OAuth error (`temporarily_unavailable`→503, `invalid_grant`, …),
+   inject latency, and make it intermittent via `probability`. Controlled through
+   `GET/POST/DELETE /admin/api/faults`; in-memory. (Unknown-`kid` / key-rotation
+   faults fold into roadmap #14.)
 6. ⬜ **Clock control.** Freeze/offset the emulator clock via config + admin API so token
    expiry and refresh logic are testable without sleeps.
 7. ⬜ **Directory import/export.** `GET /admin/api/export` / `POST /admin/api/import`

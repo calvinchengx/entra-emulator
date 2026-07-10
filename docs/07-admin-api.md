@@ -97,6 +97,23 @@ JWKS and is accepted by the emulator Graph; `expired`, wrong-`audience`, and
 `signature:"invalid"` tokens are rejected 401 — exactly what a resource API's negative
 tests need. Open like the rest of the admin API (dev tool).
 
+## Fault injection (roadmap #5 — testing superpower)
+
+Make the token endpoint misbehave on demand, to test client failure handling the real
+Entra can't reproduce.
+
+| Method | Path | → |
+|---|---|---|
+| GET | `/admin/api/faults` | current fault config |
+| POST | `/admin/api/faults` | arm faults; returns the stored config |
+| DELETE | `/admin/api/faults` | 204 — disarm all faults |
+
+Config: `{ tokenError?, tokenErrorDescription?, tokenLatencyMs?, probability? }`.
+`tokenError` (e.g. `temporarily_unavailable` → 503, `invalid_grant` → 400) forces the
+`/token` endpoint to return that OAuth error instead of a token; `tokenLatencyMs` delays
+every token response; `probability` (0–1, default 1) makes a set error intermittent.
+In-memory only — cleared by DELETE or a process restart.
+
 ## System
 
 | Method | Path | → |
