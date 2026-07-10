@@ -34,7 +34,7 @@ Two knobs make custom authorities work in every Microsoft SDK:
 
 Notes per language:
 
-- **TypeScript** is the reference suite (mirrors entra-local's e2e approach). The
+- **TypeScript** is the reference suite. The
   msal-node auth-code test uses `getAuthCodeUrl` → drive the account picker over HTTPS
   with a cookie jar → `acquireTokenByCode`, then asserts `client_info`-derived account
   identity and JWKS verification.

@@ -2,8 +2,8 @@ package store
 
 import "database/sql"
 
-// Fixed seed identifiers — identical to entra-local so CI fixtures
-// and documentation transfer unchanged (docs/03-data-model-and-seed.md).
+// Fixed seed identifiers — deterministic GUIDs so CI fixtures and
+// documentation stay stable (docs/03-data-model-and-seed.md).
 const (
 	SeedUserAliceID  = "aaaaaaaa-0000-0000-0000-000000000001"
 	SeedUserBobID    = "aaaaaaaa-0000-0000-0000-000000000002"
@@ -49,21 +49,21 @@ func (s *Store) Seed(tenantID, issuer string) (bool, error) {
 		exec := func(q string, args ...any) error { _, err := tx.Exec(q, args...); return err }
 
 		if err := exec(`INSERT OR IGNORE INTO tenants (id, display_name, issuer, created_at) VALUES (?,?,?,?)`,
-			tenantID, "Entra Local", issuer, now); err != nil {
+			tenantID, "Entra Emulator", issuer, now); err != nil {
 			return err
 		}
 		if err := exec(`INSERT OR IGNORE INTO users
 			(id, tenant_id, user_principal_name, display_name, given_name, surname, mail, password_hash, account_enabled, created_at)
 			VALUES (?,?,?,?,?,?,?,?,1,?)`,
-			SeedUserAliceID, tenantID, "alice@entralocal.dev", "Alice Example", "Alice", "Example",
-			"alice@entralocal.dev", alicePwd, now); err != nil {
+			SeedUserAliceID, tenantID, "alice@entraemulator.dev", "Alice Example", "Alice", "Example",
+			"alice@entraemulator.dev", alicePwd, now); err != nil {
 			return err
 		}
 		if err := exec(`INSERT OR IGNORE INTO users
 			(id, tenant_id, user_principal_name, display_name, given_name, surname, mail, password_hash, account_enabled, created_at)
 			VALUES (?,?,?,?,?,?,?,?,1,?)`,
-			SeedUserBobID, tenantID, "bob@entralocal.dev", "Bob Example", "Bob", "Example",
-			"bob@entralocal.dev", bobPwd, now); err != nil {
+			SeedUserBobID, tenantID, "bob@entraemulator.dev", "Bob Example", "Bob", "Example",
+			"bob@entraemulator.dev", bobPwd, now); err != nil {
 			return err
 		}
 		if err := exec(`INSERT OR IGNORE INTO groups (id, tenant_id, display_name, description, created_at)

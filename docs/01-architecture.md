@@ -1,10 +1,10 @@
 # 01 — Architecture
 
-> Entra Emulator is a local, MSAL-compatible emulator of Microsoft Entra ID in Go. It
-> exposes the OIDC/OAuth 2.0 v2.0 endpoint surface MSAL talks to, a minimal read-only
-> Microsoft Graph, and an unauthenticated admin REST API — one process, one HTTPS
-> listener. Its emulated surface is compatible with
-> [entra-local](https://github.com/cmaneu/entra-local) (TypeScript prior art).
+> Entra Emulator is a local, MSAL-compatible emulator of Microsoft Entra ID in Go —
+> an independent, clean-room implementation of Microsoft's publicly documented
+> identity platform v2.0 protocol surface. It exposes the OIDC/OAuth 2.0 endpoints
+> MSAL talks to, a minimal read-only Microsoft Graph, and an unauthenticated admin
+> REST API — one process, one HTTPS listener.
 
 ## Goals
 
@@ -17,25 +17,25 @@
 4. **Inspectable & resettable.** Admin API to list/create/reset everything; fixed seed
    GUIDs and secrets for reproducible CI.
 
-**Non-goals** mirror entra-local: no multi-tenant, implicit flow, ROPC, OBO, SAML,
-MFA/Conditional Access/consent, certificate client auth, or Graph writes. This is a
-development tool — intentionally insecure (open admin API, seeded public secrets,
-self-signed TLS).
+**Non-goals**: no multi-tenant, implicit flow, ROPC, OBO, SAML, MFA/Conditional
+Access/consent, certificate client auth, or Graph writes (several are roadmap items —
+docs/10). This is a development tool — intentionally insecure (open admin API, seeded
+public secrets, self-signed TLS).
 
-## Implementation choices vs entra-local
+## Implementation choices
 
-| Concern | entra-local (TypeScript) | entra-emulator (Go) | Why |
-|---|---|---|---|
-| Runtime | Node 22+, pnpm, Fastify | Single static Go binary, `net/http` | Go's stdlib covers the whole surface; no SEA packaging step needed |
-| Persistence | SQLite (`node:sqlite`) | SQLite (`modernc.org/sqlite`, pure Go — no cgo) | Same file format and semantics as entra-local; the pure-Go driver keeps cross-compilation and the static binary |
-| JWT/crypto | `jose` | `crypto/rsa` + hand-rolled compact JWS (RS256 only) | One algorithm, ~100 lines, no dependency |
-| Admin portal | React SPA (Vite) | **Svelte SPA** (Vite build), compiled assets embedded in the binary via `go:embed` | Smaller runtime bundle than React; Node toolchain needed only when working on the portal — the shipped binary stays self-contained |
-| Validation | zod | plain Go validation funcs | — |
-| Password hashing | scrypt | scrypt (`golang.org/x/crypto/scrypt`) | Parity; only non-stdlib dependency |
+| Concern | Choice | Why |
+|---|---|---|
+| Runtime | Single static Go binary, stdlib `net/http` | The stdlib covers the whole surface; trivial cross-compilation |
+| Persistence | SQLite via `modernc.org/sqlite` (pure Go — no cgo) | Standard file format, SQL migrations, static binary preserved |
+| JWT/crypto | `crypto/rsa` + hand-rolled compact JWS (RS256 only) | One algorithm, ~100 lines, no dependency |
+| Admin portal | Svelte SPA (Vite build), assets embedded via `go:embed` | Small bundle; Node needed only when changing the portal — the shipped binary stays self-contained |
+| Validation | Plain Go validation funcs | — |
+| Password hashing | scrypt (`golang.org/x/crypto/scrypt`) | Only non-stdlib dependency besides the SQLite driver |
 
-Everything protocol-visible — paths, parameters, claim shapes, error bodies, seed
-GUIDs/secrets, lifetimes — matches entra-local so MSAL clients and resource APIs cannot
-tell the difference. Data files are **not** interchangeable between the two projects.
+Everything protocol-visible — paths, parameters, claim shapes, error bodies,
+lifetimes — follows Microsoft's published Entra ID v2.0 behavior so MSAL clients and
+resource APIs cannot tell the difference.
 
 ## Process shape
 
@@ -117,8 +117,8 @@ data/
    tokens, MSAL), `docs/identity/authentication/` (auth methods incl. passkeys/FIDO2),
    `docs/external-id/` (CIAM / native auth). When emulator behavior is in question,
    this wins over inference.
-2. **`~/calvinchengx/entra-local`** — the TypeScript prior-art emulator; canonical for
-   the emulated surface cut, seed data, and error conventions (its `specs/` folder).
+2. **The relevant RFCs** — OAuth 2.0 (6749/6750), PKCE (7636), Device Authorization
+   Grant (8628), JWT/JWS/JWK (7519/7515/7517/7638), and OpenID Connect Core/Discovery.
 
 ## Design doc set
 

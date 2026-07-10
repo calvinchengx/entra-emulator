@@ -8,7 +8,7 @@ booleans are `INTEGER 0/1`.
 
 ## Schema
 
-Matches entra-local (migration-001 + migration-002 shapes) for fixture compatibility.
+
 
 | Table | Columns (PK bold) | Notes |
 |---|---|---|
@@ -54,13 +54,13 @@ One struct per entity in `internal/store`, methods taking `*sql.Tx`-or-DB via a 
 - **Refresh tokens, device codes:** SHA-256 hex of the opaque plaintext is the stored PK.
 - **Auth codes:** stored as issued (opaque ≥256-bit base64url, 5-min TTL, single-use).
 
-## Deterministic seed (fixed GUIDs — identical to entra-local)
+## Deterministic seed (fixed GUIDs)
 
 | Entity | GUID | Values |
 |---|---|---|
-| Tenant | `11111111-1111-1111-1111-111111111111` | `Entra Local` (display), issuer derived |
-| User Alice | `aaaaaaaa-0000-0000-0000-000000000001` | `alice@entralocal.dev`, "Alice Example", mail set, password `Password1!` (scrypt) |
-| User Bob | `aaaaaaaa-0000-0000-0000-000000000002` | `bob@entralocal.dev`, password `Password1!` |
+| Tenant | `11111111-1111-1111-1111-111111111111` | `Entra Emulator` (display), issuer derived |
+| User Alice | `aaaaaaaa-0000-0000-0000-000000000001` | `alice@entraemulator.dev`, "Alice Example", mail set, password `Password1!` (scrypt) |
+| User Bob | `aaaaaaaa-0000-0000-0000-000000000002` | `bob@entraemulator.dev`, password `Password1!` |
 | Group | `bbbbbbbb-0000-0000-0000-000000000001` | `Engineering`; members Alice + Bob |
 | App: Sample SPA | `cccccccc-0000-0000-0000-000000000001` | public (`is_confidential=0`), redirect `https://localhost:3000`, `app_id_uri=api://cccccccc-…-0001`, scope `access_as_user` |
 | App: Sample Daemon | `cccccccc-0000-0000-0000-000000000002` | confidential, secret `daemon-app-secret` (hashed, hint stored), `app_id_uri=api://cccccccc-…-0002`, app role `Tasks.Read.All` (Application) |

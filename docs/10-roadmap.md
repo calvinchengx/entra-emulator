@@ -1,6 +1,6 @@
 # 10 — Roadmap (post-parity)
 
-Phase 0 is the entra-local-compatible protocol surface (docs 02–08). Everything
+Phase 0 is the core protocol surface (docs 02–08). Everything
 below is sequenced *after* parity ships, ordered by value-for-effort.
 
 ## Phase 1 — Go-native superpowers
@@ -34,7 +34,7 @@ The features only a Go implementation can offer; cheap and differentiating.
 
 ## Phase 3 — Protocol surface parity-plus
 
-entra-local's deferred roadmap items, adopted here:
+Deeper Microsoft identity platform coverage:
 
 8. **On-Behalf-Of (OBO)** — the biggest real-world gap for multi-tier APIs.
 9. **Custom authentication extensions** — emulate the `onTokenIssuanceStart` webhook
@@ -70,5 +70,4 @@ entra-local's deferred roadmap items, adopted here:
 ## Explicit non-goals
 
 SAML/WS-Fed, B2C user flows, MFA/Conditional Access emulation, production hardening.
-These change the project's character from "dev-loop emulator" to "IdP", and
-entra-local excludes them too.
+These change the project's character from "dev-loop emulator" to "IdP".

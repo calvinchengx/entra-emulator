@@ -134,12 +134,12 @@ func TestMSALGoDeviceCode(t *testing.T) {
 	if claims["oid"] != aliceID {
 		t.Fatalf("expected approving user alice, got %v", claims["oid"])
 	}
-	if result.Account.PreferredUsername != "alice@entralocal.dev" {
+	if result.Account.PreferredUsername != "alice@entraemulator.dev" {
 		t.Fatalf("account identity: %+v", result.Account)
 	}
 }
 
-var stateRe = regexp.MustCompile(`name="__el_state" value="([^"]+)"`)
+var stateRe = regexp.MustCompile(`name="__ee_state" value="([^"]+)"`)
 
 func approveDeviceCode(hc *http.Client, origin, tenant, userCode string) error {
 	verify := origin + "/" + tenant + "/oauth2/v2.0/devicecode/verify"
@@ -152,7 +152,7 @@ func approveDeviceCode(hc *http.Client, origin, tenant, userCode string) error {
 		raw, _ := io.ReadAll(resp.Body)
 		return string(raw), nil
 	}
-	page, err := post(url.Values{"__el_step": {"lookup"}, "user_code": {userCode}})
+	page, err := post(url.Values{"__ee_step": {"lookup"}, "user_code": {userCode}})
 	if err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ func approveDeviceCode(hc *http.Client, origin, tenant, userCode string) error {
 	if m == nil {
 		return fmt.Errorf("no state on lookup page: %.300s", page)
 	}
-	page, err = post(url.Values{"__el_step": {"signin"}, "__el_state": {m[1]}, "__el_user": {aliceID}})
+	page, err = post(url.Values{"__ee_step": {"signin"}, "__ee_state": {m[1]}, "__ee_user": {aliceID}})
 	if err != nil {
 		return err
 	}
@@ -168,7 +168,7 @@ func approveDeviceCode(hc *http.Client, origin, tenant, userCode string) error {
 	if m == nil {
 		return fmt.Errorf("no state on consent page: %.300s", page)
 	}
-	page, err = post(url.Values{"__el_step": {"decide"}, "__el_state": {m[1]}, "__el_decision": {"approve"}})
+	page, err = post(url.Values{"__ee_step": {"decide"}, "__ee_state": {m[1]}, "__ee_decision": {"approve"}})
 	if err != nil {
 		return err
 	}

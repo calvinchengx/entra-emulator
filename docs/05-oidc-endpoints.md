@@ -92,8 +92,8 @@ other errors with a valid redirect_uri → redirect back with `error`+`state`.
 name + UPN); selection POSTs back and creates a session. `REQUIRE_PASSWORD=true` swaps in
 a username+password form (`users.VerifyPassword`); wrong credentials re-render with an
 error. Authorize params survive the interactive POST via an HMAC-signed hidden state
-field (`__el_state`, per-process key). Cookies: `el_session` (HttpOnly, SameSite=Lax,
-Secure-when-TLS, 8 h — must be the **first** Set-Cookie) and `el_recent` (recent UPNs,
+field (`__ee_state`, per-process key). Cookies: `ee_session` (HttpOnly, SameSite=Lax,
+Secure-when-TLS, 8 h — must be the **first** Set-Cookie) and `ee_recent` (recent UPNs,
 30 d). A valid session + no forcing `prompt` skips the picker (SSO) and issues the code
 directly.
 
@@ -119,9 +119,8 @@ On success: issue code (via token service) → deliver `code` + `state` per resp
 Resolution order: `GRAPH_RESOURCE_ID` → app by `app_id_uri` → app by GUID → else
 `invalid_scope`. **Reserved OIDC scopes (`openid profile offline_access`) accompanying
 `.default` are silently ignored** — MSAL Go and azidentity append them to
-client-credentials requests and real Entra tolerates that (empirical divergence from
-entra-local's stricter spec, found by the Go e2e suite). Any other extra
-scope → `invalid_scope`.
+client-credentials requests and real Entra tolerates that (found by the Go e2e
+suite). Any other extra scope → `invalid_scope`.
 Roles auto-granted from the resource app's enabled Application-type roles (`[]` for
 Graph). Response has NO id_token/refresh_token/client_info. Public client → `invalid_client`.
 
@@ -154,8 +153,8 @@ authorize). Success:
 `verification_uri` echoes the requested tenant alias.
 
 **Approval page:** GET renders code entry (pre-filled from `?user_code=`); POST
-`/verify` is a 3-step state machine (`__el_step` = `lookup` → `signin` → `decide`)
-reusing the sign-in chrome and `el_session` SSO. CSRF: `__el_state` HMAC-signs
+`/verify` is a 3-step state machine (`__ee_step` = `lookup` → `signin` → `decide`)
+reusing the sign-in chrome and `ee_session` SSO. CSRF: `__ee_state` HMAC-signs
 `{userCode, sid}` where `sid` must equal the live session id on `decide`; the device code
 row is re-validated server-side at every step. Approve → `status=approved` +
 `user_id`; deny → `denied`. Distinct error pages for not-found / expired / already-used /

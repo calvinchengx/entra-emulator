@@ -79,8 +79,8 @@ Per app registration (`optional_claims` JSON, `group_membership_claims`,
 
 - ID-token optional claims come from the **client** app's config; access-token claims
   from the **resource** app's config.
-- Supported ID-token claims: `given_name`, `family_name`, `upn`, `ipaddr`, `groups` (+
-  others per entra-local's supported set); supported access-token set excludes `auth_time`.
+- Supported ID-token claims: `given_name`, `family_name`, `upn`, `ipaddr`, `groups`;
+  the supported access-token set excludes `auth_time`.
   Unsupported configured claims are stored but never emitted.
 - `groups` emits the user's group GUIDs when `group_membership_claims != None` or
   `groups` is listed as an optional claim. Above the overage limit, emit the Entra-style
@@ -96,7 +96,7 @@ Per app registration (`optional_claims` JSON, `group_membership_claims`,
 | Access token | 3600 s | `expires_in` mirrors this |
 | Refresh token | 86400 s | rotating; **rolling** TTL on each rotation |
 | Device code | 900 s | interval 5 s |
-| SSO session | 8 h | `el_session` cookie + row TTL |
+| SSO session | 8 h | `ee_session` cookie + row TTL |
 
 ## Grant artifact contracts
 

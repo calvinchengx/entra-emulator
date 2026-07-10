@@ -51,7 +51,7 @@ opener = urllib.request.build_opener(
     urllib.request.HTTPSHandler(context=ssl_ctx),
     urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()),
 )
-STATE_RE = re.compile(r'name="__el_state" value="([^"]+)"')
+STATE_RE = re.compile(r'name="__ee_state" value="([^"]+)"')
 
 
 def post_form(url, fields):
@@ -62,11 +62,11 @@ def post_form(url, fields):
 
 def approve_device_code(user_code):
     verify = f"{AUTHORITY}/oauth2/v2.0/devicecode/verify"
-    page = post_form(verify, {"__el_step": "lookup", "user_code": user_code})
+    page = post_form(verify, {"__ee_step": "lookup", "user_code": user_code})
     state = STATE_RE.search(page).group(1)
-    page = post_form(verify, {"__el_step": "signin", "__el_state": state, "__el_user": ALICE_ID})
+    page = post_form(verify, {"__ee_step": "signin", "__ee_state": state, "__ee_user": ALICE_ID})
     state = STATE_RE.search(page).group(1)
-    page = post_form(verify, {"__el_step": "decide", "__el_state": state, "__el_decision": "approve"})
+    page = post_form(verify, {"__ee_step": "decide", "__ee_state": state, "__ee_decision": "approve"})
     assert "all set" in page, page[:300]
 
 
@@ -120,7 +120,7 @@ def main():
     check("device code: tokens issued", "access_token" in result, str(result))
     idc = decode_jwt(result["id_token"])
     check("device code: approving user is alice",
-          idc.get("preferred_username") == "alice@entralocal.dev", str(idc))
+          idc.get("preferred_username") == "alice@entraemulator.dev", str(idc))
     check("device code: refresh token present", "refresh_token" in result)
 
     if failures:

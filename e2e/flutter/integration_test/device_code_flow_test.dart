@@ -15,7 +15,7 @@ import 'package:integration_test/integration_test.dart';
 
 import 'package:entra_emulator_e2e/emulator_config.dart';
 
-final _stateRe = RegExp(r'name="__el_state" value="([^"]+)"');
+final _stateRe = RegExp(r'name="__ee_state" value="([^"]+)"');
 
 Map<String, dynamic> decodeJwtPayload(String jwt) {
   final payload = jwt.split('.')[1];
@@ -52,7 +52,7 @@ void main() {
     // 3. Approve as Alice via the approval pages (cookie carried manually).
     final verifyUri = base.replace(path: '${base.path}/devicecode/verify');
     final lookup = await http.post(verifyUri, body: {
-      '__el_step': 'lookup',
+      '__ee_step': 'lookup',
       'user_code': daBody['user_code'],
     });
     var state = _stateRe.firstMatch(lookup.body)?.group(1);
@@ -60,20 +60,20 @@ void main() {
 
     final signinReq = http.Request('POST', verifyUri)
       ..bodyFields = {
-        '__el_step': 'signin',
-        '__el_state': state!,
-        '__el_user': aliceId,
+        '__ee_step': 'signin',
+        '__ee_state': state!,
+        '__ee_user': aliceId,
       };
     final signinResp = await http.Response.fromStream(await signinReq.send());
     final cookie = signinResp.headers['set-cookie']?.split(';').first;
-    expect(cookie, startsWith('el_session='), reason: 'sign-in must set the session cookie first');
+    expect(cookie, startsWith('ee_session='), reason: 'sign-in must set the session cookie first');
     state = _stateRe.firstMatch(signinResp.body)?.group(1);
     expect(state, isNotNull, reason: signinResp.body);
 
     final decide = await http.post(verifyUri, headers: {'cookie': cookie!}, body: {
-      '__el_step': 'decide',
-      '__el_state': state!,
-      '__el_decision': 'approve',
+      '__ee_step': 'decide',
+      '__ee_state': state!,
+      '__ee_decision': 'approve',
     });
     expect(decide.body, contains("You're all set"), reason: decide.body);
 
@@ -90,7 +90,7 @@ void main() {
 
     final idClaims = decodeJwtPayload(tokenBody['id_token'] as String);
     expect(idClaims['oid'], aliceId);
-    expect(idClaims['preferred_username'], 'alice@entralocal.dev');
+    expect(idClaims['preferred_username'], 'alice@entraemulator.dev');
     expect(idClaims['ver'], '2.0');
     expect(idClaims['iss'], '$emuOrigin/$emuTenant/v2.0');
 
@@ -100,6 +100,6 @@ void main() {
       headers: {'authorization': 'Bearer ${tokenBody['access_token']}'},
     );
     expect(me.statusCode, 200, reason: me.body);
-    expect(jsonDecode(me.body)['userPrincipalName'], 'alice@entralocal.dev');
+    expect(jsonDecode(me.body)['userPrincipalName'], 'alice@entraemulator.dev');
   });
 }
