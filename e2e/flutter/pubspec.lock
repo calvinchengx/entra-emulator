@@ -66,18 +66,18 @@ packages:
     dependency: "direct main"
     description:
       name: flutter_appauth
-      sha256: b09fa8e3eaba12ec341c69ec45063e06eb565304e24cc35caaf105bbae2e955c
+      sha256: aafcafdc7de1c412f361798c993de5737a3eddc6bf26fe38a71ad580b37b4ec0
       url: "https://pub.dev"
     source: hosted
-    version: "9.0.1"
+    version: "12.0.2"
   flutter_appauth_platform_interface:
     dependency: transitive
     description:
       name: flutter_appauth_platform_interface
-      sha256: fd2920b853d09741aff2e1178e044ea2ade0c87799cd8e63f094ab35b00fdf70
+      sha256: b7c7d4f288af7b3119a9db0ea00cf5e93135d0e83c3687172848bc5c4fdec992
       url: "https://pub.dev"
     source: hosted
-    version: "9.0.0"
+    version: "12.0.1"
   flutter_driver:
     dependency: transitive
     description: flutter
@@ -313,4 +313,4 @@ packages:
     version: "3.1.0"
 sdks:
   dart: ">=3.12.0 <4.0.0"
-  flutter: ">=3.19.0"
+  flutter: ">=3.38.1"

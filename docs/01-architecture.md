@@ -1,9 +1,10 @@
 # 01 — Architecture
 
-> Entra Emulator is a Go port of [entra-local](https://github.com/cmaneu/entra-local): a
-> local, MSAL-compatible emulator of Microsoft Entra ID. It exposes the OIDC/OAuth 2.0
-> v2.0 endpoint surface MSAL talks to, a minimal read-only Microsoft Graph, and an
-> unauthenticated admin REST API — one process, one HTTPS listener.
+> Entra Emulator is a local, MSAL-compatible emulator of Microsoft Entra ID in Go. It
+> exposes the OIDC/OAuth 2.0 v2.0 endpoint surface MSAL talks to, a minimal read-only
+> Microsoft Graph, and an unauthenticated admin REST API — one process, one HTTPS
+> listener. Its emulated surface is compatible with
+> [entra-local](https://github.com/cmaneu/entra-local) (TypeScript prior art).
 
 ## Goals
 
@@ -21,19 +22,19 @@ MFA/Conditional Access/consent, certificate client auth, or Graph writes. This i
 development tool — intentionally insecure (open admin API, seeded public secrets,
 self-signed TLS).
 
-## Deliberate divergences from entra-local
+## Implementation choices vs entra-local
 
 | Concern | entra-local (TypeScript) | entra-emulator (Go) | Why |
 |---|---|---|---|
 | Runtime | Node 22+, pnpm, Fastify | Single static Go binary, `net/http` | Go's stdlib covers the whole surface; no SEA packaging step needed |
-| Persistence | SQLite (`node:sqlite`) | SQLite (`modernc.org/sqlite`, pure Go — no cgo) | Same file format and semantics as upstream; the pure-Go driver keeps cross-compilation and the static binary |
+| Persistence | SQLite (`node:sqlite`) | SQLite (`modernc.org/sqlite`, pure Go — no cgo) | Same file format and semantics as entra-local; the pure-Go driver keeps cross-compilation and the static binary |
 | JWT/crypto | `jose` | `crypto/rsa` + hand-rolled compact JWS (RS256 only) | One algorithm, ~100 lines, no dependency |
 | Admin portal | React SPA (Vite) | **Svelte SPA** (Vite build), compiled assets embedded in the binary via `go:embed` | Smaller runtime bundle than React; Node toolchain needed only when working on the portal — the shipped binary stays self-contained |
 | Validation | zod | plain Go validation funcs | — |
 | Password hashing | scrypt | scrypt (`golang.org/x/crypto/scrypt`) | Parity; only non-stdlib dependency |
 
 Everything protocol-visible — paths, parameters, claim shapes, error bodies, seed
-GUIDs/secrets, lifetimes — is ported faithfully so MSAL clients and resource APIs cannot
+GUIDs/secrets, lifetimes — matches entra-local so MSAL clients and resource APIs cannot
 tell the difference. Data files are **not** interchangeable between the two projects.
 
 ## Process shape
@@ -116,7 +117,7 @@ data/
    tokens, MSAL), `docs/identity/authentication/` (auth methods incl. passkeys/FIDO2),
    `docs/external-id/` (CIAM / native auth). When emulator behavior is in question,
    this wins over inference.
-2. **`~/calvinchengx/entra-local`** — the upstream TypeScript emulator; canonical for
+2. **`~/calvinchengx/entra-local`** — the TypeScript prior-art emulator; canonical for
    the emulated surface cut, seed data, and error conventions (its `specs/` folder).
 
 ## Design doc set

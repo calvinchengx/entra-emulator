@@ -37,6 +37,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.44.0
           cache: true
       - name: Enable KVM
         run: |
@@ -73,12 +74,15 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.44.0
           cache: true
       - name: Boot an iOS simulator
         id: sim
+        # No model pin — available device models change with the runner's
+        # Xcode version; any booted iPhone simulator works for this test.
         uses: futureware-tech/simulator-action@v4
         with:
-          model: 'iPhone 15'
+          os: iOS
       - name: Run integration test on the iOS simulator
         working-directory: e2e/flutter
         run: flutter test integration_test -d ${{ steps.sim.outputs.udid }} --dart-define=EMU_ORIGIN=http://localhost:8443

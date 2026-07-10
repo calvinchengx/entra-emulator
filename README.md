@@ -5,10 +5,11 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 **A local, MSAL-compatible emulator of Microsoft Entra ID (Azure AD), in a single Go
-binary.** A faithful port of [entra-local](https://github.com/cmaneu/entra-local) — the
-same OIDC/OAuth 2.0 v2.0 endpoints MSAL talks to, a minimal read-only Microsoft Graph,
-and an unauthenticated admin REST API, so you can develop sign-in, token acquisition,
-and protected-API calls offline with no cloud tenant.
+binary.** The OIDC/OAuth 2.0 v2.0 endpoints MSAL talks to, a minimal read-only
+Microsoft Graph, and an unauthenticated admin REST API, so you can develop sign-in,
+token acquisition, and protected-API calls offline with no cloud tenant. Emulated
+surface and seed conventions are compatible with
+[entra-local](https://github.com/cmaneu/entra-local), the TypeScript prior art.
 
 > ⚠️ **Local development tool only — intentionally insecure.** Open admin API,
 > publicly known seeded users/secrets, self-signed TLS, signing key stored unencrypted.
@@ -100,12 +101,12 @@ refresh, and device code with headless approval — in TypeScript, Go, and Pytho
 Dependencies: `modernc.org/sqlite` (pure-Go SQLite, no cgo) and `golang.org/x/crypto`
 (scrypt). Cross-compiles to a single static binary on all platforms.
 
-### Deliberate divergences from entra-local
+### Compatibility with entra-local
 
-Protocol surface, claim shapes, error bodies, seed GUIDs, and lifetimes are ported
-faithfully. Internals differ: Go stdlib `net/http` instead of Fastify, hand-rolled
-RS256 JWS instead of `jose`, and a Svelte portal (in progress) instead of React. Data
-files are not interchangeable between the two projects.
+Protocol surface, claim shapes, error bodies, seed GUIDs, and lifetimes match
+entra-local so fixtures and MSAL configs transfer. Internals are independent: Go
+stdlib `net/http`, hand-rolled RS256 JWS, SQLite via a pure-Go driver, and a Svelte
+portal. Data files are not interchangeable between the two projects.
 
 ## Disclaimer
 
@@ -116,6 +117,4 @@ development and testing only.
 
 ## License
 
-[Apache License 2.0](LICENSE). This project is a Go port of
-[entra-local](https://github.com/cmaneu/entra-local) (MIT) — see [NOTICE](NOTICE)
-for the original attribution.
+[Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for acknowledgments.

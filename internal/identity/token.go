@@ -29,7 +29,7 @@ func (i *Identity) handleToken(w http.ResponseWriter, r *http.Request) {
 	case "client_credentials":
 		i.grantClientCredentials(w, r)
 	// The URN is canonical/advertised; msal-node actually polls with the
-	// bare value — both dispatch to the same handler (upstream parity).
+	// bare value — both dispatch to the same handler (entra-local-compatible).
 	case "urn:ietf:params:oauth:grant-type:device_code", "device_code":
 		i.grantDeviceCode(w, r)
 	default:

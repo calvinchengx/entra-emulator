@@ -80,7 +80,7 @@ Per app registration (`optional_claims` JSON, `group_membership_claims`,
 - ID-token optional claims come from the **client** app's config; access-token claims
   from the **resource** app's config.
 - Supported ID-token claims: `given_name`, `family_name`, `upn`, `ipaddr`, `groups` (+
-  others per upstream's supported set); supported access-token set excludes `auth_time`.
+  others per entra-local's supported set); supported access-token set excludes `auth_time`.
   Unsupported configured claims are stored but never emitted.
 - `groups` emits the user's group GUIDs when `group_membership_claims != None` or
   `groups` is listed as an optional claim. Above the overage limit, emit the Entra-style

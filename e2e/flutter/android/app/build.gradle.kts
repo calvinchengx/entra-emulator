@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.entra_emulator_e2e"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36 // pinned: flutter_appauth androidx deps need >= 34; CI toolchains vary
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
