@@ -1,5 +1,9 @@
 # Entra Emulator
 
+[![CI](https://github.com/calvinchengx/entra-emulator/actions/workflows/ci.yml/badge.svg)](https://github.com/calvinchengx/entra-emulator/actions/workflows/ci.yml)
+[![Flutter e2e](https://github.com/calvinchengx/entra-emulator/actions/workflows/flutter-e2e.yml/badge.svg)](https://github.com/calvinchengx/entra-emulator/actions/workflows/flutter-e2e.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **A local, MSAL-compatible emulator of Microsoft Entra ID (Azure AD), in a single Go
 binary.** A faithful port of [entra-local](https://github.com/cmaneu/entra-local) — the
 same OIDC/OAuth 2.0 v2.0 endpoints MSAL talks to, a minimal read-only Microsoft Graph,
