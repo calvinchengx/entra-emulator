@@ -53,7 +53,7 @@
   {#if showCreate}
     <form onsubmit={create} style="border:1px solid var(--divider);border-radius:4px;padding:16px;margin-bottom:16px;max-width:480px">
       <label for="upn">User principal name</label>
-      <input id="upn" bind:value={form.userPrincipalName} placeholder="carol@entralocal.dev" required />
+      <input id="upn" bind:value={form.userPrincipalName} placeholder="carol@entraemulator.dev" required />
       <label for="dn">Display name</label>
       <input id="dn" bind:value={form.displayName} placeholder="Carol Example" required />
       <label for="mail">Mail (optional)</label>

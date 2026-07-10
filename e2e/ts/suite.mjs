@@ -75,10 +75,10 @@ async function main() {
     state: 'e2e-state', nonce: 'e2e-nonce',
   });
   const picker = await request(authUrl);
-  check('authorize: account picker rendered', picker.status === 200 && picker.body.includes('alice@entralocal.dev'));
-  const signed = picker.body.match(/name="__el_state" value="([^"]+)"/)?.[1];
+  check('authorize: account picker rendered', picker.status === 200 && picker.body.includes('alice@entraemulator.dev'));
+  const signed = picker.body.match(/name="__ee_state" value="([^"]+)"/)?.[1];
   const submit = await request(`${ORIGIN}/${TENANT}/oauth2/v2.0/authorize`, {
-    method: 'POST', body: form({ __el_state: signed, __el_user: ALICE_ID }),
+    method: 'POST', body: form({ __ee_state: signed, __ee_user: ALICE_ID }),
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
   });
   check('authorize: 302 with code + state', submit.status === 302 && submit.headers.location?.includes('state=e2e-state'));
@@ -90,7 +90,7 @@ async function main() {
   });
   check('acquireTokenByCode: id + access tokens', !!tokens.idToken && !!tokens.accessToken);
   check('account identity from client_info',
-    tokens.account?.username === 'alice@entralocal.dev' &&
+    tokens.account?.username === 'alice@entraemulator.dev' &&
     tokens.account?.homeAccountId?.startsWith(ALICE_ID),
     JSON.stringify(tokens.account));
   check('id token nonce + ver', tokens.idTokenClaims?.nonce === 'e2e-nonce' && tokens.idTokenClaims?.ver === '2.0');
@@ -105,14 +105,14 @@ async function main() {
   // --- Device code (approval driven concurrently, never blocking the poll) ---
   const approve = async (userCode) => {
     const lookup = await request(`${ORIGIN}/${TENANT}/oauth2/v2.0/devicecode/verify`, {
-      method: 'POST', body: form({ __el_step: 'lookup', user_code: userCode }),
+      method: 'POST', body: form({ __ee_step: 'lookup', user_code: userCode }),
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
     });
     // Session cookie from the earlier sign-in gives the direct-SSO consent page.
-    const st = lookup.body.match(/name="__el_state" value="([^"]+)"/)?.[1];
+    const st = lookup.body.match(/name="__ee_state" value="([^"]+)"/)?.[1];
     if (!st) throw new Error('no consent state: ' + lookup.body.slice(0, 300));
     const decide = await request(`${ORIGIN}/${TENANT}/oauth2/v2.0/devicecode/verify`, {
-      method: 'POST', body: form({ __el_step: 'decide', __el_state: st, __el_decision: 'approve' }),
+      method: 'POST', body: form({ __ee_step: 'decide', __ee_state: st, __ee_decision: 'approve' }),
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
     });
     if (!decide.body.includes("You're all set")) throw new Error('approve failed: ' + decide.body.slice(0, 300));
@@ -124,7 +124,7 @@ async function main() {
   });
   await approvalPromise;
   check('device code: token for approving user',
-    device.account?.username === 'alice@entralocal.dev', JSON.stringify(device.account));
+    device.account?.username === 'alice@entraemulator.dev', JSON.stringify(device.account));
 
   // --- Negative: wrong secret ---
   const bad = new msal.ConfidentialClientApplication({

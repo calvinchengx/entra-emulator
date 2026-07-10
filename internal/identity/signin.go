@@ -58,7 +58,7 @@ func hiddenFields(fields map[string]string) string {
 }
 
 // renderAccountPicker lists enabled users as selectable rows posting
-// __el_user back to action.
+// __ee_user back to action.
 func (i *Identity) renderAccountPicker(w http.ResponseWriter, action, signedState string,
 	users []*store.User, extra map[string]string, errMsg string) {
 	body := `<h1>Pick an account</h1>`

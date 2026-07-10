@@ -7,9 +7,7 @@
 **A local, MSAL-compatible emulator of Microsoft Entra ID (Azure AD), in a single Go
 binary.** The OIDC/OAuth 2.0 v2.0 endpoints MSAL talks to, a minimal read-only
 Microsoft Graph, and an unauthenticated admin REST API, so you can develop sign-in,
-token acquisition, and protected-API calls offline with no cloud tenant. Emulated
-surface and seed conventions are compatible with
-[entra-local](https://github.com/cmaneu/entra-local), the TypeScript prior art.
+token acquisition, and protected-API calls offline with no cloud tenant.
 
 > ⚠️ **Local development tool only — intentionally insecure.** Open admin API,
 > publicly known seeded users/secrets, self-signed TLS, signing key stored unencrypted.
@@ -69,7 +67,7 @@ Trust the self-signed cert (`./entra-emulator trust` prints the platform command
 | What | Value |
 |---|---|
 | Tenant | `11111111-1111-1111-1111-111111111111` |
-| Users | `alice@entralocal.dev`, `bob@entralocal.dev` (password `Password1!`), group `Engineering` |
+| Users | `alice@entraemulator.dev`, `bob@entraemulator.dev` (password `Password1!`), group `Engineering` |
 | Public SPA app | `cccccccc-…-0001`, redirect `https://localhost:3000`, scope `access_as_user` |
 | Confidential daemon | `cccccccc-…-0002`, secret `daemon-app-secret`, app role `Tasks.Read.All` |
 
@@ -101,12 +99,11 @@ refresh, and device code with headless approval — in TypeScript, Go, and Pytho
 Dependencies: `modernc.org/sqlite` (pure-Go SQLite, no cgo) and `golang.org/x/crypto`
 (scrypt). Cross-compiles to a single static binary on all platforms.
 
-### Compatibility with entra-local
+### Implementation notes
 
-Protocol surface, claim shapes, error bodies, seed GUIDs, and lifetimes match
-entra-local so fixtures and MSAL configs transfer. Internals are independent: Go
-stdlib `net/http`, hand-rolled RS256 JWS, SQLite via a pure-Go driver, and a Svelte
-portal. Data files are not interchangeable between the two projects.
+Protocol surface, claim shapes, and error bodies follow Microsoft's published
+Entra ID v2.0 behavior. Internals: Go stdlib `net/http`, hand-rolled RS256 JWS,
+SQLite via a pure-Go driver, and a Svelte portal embedded with `go:embed`.
 
 ## Disclaimer
 

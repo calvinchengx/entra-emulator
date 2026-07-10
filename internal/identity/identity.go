@@ -13,18 +13,18 @@ import (
 	"github.com/calvinchengx/entra-emulator/internal/tokens"
 )
 
-// Cookie and form-field names (entra-local-compatible — tests and helpers rely on
-// these exact names).
+// Cookie and form-field names — a stable contract; tests and the e2e
+// suites rely on these exact names.
 const (
-	sessionCookie          = "el_session"
-	recentCookie           = "el_recent"
+	sessionCookie          = "ee_session"
+	recentCookie           = "ee_recent"
 	sessionLifetimeSeconds = 8 * 60 * 60
-	fieldState             = "__el_state"
-	fieldStep              = "__el_step"
-	fieldUser              = "__el_user"
-	fieldUsername          = "__el_username"
-	fieldPassword          = "__el_password"
-	fieldDecision          = "__el_decision"
+	fieldState             = "__ee_state"
+	fieldStep              = "__ee_step"
+	fieldUser              = "__ee_user"
+	fieldUsername          = "__ee_username"
+	fieldPassword          = "__ee_password"
+	fieldDecision          = "__ee_decision"
 )
 
 // Identity is the STS surface.
@@ -113,8 +113,8 @@ func (i *Identity) currentSession(r *http.Request) (*store.Session, *store.User)
 	return sess, user
 }
 
-// createSession persists a session row and sets el_session as the FIRST
-// Set-Cookie header (cookie-ordering invariant shared with entra-local).
+// createSession persists a session row and sets ee_session as the FIRST
+// Set-Cookie header (ordering invariant the e2e helpers rely on).
 func (i *Identity) createSession(w http.ResponseWriter, userID string) *store.Session {
 	now := i.Store.Now()
 	sess := &store.Session{

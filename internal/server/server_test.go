@@ -212,7 +212,7 @@ func TestClientCredentials(t *testing.T) {
 	}
 }
 
-var stateRe = regexp.MustCompile(`name="__el_state" value="([^"]+)"`)
+var stateRe = regexp.MustCompile(`name="__ee_state" value="([^"]+)"`)
 
 // driveAuthCode performs the interactive flow and returns the token response.
 func driveAuthCode(t *testing.T, hts *httptest.Server, verifier string) map[string]any {
@@ -244,7 +244,7 @@ func driveAuthCode(t *testing.T, hts *httptest.Server, verifier string) map[stri
 	}
 
 	resp, err = client.PostForm(hts.URL+"/"+tenant+"/oauth2/v2.0/authorize", url.Values{
-		"__el_state": {m[1]}, "__el_user": {aliceID},
+		"__ee_state": {m[1]}, "__ee_user": {aliceID},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -313,7 +313,7 @@ func TestPKCEMismatchAndReplay(t *testing.T) {
 	resp.Body.Close()
 	m := stateRe.FindStringSubmatch(string(raw))
 	resp, _ = client.PostForm(hts.URL+"/"+tenant+"/oauth2/v2.0/authorize",
-		url.Values{"__el_state": {m[1]}, "__el_user": {aliceID}})
+		url.Values{"__ee_state": {m[1]}, "__ee_user": {aliceID}})
 	resp.Body.Close()
 	loc, _ := url.Parse(resp.Header.Get("Location"))
 	code := loc.Query().Get("code")
@@ -400,7 +400,7 @@ func TestGraphAndUserInfo(t *testing.T) {
 	}
 
 	resp, me := get("/graph/v1.0/me", access)
-	if resp.StatusCode != 200 || me["userPrincipalName"] != "alice@entralocal.dev" {
+	if resp.StatusCode != 200 || me["userPrincipalName"] != "alice@entraemulator.dev" {
 		t.Fatalf("graph /me: %d %v", resp.StatusCode, me)
 	}
 	resp, _ = get("/graph/v1.0/me", "")
@@ -533,7 +533,7 @@ func TestAdminSecretShowOnce(t *testing.T) {
 	}
 	// Duplicate seeded UPN → 409.
 	status, _ = call("POST", "/admin/api/users", map[string]any{
-		"userPrincipalName": "alice@entralocal.dev", "displayName": "Dup"})
+		"userPrincipalName": "alice@entraemulator.dev", "displayName": "Dup"})
 	if status != 409 {
 		t.Fatalf("duplicate UPN: want 409, got %d", status)
 	}

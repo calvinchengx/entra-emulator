@@ -90,10 +90,11 @@ Built with Vite from `portal/` → `portal/dist`, embedded via `go:embed`, serve
 SPA fallback on the portal/compat surfaces (any non-API GET → `index.html`; API prefixes
 are never shadowed — unknown API paths return JSON 404, never HTML).
 
-Feature set (parity with entra-local's portal): dashboard (stat tiles, issuer/endpoint list
+Feature set: dashboard (stat tiles, issuer/endpoint list
 with copy, health/version chip, cert trust download), users/groups/apps tables (search +
 pagination + drawers for create/edit), group membership management, app sub-resources
 (redirect URIs, scopes, roles, secrets with the copy-once dialog), MSAL config snippet
 generator per app (browser/node tabs, redirect-URI selector, derived from the advertised
-origins), and seed/reset actions. Visual identity follows entra-local's DESIGN.md
-(Fluent-mimic + amber "LOCAL EMULATOR" badge).
+origins), and seed/reset actions. Visual identity: Fluent-mimic (Azure-portal
+familiarity) with a persistent amber "LOCAL EMULATOR" badge as the not-production
+signal.
