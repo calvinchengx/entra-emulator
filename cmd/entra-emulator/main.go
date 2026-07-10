@@ -39,6 +39,11 @@ func run() error {
 	}
 	defer st.Close()
 
+	// The tenant is infrastructure (the signing key FK-references it); ensure
+	// it independently of SEED_ON_START so an unseeded boot still works.
+	if err := st.EnsureTenant(cfg.TenantID, cfg.Issuer); err != nil {
+		return fmt.Errorf("ensure tenant: %w", err)
+	}
 	if cfg.SeedOnStart {
 		if seeded, err := st.Seed(cfg.TenantID, cfg.Issuer); err != nil {
 			return fmt.Errorf("seed: %w", err)

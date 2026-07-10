@@ -96,6 +96,29 @@ emulator (see [docs/11-e2e-sdk-matrix.md](docs/11-e2e-sdk-matrix.md)): client
 credentials, Authorization Code + PKCE with `client_info` account identity, silent
 refresh, and device code with headless approval — in TypeScript, Go, and Python.
 
+### Embed it in Go tests
+
+The `emulator` package runs the whole thing in-process — no external server, no fixed
+ports — so a Go test can point MSAL Go / `azidentity` straight at it:
+
+```go
+import "github.com/calvinchengx/entra-emulator/emulator"
+
+func TestMyAPI(t *testing.T) {
+    emu := emulator.StartT(t, emulator.WithTLS()) // auto-closed at test end
+    cred, _ := confidential.NewCredFromSecret(emulator.DaemonSecret)
+    client, _ := confidential.New(emu.Authority(), emulator.DaemonClientID, cred,
+        confidential.WithHTTPClient(emu.HTTPClient()),      // trusts the instance cert
+        confidential.WithInstanceDiscovery(false))
+    tok, _ := client.AcquireTokenByCredential(ctx, []string{"api://…/.default"})
+    // …drive your resource API with tok.AccessToken
+}
+```
+
+`emu` exposes `Authority()`, `Issuer`, `JWKSURL()`, the seeded client IDs/secrets, and
+`Store()` for direct fixture setup. `WithTLS()` is required for MSAL clients (they
+reject non-HTTPS authorities); plain HTTP is fine for direct API calls.
+
 Dependencies: `modernc.org/sqlite` (pure-Go SQLite, no cgo) and `golang.org/x/crypto`
 (scrypt). Cross-compiles to a single static binary on all platforms.
 
