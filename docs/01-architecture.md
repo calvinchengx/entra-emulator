@@ -132,3 +132,6 @@ data/
 | [07-admin-api.md](07-admin-api.md) | Admin REST routes, DTOs, pagination, portal pages |
 | [08-tls-and-origins.md](08-tls-and-origins.md) | Cert generation, origin modes, host routing |
 | [09-testing.md](09-testing.md) | Unit/integration/conformance test strategy |
+| [10-roadmap.md](10-roadmap.md) | Post-parity roadmap (phased, with status) |
+| [11-e2e-sdk-matrix.md](11-e2e-sdk-matrix.md) | Real-SDK e2e harness per language |
+| [12-fabric-companion.md](12-fabric-companion.md) | Sketch: separate Fabric control-plane companion emulator |

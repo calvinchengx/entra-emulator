@@ -74,13 +74,29 @@ Deeper Microsoft identity platform coverage:
 14. ⬜ **Signing-key rotation** — multiple keys in JWKS, admin-triggered rollover.
 15. ⬜ **Optional consent screen** (currently auto-consent), then **multi-tenant**
     directories (`tid` per tenant) last — it touches everything.
+16. ⬜ **Fabric-flavored identities (Entra layer only).** Make the emulator issue the
+    tokens a Microsoft Fabric environment relies on, without emulating Fabric itself:
+    (a) recognize the Fabric resource — `https://api.fabric.microsoft.com` and the legacy
+    `https://analysis.windows.net/powerbi/api` (well-known first-party app id
+    `00000009-0000-0000-c000-000000000000`) — so `client_credentials` with
+    `<fabric>/.default` mints a correct-`aud` token; (b) a **workspace-identity** object
+    (an app registration + service principal variant with an emulator-managed credential
+    and a linked workspace name/GUID, name-follows-workspace + cascade-delete + the Fabric
+    state enum), its tokens minted internally like managed identity (#3) — the caller
+    never handles a credential; (c) auto-consent delegated **Fabric scopes**
+    (`Fabric.Embed`, `Item.Read.All`) like the Graph carve-out. **Strict boundary:** this
+    is the Entra token layer only — the Fabric control plane (REST API, workspace RBAC,
+    identity lifecycle orchestration, OneLake) is *out of scope* and belongs to the
+    companion project ([12-fabric-companion.md](12-fabric-companion.md)). Composes with
+    #2/#3. Refs: `fabric-docs/docs/security/workspace-identity.md`,
+    `fabric-docs/docs/data-warehouse/service-principals.md`.
 
 ## Phase 4 — Broader Graph & samples
 
-16. ⬜ `/me/memberOf`, basic OData (`$select`, `$filter`, `$top`, `$count`).
-17. ⬜ User/group/app **writes** through Graph (portal already covers admin writes).
-18. ⬜ Service principals / `/applications` read surface.
-19. ⬜ **Externalized-authorization sample** — a Go resource API validating emulator JWTs
+17. ⬜ `/me/memberOf`, basic OData (`$select`, `$filter`, `$top`, `$count`).
+18. ⬜ User/group/app **writes** through Graph (portal already covers admin writes).
+19. ⬜ Service principals / `/applications` read surface.
+20. ⬜ **Externalized-authorization sample** — a Go resource API validating emulator JWTs
     via JWKS, then calling a third-party PDP (e.g. OpenFGA) with `oid` + `groups` for
     fine-grained decisions. No emulator features needed — pure `samples/` teaching
     material for the Entra-authenticates / external-service-authorizes pattern.
