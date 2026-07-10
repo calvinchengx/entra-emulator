@@ -13,7 +13,7 @@ import (
 	"github.com/calvinchengx/entra-emulator/internal/tokens"
 )
 
-// Cookie and form-field names (upstream parity — tests and helpers rely on
+// Cookie and form-field names (entra-local-compatible — tests and helpers rely on
 // these exact names).
 const (
 	sessionCookie          = "el_session"
@@ -114,7 +114,7 @@ func (i *Identity) currentSession(r *http.Request) (*store.Session, *store.User)
 }
 
 // createSession persists a session row and sets el_session as the FIRST
-// Set-Cookie header (upstream cookie-ordering invariant).
+// Set-Cookie header (cookie-ordering invariant shared with entra-local).
 func (i *Identity) createSession(w http.ResponseWriter, userID string) *store.Session {
 	now := i.Store.Now()
 	sess := &store.Session{

@@ -120,7 +120,7 @@ Resolution order: `GRAPH_RESOURCE_ID` → app by `app_id_uri` → app by GUID �
 `invalid_scope`. **Reserved OIDC scopes (`openid profile offline_access`) accompanying
 `.default` are silently ignored** — MSAL Go and azidentity append them to
 client-credentials requests and real Entra tolerates that (empirical divergence from
-upstream entra-local's stricter spec, found by the Go e2e suite). Any other extra
+entra-local's stricter spec, found by the Go e2e suite). Any other extra
 scope → `invalid_scope`.
 Roles auto-granted from the resource app's enabled Application-type roles (`[]` for
 Graph). Response has NO id_token/refresh_token/client_info. Public client → `invalid_client`.

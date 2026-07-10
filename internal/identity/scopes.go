@@ -32,13 +32,13 @@ type ResolvedScopes struct {
 }
 
 // ResolveDelegatedScopes validates a delegated scope set against the
-// directory. Rules (upstream parity, docs/04 audience rule):
+// directory. Rules (entra-local-compatible, docs/04 audience rule):
 //   - OIDC scopes pass through.
 //   - Graph scopes (prefixed with the Graph resource id, or known bare
 //     names) grant with aud=Graph and short names in scp.
 //   - "<app_id_uri>/<scope>" or "<appId>/<scope>" grants a registered,
 //     enabled exposed scope of that app and sets the resource audience.
-//   - Bare unknown scope names are tolerated leniently (upstream behavior)
+//   - Bare unknown scope names are tolerated leniently (entra-local-compatible)
 //     and granted with the default Graph audience.
 //
 // Returns nil when a resource-qualified scope refers to an unknown app or
@@ -67,8 +67,8 @@ func (i *Identity) ResolveDelegatedScopes(scopes []string) *ResolvedScopes {
 			out.Resource = resource
 			out.Granted = append(out.Granted, name)
 		default:
-			// Lenient: bare non-OIDC scope names pass through (upstream
-			// authorize keeps this leniency; documented in #15's decisions).
+			// Lenient: bare non-OIDC scope names pass through
+			// (entra-local-compatible authorize leniency).
 			out.Granted = append(out.Granted, sc)
 		}
 	}

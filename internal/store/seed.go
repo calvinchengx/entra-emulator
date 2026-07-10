@@ -2,7 +2,7 @@ package store
 
 import "database/sql"
 
-// Fixed seed identifiers — identical to upstream entra-local so CI fixtures
+// Fixed seed identifiers — identical to entra-local so CI fixtures
 // and documentation transfer unchanged (docs/03-data-model-and-seed.md).
 const (
 	SeedUserAliceID  = "aaaaaaaa-0000-0000-0000-000000000001"

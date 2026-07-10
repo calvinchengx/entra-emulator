@@ -8,7 +8,7 @@ booleans are `INTEGER 0/1`.
 
 ## Schema
 
-Mirrors upstream entra-local migration-001 + migration-002.
+Matches entra-local (migration-001 + migration-002 shapes) for fixture compatibility.
 
 | Table | Columns (PK bold) | Notes |
 |---|---|---|
@@ -54,7 +54,7 @@ One struct per entity in `internal/store`, methods taking `*sql.Tx`-or-DB via a 
 - **Refresh tokens, device codes:** SHA-256 hex of the opaque plaintext is the stored PK.
 - **Auth codes:** stored as issued (opaque ≥256-bit base64url, 5-min TTL, single-use).
 
-## Deterministic seed (fixed GUIDs — identical to upstream)
+## Deterministic seed (fixed GUIDs — identical to entra-local)
 
 | Entity | GUID | Values |
 |---|---|---|
