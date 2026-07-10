@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/calvinchengx/entra-emulator/actions/workflows/ci.yml/badge.svg)](https://github.com/calvinchengx/entra-emulator/actions/workflows/ci.yml)
 [![Flutter e2e](https://github.com/calvinchengx/entra-emulator/actions/workflows/flutter-e2e.yml/badge.svg)](https://github.com/calvinchengx/entra-emulator/actions/workflows/flutter-e2e.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 **A local, MSAL-compatible emulator of Microsoft Entra ID (Azure AD), in a single Go
 binary.** A faithful port of [entra-local](https://github.com/cmaneu/entra-local) — the
@@ -113,3 +113,9 @@ An independent developer tool, not affiliated with or endorsed by Microsoft.
 "Microsoft Entra ID", "Azure AD", "Microsoft Graph", and "MSAL" are Microsoft
 trademarks. This project emulates publicly documented protocol behavior for local
 development and testing only.
+
+## License
+
+[Apache License 2.0](LICENSE). This project is a Go port of
+[entra-local](https://github.com/cmaneu/entra-local) (MIT) — see [NOTICE](NOTICE)
+for the original attribution.
