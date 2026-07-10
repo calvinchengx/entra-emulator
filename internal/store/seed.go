@@ -14,13 +14,25 @@ const (
 	SeedDaemonSecret = "daemon-app-secret" // intentionally public dev value
 )
 
-// IsSeeded reports whether the directory has a tenant row.
+// IsSeeded reports whether the directory has any users (directory objects),
+// i.e. the deterministic seed has been applied. The tenant row alone (infra,
+// created by EnsureTenant) does not count as seeded.
 func (s *Store) IsSeeded() (bool, error) {
 	var n int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM tenants`).Scan(&n); err != nil {
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&n); err != nil {
 		return false, err
 	}
 	return n > 0, nil
+}
+
+// EnsureTenant creates the tenant row if absent. The tenant is infrastructure
+// (the signing key and every directory object FK-reference it), so it must
+// exist even when the user/app seed is skipped. Idempotent.
+func (s *Store) EnsureTenant(tenantID, issuer string) error {
+	_, err := s.db.Exec(
+		`INSERT OR IGNORE INTO tenants (id, display_name, issuer, created_at) VALUES (?,?,?,?)`,
+		tenantID, "Entra Emulator", issuer, s.Now())
+	return err
 }
 
 // Seed applies the deterministic directory. Idempotent (INSERT OR IGNORE):
