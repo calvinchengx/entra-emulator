@@ -14,18 +14,20 @@ import (
 	"github.com/calvinchengx/entra-emulator/internal/httpx"
 	"github.com/calvinchengx/entra-emulator/internal/store"
 	"github.com/calvinchengx/entra-emulator/internal/tlscert"
+	"github.com/calvinchengx/entra-emulator/internal/tokens"
 )
 
 type Admin struct {
 	Cfg     *config.Config
 	Store   *store.Store
+	Tokens  *tokens.Service
 	Cert    *tlscert.Material
 	Version string
 	Started time.Time
 }
 
-func New(cfg *config.Config, st *store.Store, cert *tlscert.Material, version string) *Admin {
-	return &Admin{Cfg: cfg, Store: st, Cert: cert, Version: version, Started: time.Now()}
+func New(cfg *config.Config, st *store.Store, ts *tokens.Service, cert *tlscert.Material, version string) *Admin {
+	return &Admin{Cfg: cfg, Store: st, Tokens: ts, Cert: cert, Version: version, Started: time.Now()}
 }
 
 func (a *Admin) Register(mux *http.ServeMux) {
@@ -64,6 +66,7 @@ func (a *Admin) Register(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /admin/api/apps/{id}/roles/{roleId}", a.patchRole)
 	mux.HandleFunc("DELETE /admin/api/apps/{id}/roles/{roleId}", a.deleteRole)
 
+	mux.HandleFunc("POST /admin/api/tokens", a.forgeToken)
 	mux.HandleFunc("POST /admin/api/seed", a.seed)
 	mux.HandleFunc("POST /admin/api/reset", a.reset)
 	mux.HandleFunc("GET /admin/api/certificate", a.certificateMeta)

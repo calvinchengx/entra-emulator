@@ -70,6 +70,33 @@ generated plaintext) appears **only here**; only scrypt hash + hint persist.
 Token configuration (optional claims / group claims) is managed via app PATCH fields
 `optionalClaims`, `groupMembershipClaims`, `groupOverageLimit` (see 04).
 
+## Token forge (roadmap #2 — testing superpower)
+
+`POST /admin/api/tokens` mints an **arbitrary signed JWT** without running any flow —
+for exercising resource-API validation paths that are otherwise hard to reach. All
+fields optional; defaults give a valid access token for the seeded SPA.
+
+```jsonc
+{
+  "tokenType": "access",              // "access" (default) | "id"
+  "clientId": "<appId>",              // default: seeded SPA
+  "userId": "<oid>",                  // set => delegated; omit => app-only
+  "scopes": ["User.Read"],            // access delegated → scp
+  "roles": ["Tasks.Read.All"],        // access app-only → roles
+  "audience": "api://…",              // override aud (wrong-audience tests)
+  "expiresInSeconds": 3600,           // negative → already-expired token
+  "notBeforeSeconds": 0,
+  "nonce": "…",                       // id tokens
+  "extraClaims": { "ipaddr": "…" },   // merged last; overrides any base claim
+  "signature": "valid"               // "valid" (default) | "invalid" (fails JWKS)
+}
+```
+
+Response: `{ "token", "tokenType", "kid", "claims" }`. A `valid` token verifies against
+JWKS and is accepted by the emulator Graph; `expired`, wrong-`audience`, and
+`signature:"invalid"` tokens are rejected 401 — exactly what a resource API's negative
+tests need. Open like the rest of the admin API (dev tool).
+
 ## System
 
 | Method | Path | → |
