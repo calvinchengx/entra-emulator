@@ -30,7 +30,7 @@ type Server struct {
 func New(cfg *config.Config, st *store.Store, ts *tokens.Service, cert *tlscert.Material, version string) *Server {
 	id := identity.New(cfg, st, ts)
 	gr := graph.New(cfg, st, ts)
-	ad := admin.New(cfg, st, cert, version)
+	ad := admin.New(cfg, st, ts, cert, version)
 
 	// login surface: OIDC only + /health-free root descriptor.
 	loginMux := http.NewServeMux()
