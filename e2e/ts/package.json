@@ -1,0 +1,8 @@
+{
+  "name": "entra-emulator-e2e-ts",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@azure/msal-node": "^2.16.0"
+  }
+}
