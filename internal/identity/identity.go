@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/calvinchengx/entra-emulator/internal/audit"
 	"github.com/calvinchengx/entra-emulator/internal/config"
 	"github.com/calvinchengx/entra-emulator/internal/faults"
 	"github.com/calvinchengx/entra-emulator/internal/store"
@@ -34,10 +35,11 @@ type Identity struct {
 	Store    *store.Store
 	Tokens   *tokens.Service
 	Faults   *faults.Store
+	Audit    *audit.Recorder
 	stateKey []byte // per-process HMAC key for signed form state
 }
 
-func New(cfg *config.Config, st *store.Store, ts *tokens.Service, fs *faults.Store) *Identity {
+func New(cfg *config.Config, st *store.Store, ts *tokens.Service, fs *faults.Store, au *audit.Recorder) *Identity {
 	key := make([]byte, 32)
 	if _, err := rand.Read(key); err != nil {
 		panic(err)
@@ -45,7 +47,10 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service, fs *faults.Sto
 	if fs == nil {
 		fs = faults.New()
 	}
-	return &Identity{Cfg: cfg, Store: st, Tokens: ts, Faults: fs, stateKey: key}
+	if au == nil {
+		au = audit.New(0)
+	}
+	return &Identity{Cfg: cfg, Store: st, Tokens: ts, Faults: fs, Audit: au, stateKey: key}
 }
 
 // Register mounts the tenant-scoped OIDC routes on mux. Paths carry a
@@ -53,9 +58,9 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service, fs *faults.Sto
 func (i *Identity) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /{tenant}/v2.0/.well-known/openid-configuration", i.handleDiscovery)
 	mux.HandleFunc("GET /{tenant}/discovery/v2.0/keys", i.handleJWKS)
-	mux.HandleFunc("GET /{tenant}/oauth2/v2.0/authorize", i.handleAuthorize)
-	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/authorize", i.handleAuthorize)
-	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/token", i.handleToken)
+	mux.HandleFunc("GET /{tenant}/oauth2/v2.0/authorize", i.audited("authorize", i.handleAuthorize))
+	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/authorize", i.audited("authorize", i.handleAuthorize))
+	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/token", i.audited("token", i.handleToken))
 	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/devicecode", i.handleDeviceAuthorization)
 	mux.HandleFunc("GET /{tenant}/oauth2/v2.0/devicecode", i.handleDeviceCodePage)
 	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/devicecode/verify", i.handleDeviceVerify)
