@@ -178,23 +178,33 @@ real authorization engines through the same `PDP` port:
 | Engine | Model | Runs as |
 |---|---|---|
 | **OpenFGA** | ReBAC (Zanzibar) | container (testcontainers) |
+| **SpiceDB** (Authzed) | ReBAC (Zanzibar) | container (testcontainers) |
+| **Ory Keto** | ReBAC (Zanzibar) | container (testcontainers) |
+| **Permify** | ReBAC (Zanzibar) | container (testcontainers) |
 | **Casbin** | RBAC/ABAC | in-process (library) |
+| **OPA** | Rego policy | in-process (library) |
+| **Cedar** (cedar-go) | Cedar policy | in-process (library) |
 
 It asserts a single invariant: *given the same relationship facts and checks,
 every adapter returns the same allow/deny matrix, and the full HTTP flow
 (emulator token → JWKS validation → PDP → `200`/`403`) behaves identically
 regardless of which engine is wired in* — which catches `oid`→subject and
-`groups`→userset mapping bugs. Ory Keto / SpiceDB drop in as near-copies of the
-OpenFGA harness; OPA / Cerbos follow the Casbin shape.
+`groups`→userset mapping bugs. Adding an engine is one `PDPHarness`; the
+canonical matrix and assertions are reused. The container engines are reached
+over their HTTP APIs (only OpenFGA uses a Go SDK — SpiceDB/Keto/Permify are
+hand-rolled to keep the module's `go.mod` lean), while OPA and Cedar embed
+directly like Casbin.
 
-The two engines are CI-verified on every push by the **`pdp-compat`** job — a
-matrix that runs Casbin in-process (no Docker) and OpenFGA via testcontainers —
-so the compatibility claim is checked, not just asserted.
+All seven are CI-verified on every push by the **`pdp-compat`** matrix (one leg
+per engine, `fail-fast: false`): the three policy engines run in-process with no
+Docker, the four Zanzibar engines via testcontainers — so the compatibility
+claim is checked, not just asserted.
 
 > **Honest caveat.** The canonical facts are ReBAC-shaped (subject / relation /
-> object). For OpenFGA the translation is faithful and genuinely proves
-> cross-engine equivalence. For Casbin we hand-author an equivalent model that
-> yields the same decisions — so that leg proves *"our adapter + our authored
+> object). For the Zanzibar engines (OpenFGA, SpiceDB, Keto, Permify) the
+> translation is faithful and genuinely proves cross-engine equivalence. For the
+> policy engines (Casbin, OPA, Cedar) we hand-author an equivalent model that
+> yields the same decisions — so those legs prove *"our adapter + our authored
 > model reproduce the contract,"* not that the engines are semantically
 > identical.
 
@@ -231,11 +241,86 @@ type doc
     define writer: [user, group#member]
 ```
 
+## Authorizing an MCP server
+
+An [MCP](https://modelcontextprotocol.io) server is just another **resource
+server** — so the exact same split applies, and the emulator plugs straight in.
+The only new idea is *where* the roles sit, because an MCP server lives at a
+**trust boundary**: an agent calls it, and it calls downstream systems.
+
+MCP authorization has two layers, and the emulator + `authz` package already
+cover both:
+
+1. **Connection layer (OAuth 2.1).** The MCP server is an OAuth **Resource
+   Server**; the emulator is its **Authorization Server**, minting
+   **audience-bound** access tokens (`aud` = the MCP server) that carry
+   `oid`/`groups`. The server validates them with the same
+   [`authz.TokenValidator`](https://github.com/calvinchengx/entra-emulator/tree/main/samples/externalized-authz/authz)
+   — that's the **PIP**, unchanged.
+2. **Tool layer (fine-grained).** OAuth scopes can't express *"may this agent
+   invoke **this** tool with **these** args right now?"* — so the server's
+   `tools/call` handler is the **PEP**, and it delegates to the **PDP** through
+   the *same `PDP` port* used above.
+
+The mapping onto MCP primitives:
+
+| MCP concept | Maps to | Role |
+|---|---|---|
+| `tools/call` handler | the guard around tool dispatch | **PEP** |
+| the tool name + its arguments | `Relation` + `Object` (e.g. `invoke` / `tool:send_email`) | the PDP question |
+| `oid` / `groups` from the agent's token | `Subject` + usersets | **PIP** (emulator-issued) |
+| Cerbos / OpenFGA / OPA policy | the decision | **PDP** |
+
+Concretely, the PEP is the `server.go` middleware pattern applied to a tool call
+— **no new machinery**, just a different object:
+
+```go
+// PEP: gate an MCP tools/call. Reuses authz.TokenValidator (PIP) + authz.PDP.
+func (s *MCPServer) callTool(ctx context.Context, bearer, tool string, args map[string]any) error {
+    claims, err := s.Validator.Validate(bearer)          // Layer 1: authN (PIP)
+    if err != nil || claims.OID == "" {
+        return errUnauthorized
+    }
+    groups := make([]string, len(claims.Groups))
+    for i, g := range claims.Groups {
+        groups[i] = "group:" + g
+    }
+    allowed, err := s.PDP.Check(ctx, authz.CheckRequest{ // Layer 2: authZ (PDP)
+        Subject:  "user:" + claims.OID,
+        Relation: "invoke",
+        Object:   "tool:" + tool,                        // args refine the object
+        Groups:   groups,
+    })
+    if err != nil || !allowed {
+        return errForbidden                              // PEP denies → no dispatch
+    }
+    return s.dispatch(ctx, tool, args)
+}
+```
+
+Two behaviours are specific to MCP and worth calling out:
+
+- **Filter `tools/list`, not just `tools/call`.** Run the same PDP check at
+  connection time to decide *which tools to even advertise* — the PEP shapes the
+  visible capability surface per identity, not only the yes/no on execution.
+- **Re-authorize downstream (the confused-deputy guard).** The MCP server is also
+  a *client* to the systems behind it, so it enforces twice. Audience-bound tokens
+  (the emulator honours OAuth **resource indicators**, RFC 8707) stop an agent's
+  token for one server from being replayed against another.
+
+**Why this matters here:** because the emulator is the Authorization Server, you
+can **test MCP server authorization entirely offline** — [forge](14-testing-with-forged-tokens.md)
+an agent token with any `tenant`/`oid`/`groups`/scopes, point the MCP server's
+JWKS at the emulator, and exercise both the OAuth layer *and* the PEP→PDP tool
+gate against the [seven CI-verified engines](#proven-against-real-engines) — no
+cloud tenant, no live agent. The reusable pieces are exactly the ones the sample
+already ships; a standalone runnable MCP sample is a natural next addition.
+
 ## Related
 
 - [SCIM provisioning](15-scim-provisioning.md) — the other enterprise-integration
   surface: keep the PDP's *subjects* in sync by provisioning users/groups into it.
 - [Testing with forged tokens](14-testing-with-forged-tokens.md) — how to mint the
-  access tokens the resource API validates.
+  access tokens the resource API (or MCP server) validates.
 - [Token service](04-token-service.md) — the claims (`oid`, `groups`) the PDP maps
   from.
