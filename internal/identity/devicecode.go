@@ -321,7 +321,7 @@ func (i *Identity) deviceSignIn(w http.ResponseWriter, r *http.Request, tenantSe
 		i.renderErrorPage(w, http.StatusOK, "Sign-in failed", "Incorrect account or password. Start over from your device code.")
 		return
 	}
-	sess := i.createSession(w, user.ID)
+	sess := i.createSession(w, user.ID, "pwd")
 	if sess == nil {
 		i.renderErrorPage(w, http.StatusInternalServerError, "Error", "Could not create a session.")
 		return

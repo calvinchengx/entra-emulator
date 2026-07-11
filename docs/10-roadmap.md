@@ -73,13 +73,16 @@ Deeper Microsoft identity platform coverage:
     /admin/api/apps/{id}/custom-extension`. 4 integration tests (merge, protocol-claim
     protection, allowlist, timeout-and-continue).
     Ref: `entra-docs/docs/identity-platform/custom-extension-tokenissuancestart-*`.
-11. ⬜ **Passkey (FIDO2/WebAuthn) sign-in method** — WebAuthn register + assert
-    ceremonies on the sign-in page (`go-webauthn/webauthn`), a `webauthn_credentials`
-    table, admin/portal management, `amr: ["fido"]` in ID tokens. RP ID =
-    `entra.localhost` (trusted cert becomes a hard prerequisite); CI via Playwright's
-    CDP virtual authenticator. Non-goals: attestation policy, AAGUID allowlists,
-    cross-device CTAP. Ref:
-    `entra-docs/docs/identity/authentication/concept-authentication-passkeys-fido2.md`.
+11. ✅ **Passkey (FIDO2/WebAuthn) sign-in method** — register + assert ceremonies
+    (`go-webauthn/webauthn`) at `/{tenant}/webauthn/{register,assert}/{begin,finish}`,
+    a `webauthn_credentials` table, admin management (`GET/DELETE
+    /admin/api/users/{id}/passkeys`), and `amr: ["fido"]` threaded session → auth code
+    → ID token. The relying party is built **per request from the Host header**, so a
+    passkey works on any origin the emulator serves (no static RP config). Browserless
+    integration tests use a virtual authenticator (`descope/virtualwebauthn`) —
+    full register → assert → SSO → amr chain. Non-goals: attestation policy, AAGUID
+    allowlists, cross-device CTAP.
+    Ref: `entra-docs/docs/identity/authentication/concept-authentication-passkeys-fido2.md`.
 12. ⬜ **ROPC** — deprecated in production, but pragmatic for headless CI sign-ins.
 13. ⬜ **`private_key_jwt` / certificate client authentication.**
 14. ⬜ **Signing-key rotation** — multiple keys in JWKS, admin-triggered rollover.

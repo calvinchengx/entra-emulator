@@ -60,21 +60,21 @@ func scanKey(row interface{ Scan(...any) error }) (*SigningKey, error) {
 
 func (s *Store) InsertAuthCode(c *AuthCode) error {
 	_, err := s.db.Exec(`INSERT INTO authorization_codes
-		(code, app_id, user_id, redirect_uri, scopes, resource, code_challenge, code_challenge_method, nonce, expires_at, consumed, created_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,0,?)`,
+		(code, app_id, user_id, redirect_uri, scopes, resource, code_challenge, code_challenge_method, nonce, amr, expires_at, consumed, created_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?)`,
 		c.Code, c.AppID, c.UserID, c.RedirectURI, c.Scopes, nullable(c.Resource),
 		nullable(c.CodeChallenge), nullable(c.CodeChallengeMethod), nullable(c.Nonce),
-		c.ExpiresAt, c.CreatedAt)
+		nullable(c.AMR), c.ExpiresAt, c.CreatedAt)
 	return mapConstraint(err)
 }
 
 func (s *Store) GetAuthCode(code string) (*AuthCode, error) {
 	row := s.db.QueryRow(`SELECT code, app_id, user_id, redirect_uri, scopes, COALESCE(resource,''),
 		COALESCE(code_challenge,''), COALESCE(code_challenge_method,''), COALESCE(nonce,''),
-		expires_at, consumed, created_at FROM authorization_codes WHERE code=?`, code)
+		COALESCE(amr,''), expires_at, consumed, created_at FROM authorization_codes WHERE code=?`, code)
 	c := &AuthCode{}
 	err := row.Scan(&c.Code, &c.AppID, &c.UserID, &c.RedirectURI, &c.Scopes, &c.Resource,
-		&c.CodeChallenge, &c.CodeChallengeMethod, &c.Nonce, &c.ExpiresAt, &c.Consumed, &c.CreatedAt)
+		&c.CodeChallenge, &c.CodeChallengeMethod, &c.Nonce, &c.AMR, &c.ExpiresAt, &c.Consumed, &c.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -197,15 +197,19 @@ func (s *Store) RevokeRefreshTokenFamily(hash string) error {
 // ---- Sessions ----
 
 func (s *Store) CreateSession(sess *Session) error {
-	_, err := s.db.Exec(`INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?,?,?,?)`,
-		sess.ID, sess.UserID, sess.CreatedAt, sess.ExpiresAt)
+	method := sess.AuthMethod
+	if method == "" {
+		method = "pwd"
+	}
+	_, err := s.db.Exec(`INSERT INTO sessions (id, user_id, auth_method, created_at, expires_at) VALUES (?,?,?,?,?)`,
+		sess.ID, sess.UserID, method, sess.CreatedAt, sess.ExpiresAt)
 	return mapConstraint(err)
 }
 
 func (s *Store) GetSession(id string) (*Session, error) {
-	row := s.db.QueryRow(`SELECT id, user_id, created_at, expires_at FROM sessions WHERE id=?`, id)
+	row := s.db.QueryRow(`SELECT id, user_id, COALESCE(auth_method,'pwd'), created_at, expires_at FROM sessions WHERE id=?`, id)
 	sess := &Session{}
-	err := row.Scan(&sess.ID, &sess.UserID, &sess.CreatedAt, &sess.ExpiresAt)
+	err := row.Scan(&sess.ID, &sess.UserID, &sess.AuthMethod, &sess.CreatedAt, &sess.ExpiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}

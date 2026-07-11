@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"sync"
 
 	"github.com/calvinchengx/entra-emulator/internal/audit"
 	"github.com/calvinchengx/entra-emulator/internal/config"
@@ -36,7 +37,8 @@ type Identity struct {
 	Tokens   *tokens.Service
 	Faults   *faults.Store
 	Audit    *audit.Recorder
-	stateKey []byte // per-process HMAC key for signed form state
+	stateKey []byte    // per-process HMAC key for signed form state
+	waSess   sync.Map  // WebAuthn ceremony state keyed by a per-flow cookie
 }
 
 func New(cfg *config.Config, st *store.Store, ts *tokens.Service, fs *faults.Store, au *audit.Recorder) *Identity {
@@ -65,6 +67,12 @@ func (i *Identity) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /{tenant}/oauth2/v2.0/devicecode", i.handleDeviceCodePage)
 	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/devicecode/verify", i.handleDeviceVerify)
 	mux.HandleFunc("GET /{tenant}/oauth2/v2.0/logout", i.handleLogout)
+
+	// Passkey (WebAuthn) ceremonies (roadmap #11).
+	mux.HandleFunc("POST /{tenant}/webauthn/register/begin", i.handleWebAuthnRegisterBegin)
+	mux.HandleFunc("POST /{tenant}/webauthn/register/finish", i.handleWebAuthnRegisterFinish)
+	mux.HandleFunc("POST /{tenant}/webauthn/assert/begin", i.handleWebAuthnAssertBegin)
+	mux.HandleFunc("POST /{tenant}/webauthn/assert/finish", i.handleWebAuthnAssertFinish)
 }
 
 // ---- Signed hidden-form state (HMAC, per-process key) ----
@@ -125,10 +133,13 @@ func (i *Identity) currentSession(r *http.Request) (*store.Session, *store.User)
 
 // createSession persists a session row and sets ee_session as the FIRST
 // Set-Cookie header (ordering invariant the e2e helpers rely on).
-func (i *Identity) createSession(w http.ResponseWriter, userID string) *store.Session {
+func (i *Identity) createSession(w http.ResponseWriter, userID, method string) *store.Session {
 	now := i.Store.Now()
+	if method == "" {
+		method = "pwd"
+	}
 	sess := &store.Session{
-		ID: store.NewOpaqueToken(24), UserID: userID,
+		ID: store.NewOpaqueToken(24), UserID: userID, AuthMethod: method,
 		CreatedAt: now, ExpiresAt: now + sessionLifetimeSeconds,
 	}
 	if err := i.Store.CreateSession(sess); err != nil {

@@ -98,6 +98,7 @@ type AuthCode struct {
 	CodeChallenge       string
 	CodeChallengeMethod string
 	Nonce               string
+	AMR                 string // authentication method reference (e.g. "pwd", "fido")
 	ExpiresAt           int64
 	Consumed            bool
 	CreatedAt           int64
@@ -116,10 +117,11 @@ type RefreshToken struct {
 }
 
 type Session struct {
-	ID        string
-	UserID    string
-	CreatedAt int64
-	ExpiresAt int64
+	ID         string
+	UserID     string
+	AuthMethod string // "pwd" (default) or "fido"
+	CreatedAt  int64
+	ExpiresAt  int64
 }
 
 type DeviceCode struct {

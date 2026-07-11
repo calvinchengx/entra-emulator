@@ -91,6 +91,7 @@ type DelegatedGrant struct {
 	Scopes   []string // granted scope names (OIDC + short resource names)
 	Resource string   // resolved audience ("" -> GraphResourceID)
 	Nonce    string   // echoed into the ID token when present
+	AMR      string   // authentication method reference (e.g. "fido") -> amr claim
 	// SkipRefreshToken suppresses issuing a fresh refresh token — used by
 	// the refresh grant, whose rotation already produced the successor.
 	SkipRefreshToken bool
@@ -167,6 +168,9 @@ func (s *Service) mintIDToken(g DelegatedGrant, now int64) (string, error) {
 	}
 	if g.Nonce != "" {
 		claims["nonce"] = g.Nonce
+	}
+	if g.AMR != "" {
+		claims["amr"] = []string{g.AMR}
 	}
 	s.applyTokenConfig(claims, g.App, g.User, "idToken")
 	s.enrich(claims, g.App, g.User, "idToken")
@@ -282,6 +286,7 @@ type AuthCodeRequest struct {
 	Scopes                                []string
 	Resource                              string
 	CodeChallenge, ChallengeMethod, Nonce string
+	AMR                                   string // authentication method reference
 }
 
 // IssueAuthCode persists a single-use opaque code.
@@ -292,7 +297,7 @@ func (s *Service) IssueAuthCode(r AuthCodeRequest) (string, error) {
 		Code: code, AppID: r.AppID, UserID: r.UserID, RedirectURI: r.RedirectURI,
 		Scopes: strings.Join(r.Scopes, " "), Resource: r.Resource,
 		CodeChallenge: r.CodeChallenge, CodeChallengeMethod: r.ChallengeMethod,
-		Nonce: r.Nonce, ExpiresAt: now + int64(s.Cfg.Lifetimes.AuthCode), CreatedAt: now,
+		Nonce: r.Nonce, AMR: r.AMR, ExpiresAt: now + int64(s.Cfg.Lifetimes.AuthCode), CreatedAt: now,
 	})
 	if err != nil {
 		return "", err
