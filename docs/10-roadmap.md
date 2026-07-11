@@ -59,7 +59,10 @@ The features only a Go implementation can offer; cheap and differentiating.
 
 Deeper Microsoft identity platform coverage:
 
-9. ⬜ **On-Behalf-Of (OBO)** — the biggest real-world gap for multi-tier APIs.
+9. ✅ **On-Behalf-Of (OBO)** — `grant_type=jwt-bearer` + `requested_token_use=on_behalf_of`.
+   A middle-tier exchanges a user token (aud=itself) for a downstream token preserving
+   the user; enforces the assertion-aud rule and rejects app-only assertions. Advertised
+   in discovery. (Cert `client_assertion` deferred to #13.)
 10. ⬜ **Custom authentication extensions** — emulate the `onTokenIssuanceStart` webhook
     (per-app endpoint config; POST the Microsoft-documented request shape during
     minting; merge returned claims). Model the real semantics faithfully:

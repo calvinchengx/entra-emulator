@@ -124,6 +124,16 @@ suite). Any other extra scope → `invalid_scope`.
 Roles auto-granted from the resource app's enabled Application-type roles (`[]` for
 Graph). Response has NO id_token/refresh_token/client_info. Public client → `invalid_client`.
 
+### grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer (On-Behalf-Of)
+A confidential middle-tier exchanges a user access token it received for a downstream
+token as the same user. Params: `client_id`* + `client_secret`* (confidential only),
+`assertion`* (the incoming user token), `scope`* (downstream), `requested_token_use`*
+= `on_behalf_of`. **Rule (entra-docs):** the assertion's `aud` must be this middle-tier
+(its `appId` or `app_id_uri`) — a token for another resource (e.g. Graph) is rejected
+`invalid_grant`. The assertion must be delegated (has `oid`); app-only → `invalid_grant`.
+Result: a new delegated token, same `oid`/`sub`-user, `azp`/`appid` = the middle-tier,
+`aud` = the downstream resource. (Cert-based `client_assertion` is roadmap #13.)
+
 ### Device code grant
 `grant_type` accepts **both** `urn:ietf:params:oauth:grant-type:device_code` (canonical,
 advertised) **and** bare `device_code` (what msal-node actually sends). Params:
