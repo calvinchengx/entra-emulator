@@ -23,6 +23,9 @@ ORIGIN_MODE=compat ./entra-emulator
 docker run -p 8443:8443 ghcr.io/calvinchengx/entra-emulator:latest
 ```
 
+Prefer Homebrew, a pre-built binary (incl. Windows), or `go install`? See
+[Installation](13-installation.md) for every method.
+
 First run creates `./data/` with a SQLite store, a **persisted self-signed TLS
 certificate** (stable fingerprint), a persisted RSA signing key (stable `kid`),
 and the deterministic seed directory below.
