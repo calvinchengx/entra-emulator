@@ -38,6 +38,16 @@ func (s *Store) ListPublishableKeys(tenantID string, now int64) ([]*SigningKey, 
 	return out, rows.Err()
 }
 
+// DemoteActiveSigningKeys retires all currently-active keys for the tenant:
+// is_active=0 and not_after=notAfter, so JWKS keeps publishing them until they
+// expire (roadmap #14 rotation grace window).
+func (s *Store) DemoteActiveSigningKeys(tenantID string, notAfter int64) error {
+	_, err := s.db.Exec(
+		`UPDATE signing_keys SET is_active=0, not_after=? WHERE tenant_id=? AND is_active=1`,
+		notAfter, tenantID)
+	return err
+}
+
 func (s *Store) InsertSigningKey(k *SigningKey) error {
 	_, err := s.db.Exec(`INSERT INTO signing_keys (kid, tenant_id, alg, public_jwk, private_pkcs8, is_active, created_at, not_after)
 		VALUES (?,?,?,?,?,?,?,?)`,

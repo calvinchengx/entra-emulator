@@ -93,7 +93,11 @@ Deeper Microsoft identity platform coverage:
     `client_assertion` (a JWT with `iss=sub=client_id`, `aud`=token endpoint/issuer,
     RS256-signed). Verified in `authenticateClient` against all registered keys.
     5 integration tests (happy path, wrong key, expired, wrong audience, no key).
-14. ⬜ **Signing-key rotation** — multiple keys in JWKS, admin-triggered rollover.
+14. ✅ **Signing-key rotation** — `POST /admin/api/signing-keys/rotate {graceSeconds}`
+    generates a new active key and retires the previous one (JWKS keeps publishing it
+    until `not_after`), so tokens already issued still verify during the grace window;
+    `graceSeconds:0` drops the old key immediately. Signer swap is mutex-guarded
+    (race-clean). 2 integration tests (grace cross-verify, no-grace drop).
 15. ⬜ **Optional consent screen** (currently auto-consent), then **multi-tenant**
     directories (`tid` per tenant) last — it touches everything.
 16. ⬜ **Fabric-flavored identities (Entra layer only).** Make the emulator issue the
