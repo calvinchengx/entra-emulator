@@ -30,7 +30,7 @@ import (
 )
 
 // Seed identifiers — the deterministic directory every instance boots with
-// (docs/03-data-model-and-seed.md). Re-exported so callers avoid magic strings.
+// (docs/06-data-model-and-seed.md). Re-exported so callers avoid magic strings.
 const (
 	TenantID = config.DefaultTenantID
 

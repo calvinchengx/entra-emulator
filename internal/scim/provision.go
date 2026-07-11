@@ -14,7 +14,7 @@ import (
 )
 
 // Provisioner is the SCIM provisioning *client* (phase 2 of
-// docs/15-scim-provisioning.md): it pushes the emulator's directory OUT to a
+// docs/10-scim-provisioning.md): it pushes the emulator's directory OUT to a
 // configured SCIM endpoint, replicating Entra's outbound provisioning cycle
 // (existence probe → create / update / soft-deprovision). Admin-controlled,
 // in-memory, like the fault/clock knobs.

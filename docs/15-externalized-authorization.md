@@ -30,7 +30,7 @@ The runnable reference lives in
 ## Why separate authN from authZ
 
 - **Authentication** — *who is calling and is the token real?* Solved by
-  validating the RS256 signature against the tenant [JWKS](05-oidc-endpoints.md),
+  validating the RS256 signature against the tenant [JWKS](08-oidc-endpoints.md),
   and checking `iss` / `aud` / `exp`. This is what an IdP is for.
 - **Authorization** — *may this principal do this on this object?* A
   relationship- and data-dependent question that changes as your domain data
@@ -87,7 +87,7 @@ authorize (by design):
 | `oid` | stable object id → PDP **subject** (`user:<oid>`) |
 | `groups` | group membership → PDP **usersets** (`group:<gid>#member`) |
 
-Mint the access tokens for tests with the [admin token forge](14-testing-with-forged-tokens.md)
+Mint the access tokens for tests with the [admin token forge](13-testing-with-forged-tokens.md)
 — no interactive sign-in required.
 
 ## The sample
@@ -309,7 +309,7 @@ Two behaviours are specific to MCP and worth calling out:
   token for one server from being replayed against another.
 
 **Why this matters here:** because the emulator is the Authorization Server, you
-can **test MCP server authorization entirely offline** — [forge](14-testing-with-forged-tokens.md)
+can **test MCP server authorization entirely offline** — [forge](13-testing-with-forged-tokens.md)
 an agent token with any `tenant`/`oid`/`groups`/scopes, point the MCP server's
 JWKS at the emulator, and exercise both the OAuth layer *and* the PEP→PDP tool
 gate against the [seven CI-verified engines](#proven-against-real-engines) — no
@@ -381,7 +381,7 @@ the session is told about: with a shared connection pool you *must* scope it to
 the transaction (`SET LOCAL` / `set_config(..., true)`), or one request's tenant
 bleeds into the next. Forget the `SET` entirely and a service-account connection
 sees *everything*. This is exactly where the token's claims must land — the same
-`tid` the emulator's [multi-tenant tokens](04-token-service.md) already carry.
+`tid` the emulator's [multi-tenant tokens](07-token-service.md) already carry.
 
 **CLS** follows the same shape, keyed on `groups`: managed warehouses do it
 natively (Snowflake `CREATE MASKING POLICY`, BigQuery policy tags) — e.g. mask
@@ -394,9 +394,9 @@ only their tenant's rows, with sensitive columns masked."*
 
 ## Related
 
-- [SCIM provisioning](15-scim-provisioning.md) — the other enterprise-integration
+- [SCIM provisioning](10-scim-provisioning.md) — the other enterprise-integration
   surface: keep the PDP's *subjects* in sync by provisioning users/groups into it.
-- [Testing with forged tokens](14-testing-with-forged-tokens.md) — how to mint the
+- [Testing with forged tokens](13-testing-with-forged-tokens.md) — how to mint the
   access tokens the resource API (or MCP server) validates.
-- [Token service](04-token-service.md) — the claims (`oid`, `groups`) the PDP maps
+- [Token service](07-token-service.md) — the claims (`oid`, `groups`) the PDP maps
   from.

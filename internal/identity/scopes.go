@@ -1,6 +1,6 @@
 // Package identity implements the STS surface: discovery, authorize +
 // sign-in, the grant-multiplexed token endpoint, device code, and logout
-// (docs/05-oidc-endpoints.md).
+// (docs/08-oidc-endpoints.md).
 package identity
 
 import (

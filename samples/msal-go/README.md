@@ -30,7 +30,7 @@ that trusts the emulator's self-signed cert (`EMU_CERT`, default
 > For Go **integration tests**, prefer the embeddable library
 > (`emulator.StartT`) — it runs the emulator in-process with no ports or certs
 > to manage. See the
-> [quickstart](https://calvinchengx.github.io/entra-emulator/00-quickstart/#go-teams-zero-external-process).
+> [quickstart](https://calvinchengx.github.io/entra-emulator/01-quickstart/#go-teams-zero-external-process).
 
 Override any default with an env var: `EMU_ORIGIN`, `EMU_TENANT`,
 `EMU_CLIENT_ID`, `EMU_CLIENT_SECRET`, `EMU_CERT`.
