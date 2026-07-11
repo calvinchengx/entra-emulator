@@ -93,7 +93,10 @@ winget:
       owner: calvinchengx
       name: winget-pkgs
       branch: "entra-emulator-{{ .Version }}"
-      token: '{{ index .Env "WINGET_TOKEN" }}'
+      # winget requires the plain {{ .Env.X }} form (unlike homebrew_casks, which
+      # accepts the index form). Only resolved when actually publishing, so the
+      # skip_upload guard below still keeps forks/no-secret runs from failing.
+      token: "{{ .Env.WINGET_TOKEN }}"
       pull_request:
         enabled: true
         draft: false
