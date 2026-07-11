@@ -199,3 +199,15 @@ A workload sets `IDENTITY_ENDPOINT=<origin>/msi/token` + `IDENTITY_HEADER=<secre
 `azidentity.ManagedIdentityCredential` / `DefaultAzureCredential` then acquires a token
 with no secret in the app. We emulate the env-var endpoint, not raw IMDS
 (`169.254.169.254` is link-local and unroutable to the emulator).
+
+## Passkey / WebAuthn ceremonies (roadmap #11)
+
+`POST /{tenant}/webauthn/register/begin|finish` and `.../assert/begin|finish` implement
+FIDO2/WebAuthn. The relying party is built **per request from the Host header** (RP ID =
+host without port, origin = scheme://host), so passkeys work on whichever origin the
+emulator is reached on. `begin` takes `{upn}` and returns the standard
+`PublicKeyCredentialCreation/RequestOptions`; ceremony state is held server-side keyed by
+a short-lived `ee_webauthn` cookie. `assert/finish` verifies the assertion and creates an
+`ee_session` tagged `fido`, so a subsequent `/authorize` (SSO) issues a code whose ID
+token carries `amr: ["fido"]`. Password/picker sign-in yields `amr: ["pwd"]`. Manage a
+user's passkeys via `GET/DELETE /admin/api/users/{id}/passkeys`.

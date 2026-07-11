@@ -96,6 +96,9 @@ func (a *Admin) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/api/custom-extensions", a.listCustomExtensions)
 	mux.HandleFunc("PUT /admin/api/apps/{id}/custom-extension", a.setCustomExtension)
 	mux.HandleFunc("DELETE /admin/api/apps/{id}/custom-extension", a.deleteCustomExtension)
+
+	mux.HandleFunc("GET /admin/api/users/{id}/passkeys", a.listPasskeys)
+	mux.HandleFunc("DELETE /admin/api/users/{id}/passkeys/{credId}", a.deletePasskey)
 	mux.HandleFunc("POST /admin/api/seed", a.seed)
 	mux.HandleFunc("POST /admin/api/reset", a.reset)
 	mux.HandleFunc("GET /admin/api/certificate", a.certificateMeta)

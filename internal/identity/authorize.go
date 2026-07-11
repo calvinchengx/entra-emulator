@@ -103,7 +103,7 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Session / prompt resolution.
-	_, user := i.currentSession(r)
+	sess, user := i.currentSession(r)
 	switch {
 	case prompt == "none":
 		if user == nil {
@@ -114,7 +114,11 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		user = nil // force interaction
 	}
 	if user != nil {
-		i.issueCodeAndDeliver(w, st, app, user)
+		amr := "pwd"
+		if sess != nil {
+			amr = sess.AuthMethod
+		}
+		i.issueCodeAndDeliver(w, st, app, user, amr)
 		return
 	}
 
@@ -181,12 +185,12 @@ func (i *Identity) handleSignInSubmit(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	i.createSession(w, user.ID)
-	i.issueCodeAndDeliver(w, st, app, user)
+	i.createSession(w, user.ID, "pwd")
+	i.issueCodeAndDeliver(w, st, app, user, "pwd")
 }
 
 // issueCodeAndDeliver mints the auth code and returns it per response_mode.
-func (i *Identity) issueCodeAndDeliver(w http.ResponseWriter, st authorizeState, app *store.App, user *store.User) {
+func (i *Identity) issueCodeAndDeliver(w http.ResponseWriter, st authorizeState, app *store.App, user *store.User, amr string) {
 	resolved := i.ResolveDelegatedScopes(SplitScopes(st.Scope))
 	if resolved == nil {
 		i.deliverAuthorizeError(w, st, "invalid_scope", "A requested resource scope is not registered.")
@@ -195,7 +199,7 @@ func (i *Identity) issueCodeAndDeliver(w http.ResponseWriter, st authorizeState,
 	code, err := i.Tokens.IssueAuthCode(tokens.AuthCodeRequest{
 		AppID: app.ID, UserID: user.ID, RedirectURI: st.RedirectURI,
 		Scopes: resolved.Granted, Resource: resolved.Resource,
-		CodeChallenge: st.Challenge, ChallengeMethod: st.Method, Nonce: st.Nonce,
+		CodeChallenge: st.Challenge, ChallengeMethod: st.Method, Nonce: st.Nonce, AMR: amr,
 	})
 	if err != nil {
 		i.renderErrorPage(w, http.StatusInternalServerError, "Error", "Could not issue an authorization code.")

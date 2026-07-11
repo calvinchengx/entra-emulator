@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/calvinchengx/entra-emulator/internal/clock"
@@ -125,6 +126,7 @@ CREATE TABLE IF NOT EXISTS authorization_codes (
   code_challenge        TEXT,
   code_challenge_method TEXT,
   nonce                 TEXT,
+  amr                   TEXT,
   expires_at            INTEGER NOT NULL,
   consumed              INTEGER NOT NULL DEFAULT 0,
   created_at            INTEGER NOT NULL
@@ -143,10 +145,11 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_app_user ON refresh_tokens(app_id, user_id);
 CREATE TABLE IF NOT EXISTS sessions (
-  id         TEXT PRIMARY KEY,
-  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at INTEGER NOT NULL,
-  expires_at INTEGER NOT NULL
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  auth_method TEXT NOT NULL DEFAULT 'pwd',
+  created_at  INTEGER NOT NULL,
+  expires_at  INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
 CREATE TABLE IF NOT EXISTS device_codes (
@@ -160,6 +163,17 @@ CREATE TABLE IF NOT EXISTS device_codes (
   expires_at  INTEGER NOT NULL,
   created_at  INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS webauthn_credentials (
+  id          TEXT PRIMARY KEY,          -- credential id (base64url)
+  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  public_key  BLOB NOT NULL,             -- COSE public key
+  sign_count  INTEGER NOT NULL DEFAULT 0,
+  aaguid      BLOB,
+  transports  TEXT,                       -- CSV
+  name        TEXT,                       -- friendly label
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_webauthn_user ON webauthn_credentials(user_id);
 `
 
 // Open opens (creating if needed) the SQLite store and applies migrations.
@@ -200,6 +214,18 @@ func (s *Store) Close() error { return s.db.Close() }
 func (s *Store) migrate() error {
 	if _, err := s.db.Exec(schema); err != nil {
 		return fmt.Errorf("store: migrate: %w", err)
+	}
+	// Best-effort additive column migrations for DBs created before these
+	// columns existed. SQLite errors "duplicate column name" when already
+	// present — ignored so re-runs are idempotent.
+	for _, alter := range []string{
+		`ALTER TABLE authorization_codes ADD COLUMN amr TEXT`,
+		`ALTER TABLE sessions ADD COLUMN auth_method TEXT NOT NULL DEFAULT 'pwd'`,
+	} {
+		if _, err := s.db.Exec(alter); err != nil &&
+			!strings.Contains(err.Error(), "duplicate column name") {
+			return fmt.Errorf("store: migrate alter: %w", err)
+		}
 	}
 	_, err := s.db.Exec(
 		`INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (1, ?)`,
