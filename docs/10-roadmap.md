@@ -190,10 +190,12 @@ Deeper Microsoft identity platform coverage:
       (`POST /admin/api/scim/{target,sync}`, `GET /admin/api/scim/log`): reconciles each
       user to a configured SCIM endpoint with Entra's request sequence — `GET` existence
       probe → `POST` create (new+active) / `PATCH active:false` (deprovision disabled) /
-      `PATCH` attributes (update) — with a provisioning-request log. Verified by a
-      stateful mock-target e2e. Open sub-threads: a portal "Provisioning" view, group
-      (member-correlated) provisioning, and true incremental (needs an `updated_at`
-      watermark).
+      `PATCH` attributes (update) — plus **member-correlated group** provisioning (each
+      member's `userName` is probed to resolve the target's id), **true incremental** sync
+      via an `updated_at` watermark (only changed users), a provisioning-request log, and
+      a portal **"Provisioning"** view (configure target, run a cycle, stream the log).
+      Verified by a stateful mock-target e2e (create, deprovision, member correlation,
+      incremental) + portal tests.
 
 ## Explicit non-goals
 
