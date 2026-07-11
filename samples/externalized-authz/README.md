@@ -28,11 +28,17 @@ the policy. Neither side needs to know the other's internals.
 
 | File | Role |
 |---|---|
-| [`validator.go`](validator.go) | JWKS-backed RS256 token validator (authN) |
-| [`pdp.go`](pdp.go) | `PDP` port + in-memory OpenFGA-style tuple checker (authZ) |
-| [`server.go`](server.go) | Protected API: authenticate, then PDP-check per route |
+| [`authz/validator.go`](authz/validator.go) | JWKS-backed RS256 token validator (authN) |
+| [`authz/pdp.go`](authz/pdp.go) | `PDP` port + in-memory OpenFGA-style tuple checker (authZ) |
+| [`authz/server.go`](authz/server.go) | Protected API: authenticate, then PDP-check per route |
 | [`main.go`](main.go) | Standalone runner (env-configured) |
 | [`main_test.go`](main_test.go) | End-to-end test against the in-process emulator |
+| [`compat/`](compat/) | PDP-compatibility suite: the same decisions against **real** OpenFGA + Casbin |
+
+The reusable pieces live in the importable `authz` package; `main.go` is only the
+standalone runner. The [`compat/`](compat/) module (separate `go.mod`, behind the
+`pdp_integration` build tag) proves the `PDP` port behaves identically against real
+engines and is CI-verified by the `pdp-compat` job.
 
 ## Run it
 
