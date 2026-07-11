@@ -1,0 +1,66 @@
+# CodeQL — advanced (in-repo) setup, replacing the repo's Default setup.
+#
+# Scoped to FIRST-PARTY code only:
+#   - go                    the emulator (root module)
+#   - javascript-typescript the portal + docs website
+#   - actions               these workflows
+#
+# Deliberately NOT scanned: java-kotlin, swift, csharp, python — those exist
+# only as external-SDK e2e harnesses (e2e/java, e2e/dotnet, e2e/flutter) and the
+# msal-python sample, i.e. code we neither author nor ship. Autobuild also can't
+# build the Java sample, which is what broke Default setup.
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '31 7 * * 1' # weekly, Monday 07:31 UTC (parity with Default setup)
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      packages: read
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false # one language's failure must not hide the others
+      matrix:
+        include:
+          - language: go
+            build-mode: autobuild
+          - language: javascript-typescript
+            build-mode: none
+          - language: actions
+            build-mode: none
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Pin the Go toolchain so autobuild compiles the root module cleanly.
+      # (Nested modules under e2e/ and samples/ are separate go.mod roots and are
+      # excluded from the parent's `go build ./...`, so only the emulator builds.)
+      - if: matrix.language == 'go'
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:${{ matrix.language }}'
