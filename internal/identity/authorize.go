@@ -33,6 +33,10 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodPost {
 		_ = r.ParseForm()
+		if r.PostFormValue(fieldConsent) != "" {
+			i.handleConsentDecision(w, r)
+			return
+		}
 		if r.PostFormValue(fieldState) != "" {
 			i.handleSignInSubmit(w, r)
 			return
@@ -118,11 +122,39 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		if sess != nil {
 			amr = sess.AuthMethod
 		}
+		if i.Cfg.RequireConsent && prompt != "none" {
+			i.renderConsent(w, st, app)
+			return
+		}
 		i.issueCodeAndDeliver(w, st, app, user, amr)
 		return
 	}
 
 	i.renderSignIn(w, r, st, loginHint, "")
+}
+
+// handleConsentDecision processes the consent-screen Approve/Deny.
+func (i *Identity) handleConsentDecision(w http.ResponseWriter, r *http.Request) {
+	var st authorizeState
+	if !i.verifyState(r.PostFormValue(fieldState), &st) || st.Kind != "authorize" {
+		i.renderErrorPage(w, http.StatusBadRequest, "Invalid request", "The consent state is invalid or expired.")
+		return
+	}
+	app, err := i.Store.GetApp(st.ClientID)
+	if err != nil {
+		i.renderErrorPage(w, http.StatusBadRequest, "Invalid request", "Unknown client.")
+		return
+	}
+	sess, user := i.currentSession(r)
+	if user == nil {
+		i.renderErrorPage(w, http.StatusBadRequest, "Invalid request", "No active sign-in session.")
+		return
+	}
+	if r.PostFormValue(fieldDecision) != "approve" {
+		i.deliverAuthorizeError(w, st, "access_denied", "The user declined consent.")
+		return
+	}
+	i.issueCodeAndDeliver(w, st, app, user, sess.AuthMethod)
 }
 
 // renderSignIn shows the account picker or password form for the request.
@@ -186,6 +218,10 @@ func (i *Identity) handleSignInSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	i.createSession(w, user.ID, "pwd")
+	if i.Cfg.RequireConsent {
+		i.renderConsent(w, st, app)
+		return
+	}
 	i.issueCodeAndDeliver(w, st, app, user, "pwd")
 }
 

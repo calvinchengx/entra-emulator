@@ -51,6 +51,7 @@ type Config struct {
 	TLSKeyPath      string
 	TLSCertDir      string
 	RequirePassword bool
+	RequireConsent  bool
 	SeedOnStart     bool
 	Lifetimes       TokenLifetimes
 	DeviceInterval  int
@@ -77,6 +78,7 @@ type fileConfig struct {
 	Issuer          *string         `json:"issuer"`
 	DBPath          *string         `json:"dbPath"`
 	RequirePassword *bool           `json:"requirePassword"`
+	RequireConsent  *bool           `json:"requireConsent"`
 	SeedOnStart     *bool           `json:"seedOnStart"`
 	DeviceInterval  *int            `json:"deviceCodeInterval"`
 	GraphResourceID *string         `json:"graphResourceId"`
@@ -134,6 +136,7 @@ func Load(getenv func(string) string) (*Config, error) {
 	c.DeviceInterval = resolveInt(getenv("DEVICE_CODE_INTERVAL_SECONDS"), intp(file.DeviceInterval), 5, "DEVICE_CODE_INTERVAL_SECONDS", fail)
 	c.TLSEnabled = resolveBool(getenv("TLS_ENABLED"), boolFrom(file.TLS, func(t *fileTLS) *bool { return t.Enabled }), true, "TLS_ENABLED", fail)
 	c.RequirePassword = resolveBool(getenv("REQUIRE_PASSWORD"), file.RequirePassword, false, "REQUIRE_PASSWORD", fail)
+	c.RequireConsent = resolveBool(getenv("REQUIRE_CONSENT"), file.RequireConsent, false, "REQUIRE_CONSENT", fail)
 	c.SeedOnStart = resolveBool(getenv("SEED_ON_START"), file.SeedOnStart, true, "SEED_ON_START", fail)
 
 	if file.TLS != nil {
