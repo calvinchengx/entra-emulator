@@ -31,6 +31,36 @@ archives:
 checksum:
   name_template: checksums.txt
 
+# Homebrew tap: on each tag, GoReleaser generates a cask from the built macOS
+# archives and commits it to calvinchengx/homebrew-tap, so `brew install
+# calvinchengx/tap/entra-emulator` works. (GoReleaser deprecated formula-based
+# `brews` in favor of casks for binary-only tools.) Pushing to a *separate*
+# repo needs a token with write access — the default GITHUB_TOKEN can't — so a
+# HOMEBREW_TAP_TOKEN secret is supplied by the release workflow. If the secret
+# is absent (e.g. a fork), skip publishing rather than fail the release.
+# Linux/Windows users use the release archives, `go install`, or the GHCR image.
+homebrew_casks:
+  - name: entra-emulator
+    repository:
+      owner: calvinchengx
+      name: homebrew-tap
+      branch: main
+      token: '{{ index .Env "HOMEBREW_TAP_TOKEN" }}'
+    homepage: "https://github.com/calvinchengx/entra-emulator"
+    description: "A local, MSAL-compatible emulator of Microsoft Entra ID (Azure AD) in a single Go binary."
+    skip_upload: '{{ if index .Env "HOMEBREW_TAP_TOKEN" }}false{{ else }}true{{ end }}'
+    commit_author:
+      name: Calvin Cheng
+      email: linchuan.cheng@gmail.com
+    # Clear the quarantine attribute so the unsigned binary runs without a
+    # Gatekeeper prompt (GoReleaser's recommended cask post-install hook).
+    hooks:
+      post:
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/entra-emulator"]
+          end
+
 changelog:
   sort: asc
   filters:

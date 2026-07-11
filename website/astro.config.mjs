@@ -21,6 +21,7 @@ export default defineConfig({
           label: 'Getting started',
           items: [
             { slug: 'index' },
+            { slug: '00-quickstart' },
             { slug: '01-architecture' },
             { slug: '02-configuration' },
             { slug: '08-tls-and-origins' },

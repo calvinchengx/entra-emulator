@@ -44,6 +44,17 @@ The image defaults to `ORIGIN_MODE=compat` and binds `0.0.0.0`; mount a volume a
 `/app/data` to persist the store and cert. Tagged releases also publish cross-platform
 binaries (linux/darwin/windows × amd64/arm64) via GoReleaser.
 
+### Homebrew
+
+macOS and Linux (Intel/Apple Silicon), from the tap:
+
+```bash
+brew install calvinchengx/tap/entra-emulator
+entra-emulator version
+```
+
+Each tagged release refreshes the cask automatically. `brew upgrade` picks up new versions.
+
 ## What works
 
 - **Flows:** Authorization Code + PKCE (S256/plain), Client Credentials

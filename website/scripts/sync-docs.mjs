@@ -39,7 +39,10 @@ function convert(name) {
     lines.splice(h1Index, lines[h1Index + 1]?.trim() === '' ? 2 : 1);
   }
   const body = rewriteLinks(lines.join('\n').replace(/^\n+/, ''));
-  const frontmatter = `---\ntitle: ${yamlEscape(title)}\n---\n\n`;
+  // Point "Edit this page" at the real source in /docs (the generated copy
+  // under src/content/docs/ is git-ignored), not Starlight's default path.
+  const editUrl = `https://github.com/calvinchengx/entra-emulator/edit/main/docs/${name}`;
+  const frontmatter = `---\ntitle: ${yamlEscape(title)}\neditUrl: ${yamlEscape(editUrl)}\n---\n\n`;
   return frontmatter + body;
 }
 
@@ -58,8 +61,10 @@ function writeIndex() {
       `- [Admin REST API](07-admin-api.md) — the portal's control surface\n` +
       `- [Roadmap](10-roadmap.md) — delivered features and what's out of scope\n`,
   );
+  // The landing page is synthesized here (no /docs source), so it has no
+  // "Edit this page" target.
   const frontmatter =
-    `---\ntitle: Entra Emulator\ndescription: A local, MSAL-compatible emulator of Microsoft Entra ID in a single Go binary.\n---\n\n`;
+    `---\ntitle: Entra Emulator\ndescription: A local, MSAL-compatible emulator of Microsoft Entra ID in a single Go binary.\neditUrl: false\n---\n\n`;
   writeFileSync(join(OUT, 'index.md'), frontmatter + body);
 }
 

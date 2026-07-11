@@ -25,6 +25,10 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Write access to calvinchengx/homebrew-tap so GoReleaser can commit
+          # the formula. Optional: if the secret is unset the brews step
+          # self-skips (skip_upload) instead of failing the release.
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
   image:
     name: Docker image → GHCR
