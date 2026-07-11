@@ -31,30 +31,37 @@ that table *is* the compatibility proof.
 | **OpenFGA** | ReBAC (Zanzibar) | container (testcontainers) | [`openfga_test.go`](openfga_test.go) |
 | **SpiceDB** (Authzed) | ReBAC (Zanzibar) | container (testcontainers) | [`spicedb_test.go`](spicedb_test.go) |
 | **Ory Keto** | ReBAC (Zanzibar) | container (testcontainers) | [`keto_test.go`](keto_test.go) |
+| **Permify** | ReBAC (Zanzibar) | container (testcontainers) | [`permify_test.go`](permify_test.go) |
 | **Casbin** | RBAC/ABAC | in-process (library) | [`casbin_test.go`](casbin_test.go) |
+| **OPA** | Rego policy | in-process (library) | [`opa_test.go`](opa_test.go) |
+| **Cedar** (cedar-go) | Cedar policy | in-process (library) | [`cedar_test.go`](cedar_test.go) |
 
-The operational shapes are deliberate: the three Zanzibar engines exercise the
+The operational shapes are deliberate. The four Zanzibar engines exercise the
 container + bootstrap path (each translates the canonical facts into its own
-relationship writes — OpenFGA tuples, SpiceDB relationships, Keto relation
-tuples), while Casbin exercises the zero-Docker in-process path. The container
-engines are reached over their **HTTP APIs with `net/http`** (no engine SDKs) —
-the OpenFGA leg uses its Go SDK, but SpiceDB and Keto are hand-rolled to keep
-this module's `go.mod` lean and dodge SDK dependency conflicts. OPA / Cerbos
-would follow the Casbin (embeddable) or container shape.
+relationship writes); the three policy/library engines exercise the zero-Docker
+in-process path. Container engines are reached over their **HTTP APIs with
+`net/http`** — only the OpenFGA leg uses a Go SDK; SpiceDB, Keto, and Permify
+are hand-rolled to keep this module's `go.mod` lean and dodge SDK dependency
+conflicts (the `authzed-go` tree, for one, pulls conflicting `buf.build` and
+`cloud.google.com` deps). OPA (Rego) and Cedar (cedar-go) embed directly, like
+Casbin.
 
 ## Honest caveat: ReBAC vs. RBAC/policy
 
-The canonical facts are **ReBAC-shaped** (subject / relation / object). For
-OpenFGA (and Keto/SpiceDB) the translation is faithful — this genuinely proves
-cross-engine equivalence. For **Casbin** (and OPA/Cerbos) we hand-author an
-equivalent model that yields the same decisions. So those legs prove *"our
-adapter + our authored model reproduce the contract"*, **not** that the engines
-are semantically identical. The green checkmark is scoped accordingly.
+The canonical facts are **ReBAC-shaped** (subject / relation / object). For the
+Zanzibar engines — **OpenFGA, SpiceDB, Keto, Permify** — the translation is
+faithful, so this genuinely proves cross-engine equivalence. For the policy
+engines — **Casbin, OPA, Cedar** — we hand-author an equivalent model (a Casbin
+policy, a Rego module, or generated Cedar `permit` policies) that yields the
+same decisions. Those legs prove *"our adapter + our authored model reproduce
+the contract"*, **not** that the engines are semantically identical. The green
+checkmark is scoped accordingly.
 
 Group membership is **not** stored in any PDP: the sample supplies the caller's
 groups at request time (from the token's `groups` claim), and each adapter
-checks them as `group:<id>#member` usersets — mirroring the reference
-`InMemoryPDP`.
+resolves them as `group:<id>#member` usersets (ReBAC engines) or as the
+principal's `parents` / group subjects (policy engines) — mirroring the
+reference `InMemoryPDP`.
 
 ## Running it
 
