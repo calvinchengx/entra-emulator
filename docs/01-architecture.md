@@ -111,10 +111,13 @@ data/
 
 ## Reference sources
 
-1. **`~/calvinchengx/entra-docs`** — the official Microsoft Entra documentation
-   (source of learn.microsoft.com/entra). Canonical for protocol behavior, claim
-   semantics, and MSAL client configuration: `docs/identity-platform/` (OAuth/OIDC,
-   tokens, MSAL), `docs/identity/authentication/` (auth methods incl. passkeys/FIDO2),
+1. **`entra-docs`** — the official Microsoft Entra documentation
+   ([`MicrosoftDocs/entra-docs`](https://github.com/MicrosoftDocs/entra-docs), the
+   source of learn.microsoft.com/entra). Clone it locally for offline reference —
+   `git clone https://github.com/MicrosoftDocs/entra-docs` — and paths below are
+   relative to that clone. Canonical for protocol behavior, claim semantics, and
+   MSAL client configuration: `docs/identity-platform/` (OAuth/OIDC, tokens, MSAL),
+   `docs/identity/authentication/` (auth methods incl. passkeys/FIDO2),
    `docs/external-id/` (CIAM / native auth). When emulator behavior is in question,
    this wins over inference.
 2. **The relevant RFCs** — OAuth 2.0 (6749/6750), PKCE (7636), Device Authorization
