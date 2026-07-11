@@ -45,8 +45,10 @@ The features only a Go implementation can offer; cheap and differentiating.
 6. ✅ **Clock control.** Controllable clock (offset / advance / freeze / reset) wired
    into every emulator timestamp via `Store.Now`; `GET/POST/DELETE /admin/api/clock`.
    Advancing past a token's lifetime expires it with no real sleep.
-7. ⬜ **Directory import/export.** `GET /admin/api/export` / `POST /admin/api/import`
-   dumping the whole directory as a JSON fixture — shareable, versionable CI states.
+7. ✅ **Directory import/export.** `GET /admin/api/export` / `POST /admin/api/import`
+   dump/replace the directory (users, groups + memberships, apps + sub-resources) as a
+   JSON fixture. Hashes preserved so a round-trip keeps auth; signing keys + live grants
+   excluded. Shareable, versionable CI states.
 8. ⬜ **Flow audit trail.** Record every authorize/token exchange with the concrete
    accept/reject reason ("PKCE verifier mismatch", "redirect_uri not registered");
    expose via admin API and the portal. Turns "why won't MSAL sign in" into reading a log.

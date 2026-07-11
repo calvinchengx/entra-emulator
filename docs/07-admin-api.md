@@ -114,6 +114,21 @@ Config: `{ tokenError?, tokenErrorDescription?, tokenLatencyMs?, probability? }`
 every token response; `probability` (0–1, default 1) makes a set error intermittent.
 In-memory only — cleared by DELETE or a process restart.
 
+## Directory import/export (roadmap #7 — shareable fixtures)
+
+Dump the directory as a portable JSON fixture and load it back — versionable, shareable
+CI states.
+
+| Method | Path | → |
+|---|---|---|
+| GET | `/admin/api/export` | JSON snapshot (users, groups + memberships, apps + redirect URIs/secrets/scopes/roles) |
+| POST | `/admin/api/import` | replace the directory from a snapshot → `{ imported: { users, groups, apps } }` |
+
+Excludes signing keys (tenant crypto, kept stable) and live grants (transient). Password
+and secret **hashes are included**, so a round-trip preserves authentication (the daemon
+secret still works after import). Import is replace-semantics inside one transaction,
+preserving the tenant row and signing keys.
+
 ## Clock control (roadmap #6 — testing superpower)
 
 Freeze or offset the emulator clock so token-expiry and refresh logic are testable
