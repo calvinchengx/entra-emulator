@@ -120,6 +120,12 @@ jobs:
             test: TestSpiceDB # ReBAC (Zanzibar), via testcontainers
           - engine: keto
             test: TestKeto # ReBAC (Zanzibar), via testcontainers
+          - engine: permify
+            test: TestPermify # ReBAC (Zanzibar), via testcontainers
+          - engine: opa
+            test: TestOPA # Rego policy engine, in-process
+          - engine: cedar
+            test: TestCedar # Cedar policy engine (cedar-go), in-process
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v6
