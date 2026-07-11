@@ -78,6 +78,8 @@ func (a *Admin) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/api/clock", a.getClock)
 	mux.HandleFunc("POST /admin/api/clock", a.setClock)
 	mux.HandleFunc("DELETE /admin/api/clock", a.resetClock)
+	mux.HandleFunc("GET /admin/api/export", a.exportDirectory)
+	mux.HandleFunc("POST /admin/api/import", a.importDirectory)
 	mux.HandleFunc("POST /admin/api/seed", a.seed)
 	mux.HandleFunc("POST /admin/api/reset", a.reset)
 	mux.HandleFunc("GET /admin/api/certificate", a.certificateMeta)
