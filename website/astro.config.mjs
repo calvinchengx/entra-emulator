@@ -1,13 +1,22 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import { remarkMermaid } from './plugins/remark-mermaid.mjs';
 
 // Project GitHub Pages site: https://calvinchengx.github.io/entra-emulator/
 export default defineConfig({
   site: 'https://calvinchengx.github.io',
   base: '/entra-emulator/',
+  // remarkMermaid turns ```mermaid fences into <pre class="mermaid"> before
+  // Expressive Code sees them; src/components/Head.astro renders them client-side.
+  markdown: {
+    remarkPlugins: [remarkMermaid],
+  },
   integrations: [
     starlight({
       title: 'Entra Emulator',
+      components: {
+        Head: './src/components/Head.astro',
+      },
       description:
         'A local, MSAL-compatible emulator of Microsoft Entra ID (Azure AD) in a single Go binary.',
       social: [

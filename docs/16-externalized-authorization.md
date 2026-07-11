@@ -11,10 +11,17 @@ standards-compliant RS256 tokens with a real JWKS, so a resource API can validat
 identity exactly as it would against cloud Entra, then delegate the decision to a
 PDP — with no cloud tenant and no emulator-specific coupling.
 
-```
-client ──token──▶ resource API ──"can user:X read doc:Y?"──▶ PDP
-                     │  1. validate JWT via JWKS   (authN — Entra's job)
-                     │  2. ask the PDP for a decision (authZ — the PDP's job)
+```mermaid
+flowchart LR
+    Client["client"]
+    subgraph api["resource API"]
+        direction TB
+        A["1. validate JWT via JWKS — authN (Entra's job)"]
+        B["2. ask the PDP for a decision — authZ (the PDP's job)"]
+    end
+    PDP["PDP"]
+    Client -->|"token"| api
+    api -->|"can user:X read doc:Y?"| PDP
 ```
 
 The runnable reference lives in
@@ -50,15 +57,22 @@ trustworthy identity.
 | **PIP** — Policy *Information* Point | "supply the attributes the decision needs" | `authz/validator.go` → `Claims`, mapped to `user:<oid>` + `group:<gid>` in `server.go` | **issues** `oid` / `groups` in the JWT — the emulator is the upstream attribute source |
 | **PAP** — Policy *Administration* Point | "where policy / relationships are authored & stored" | `main.go` `pdp.Write(...)` seed; the OpenFGA model + tuples in `compat/` | — |
 
-```
-                    ┌───────────────────── your resource app ─────────────────────┐
- client ──token──▶  │  PEP (server.go) ──asks──▶ PDP (pdp.go / OpenFGA)            │
-   ▲                │    │                          ▲         ▲                     │
-   │ identity       │    │ attributes               │ policy  │                     │
-   │ (JWT: oid,     │    └──▶ PIP (validator.go) ───┘         PAP (tuples/model)    │
-   │  groups)       └──────────────────────────────────────────────────────────────┘
-   │
-  emulator = IdP (authentication only — not a XACML box; it feeds the PIP)
+```mermaid
+flowchart LR
+    Emu["emulator = IdP — authentication only, feeds the PIP"]
+    Client["client"]
+    subgraph app["your resource app"]
+        PEP["PEP · server.go"]
+        PIP["PIP · validator.go"]
+        PDP["PDP · pdp.go / OpenFGA"]
+        PAP["PAP · tuples / model"]
+        PEP -->|"asks"| PDP
+        PEP -->|"attributes"| PIP
+        PIP --> PDP
+        PAP -->|"policy"| PDP
+    end
+    Emu -->|"identity — JWT: oid, groups"| Client
+    Client -->|"token"| PEP
 ```
 
 ## What the emulator provides
