@@ -74,7 +74,7 @@ func (i *Identity) handleMSIToken(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	resp, err := i.Tokens.BuildAppOnlyResponse(app, aud, roles, resource)
+	resp, err := i.Tokens.BuildAppOnlyResponse(app, aud, roles, resource, app.TenantID)
 	if err != nil {
 		httpx.WriteJSON(w, http.StatusInternalServerError, map[string]any{
 			"error": "server_error", "error_description": err.Error(),

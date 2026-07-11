@@ -3,6 +3,7 @@ module github.com/calvinchengx/entra-emulator
 go 1.25.11
 
 require (
+	github.com/brianvoe/gofakeit/v7 v7.15.0
 	github.com/descope/virtualwebauthn v1.0.5
 	github.com/go-webauthn/webauthn v0.17.4
 	golang.org/x/crypto v0.54.0

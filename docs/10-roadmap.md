@@ -98,10 +98,20 @@ Deeper Microsoft identity platform coverage:
     until `not_after`), so tokens already issued still verify during the grace window;
     `graceSeconds:0` drops the old key immediately. Signer swap is mutex-guarded
     (race-clean). 2 integration tests (grace cross-verify, no-grace drop).
-15. 🚧 **Consent + multi-tenant.** (a) ✅ **Optional consent screen** — `REQUIRE_CONSENT`
+15. ✅ **Consent + multi-tenant.** (a) ✅ **Optional consent screen** — `REQUIRE_CONSENT`
     gates a scope-consent page during authorize (Accept -> code, Cancel ->
-    `access_denied`); 2 integration tests. (b) ⬜ **Multi-tenant** directories (`tid`
-    per tenant) — the large invasive item, still open.
+    `access_denied`); 2 integration tests. (b) ✅ **Multi-tenant** directories — each
+    tenant carries its own `tid`, GUID-form issuer (`{login}/{tid}/v2.0`), and lazily
+    provisioned RS256 signing key; the token service threads the resolved tenant through
+    id/access minting (`resolveTenant`/`issuerForTenant`/`signerForTenant`), and
+    `tenantSegment` resolves the `{tenant}` path (home GUID + `common`/`organizations`/
+    `consumers` aliases -> home, any other GUID -> that tenant if it exists, else 404).
+    Per-tenant discovery + JWKS; apps can be registered in a non-home tenant
+    (`tenantId` on create). Admin tenant CRUD (`/admin/api/tenants`) generates realistic
+    metadata with gofakeit — `displayName` + `<slug>.onmicrosoft.com` initial domain.
+    1 integration test proving isolation (tenant-B `client_credentials` -> `tid`=B,
+    B-issuer, RS256-verifiable against B's JWKS with a distinct kid; home unchanged;
+    unknown tenant rejected; home tenant undeletable).
 16. ⬜ **Fabric-flavored identities (Entra layer only).** Make the emulator issue the
     tokens a Microsoft Fabric environment relies on, without emulating Fabric itself:
     (a) recognize the Fabric resource — `https://api.fabric.microsoft.com` and the legacy

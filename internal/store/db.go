@@ -29,10 +29,11 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
   applied_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS tenants (
-  id           TEXT PRIMARY KEY,
-  display_name TEXT NOT NULL,
-  issuer       TEXT NOT NULL,
-  created_at   INTEGER NOT NULL
+  id             TEXT PRIMARY KEY,
+  display_name   TEXT NOT NULL,
+  issuer         TEXT NOT NULL,
+  initial_domain TEXT,
+  created_at     INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS users (
   id                  TEXT PRIMARY KEY,
@@ -229,6 +230,7 @@ func (s *Store) migrate() error {
 	for _, alter := range []string{
 		`ALTER TABLE authorization_codes ADD COLUMN amr TEXT`,
 		`ALTER TABLE sessions ADD COLUMN auth_method TEXT NOT NULL DEFAULT 'pwd'`,
+		`ALTER TABLE tenants ADD COLUMN initial_domain TEXT`,
 	} {
 		if _, err := s.db.Exec(alter); err != nil &&
 			!strings.Contains(err.Error(), "duplicate column name") {

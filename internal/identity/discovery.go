@@ -10,15 +10,16 @@ import (
 // handleDiscovery serves the MSAL-tuned OIDC discovery document. The issuer
 // and endpoints are always GUID-form regardless of the alias requested.
 func (i *Identity) handleDiscovery(w http.ResponseWriter, r *http.Request) {
-	if _, ok := i.tenantSegment(r); !ok {
+	tid, ok := i.tenantSegment(r)
+	if !ok {
 		httpx.WriteJSON(w, http.StatusNotFound, map[string]any{
 			"error": map[string]string{"code": "invalid_tenant", "message": "Unknown tenant."}})
 		return
 	}
 	login := i.Cfg.Origins.Login
-	base := login + "/" + i.Cfg.TenantID
+	base := login + "/" + tid
 	doc := map[string]any{
-		"issuer":                        i.Cfg.Issuer,
+		"issuer":                        i.issuerFor(tid),
 		"authorization_endpoint":        base + "/oauth2/v2.0/authorize",
 		"token_endpoint":                base + "/oauth2/v2.0/token",
 		"device_authorization_endpoint": base + "/oauth2/v2.0/devicecode",
@@ -46,6 +47,15 @@ func (i *Identity) handleDiscovery(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, doc)
 }
 
+// issuerFor returns the GUID-form issuer for a tenant: the configured home
+// issuer for the home tenant, or {loginOrigin}/{tid}/v2.0 for others.
+func (i *Identity) issuerFor(tid string) string {
+	if tid == i.Cfg.TenantID {
+		return i.Cfg.Issuer
+	}
+	return i.Cfg.Origins.Login + "/" + tid + "/v2.0"
+}
+
 // userinfoEndpoint lives on the Graph origin; the compat origin serves it
 // under the /graph prefix.
 func (i *Identity) userinfoEndpoint() string {
@@ -56,12 +66,21 @@ func (i *Identity) userinfoEndpoint() string {
 }
 
 func (i *Identity) handleJWKS(w http.ResponseWriter, r *http.Request) {
-	if _, ok := i.tenantSegment(r); !ok {
+	tid, ok := i.tenantSegment(r)
+	if !ok {
 		httpx.WriteJSON(w, http.StatusNotFound, map[string]any{
 			"error": map[string]string{"code": "invalid_tenant", "message": "Unknown tenant."}})
 		return
 	}
-	raw, err := tokens.JWKS(i.Store, i.Cfg.TenantID)
+	// Ensure a non-home tenant has an active signing key before serving JWKS.
+	if tid != i.Cfg.TenantID {
+		if _, err := i.Tokens.SignerForTenant(tid); err != nil {
+			httpx.WriteJSON(w, http.StatusInternalServerError, map[string]any{
+				"error": map[string]string{"code": "internal_error", "message": err.Error()}})
+			return
+		}
+	}
+	raw, err := tokens.JWKS(i.Store, tid)
 	if err != nil {
 		httpx.WriteJSON(w, http.StatusInternalServerError, map[string]any{
 			"error": map[string]string{"code": "internal_error", "message": err.Error()}})

@@ -84,7 +84,7 @@ func (a *Admin) forgeToken(w http.ResponseWriter, r *http.Request) {
 	case "id":
 		claims["aud"] = app.ID
 		if user != nil {
-			claims["sub"] = a.Tokens.PairwiseSub(user.ID, app.ID)
+			claims["sub"] = a.Tokens.PairwiseSub(user.ID, app.ID, app.TenantID)
 			claims["oid"] = user.ID
 			claims["name"] = user.DisplayName
 			claims["preferred_username"] = user.UserPrincipalName
@@ -104,7 +104,7 @@ func (a *Admin) forgeToken(w http.ResponseWriter, r *http.Request) {
 		claims["azp"] = app.ID
 		claims["appid"] = app.ID
 		if user != nil {
-			claims["sub"] = a.Tokens.PairwiseSub(user.ID, app.ID)
+			claims["sub"] = a.Tokens.PairwiseSub(user.ID, app.ID, app.TenantID)
 			claims["oid"] = user.ID
 			claims["scp"] = joinSpace(req.Scopes)
 		} else {
