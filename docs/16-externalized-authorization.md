@@ -316,6 +316,82 @@ gate against the [seven CI-verified engines](#proven-against-real-engines) — n
 cloud tenant, no live agent. The reusable pieces are exactly the ones the sample
 already ships; a standalone runnable MCP sample is a natural next addition.
 
+## Data-plane authorization (RLS / CLS)
+
+Everything above gates the **API plane** — *"may you call this?"* A second,
+complementary plane gates the **data** — *"which rows and columns may you see?"* —
+using the database's own **Row-Level Security (RLS)** and **Column-Level Security
+(CLS)**. It's the mirror image of the PDP model: instead of a separate PEP and
+PDP, the **database engine fuses both** and enforces inline during query
+execution — below the app, so no query path (ORM, BI tool, ad-hoc SQL) can bypass
+it.
+
+The emulator's role is unchanged — it's still the **IdP feeding the PIP**. The
+only new step is carrying the token's `tid` / `groups` into the database
+**session**, where the policy predicate reads them:
+
+| Role | Data plane |
+|---|---|
+| **PEP + PDP** | the DB engine — the RLS predicate filters rows / the CLS rule masks columns, inline in the query plan |
+| **PIP** | the **session variable** set from the token (`app.tenant_id`), plus any entitlement table the predicate joins |
+| **PAP** | the policy DDL — `CREATE POLICY` (Postgres), `CREATE ROW ACCESS POLICY` / `CREATE MASKING POLICY` (Snowflake), policy tags (BigQuery) |
+
+Author the policy once (the **PAP**):
+
+```sql
+-- Postgres RLS: every query against documents is filtered by tenant.
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON documents
+  USING (tenant_id = current_setting('app.tenant_id', true)::uuid);
+```
+
+Then the app's only job is to **propagate the validated identity into the
+session** — reusing the same [`authz.TokenValidator`](https://github.com/calvinchengx/entra-emulator/tree/main/samples/externalized-authz/authz)
+(the PIP) from the API-plane story:
+
+```go
+// The DB is the PEP/PDP; the app just carries the token's tid into the session.
+func withTenant(ctx context.Context, db *sql.DB, bearer string, fn func(*sql.Tx) error) error {
+    claims, err := validator.Validate(bearer)      // PIP: emulator-issued tid/groups
+    if err != nil {
+        return errUnauthorized
+    }
+    tid, _ := claims.Raw["tid"].(string)
+
+    tx, err := db.BeginTx(ctx, nil)
+    if err != nil {
+        return err
+    }
+    defer tx.Rollback()
+    // set_config(..., is_local=true) is SET LOCAL — transaction-scoped, so a
+    // pooled connection never leaks one request's tenant into the next.
+    if _, err := tx.ExecContext(ctx,
+        "SELECT set_config('app.tenant_id', $1, true)", tid); err != nil {
+        return err
+    }
+    if err := fn(tx); err != nil { // every query inside is now RLS-filtered
+        return err
+    }
+    return tx.Commit()
+}
+```
+
+**The critical seam is that `SET`.** RLS is only as trustworthy as the identity
+the session is told about: with a shared connection pool you *must* scope it to
+the transaction (`SET LOCAL` / `set_config(..., true)`), or one request's tenant
+bleeds into the next. Forget the `SET` entirely and a service-account connection
+sees *everything*. This is exactly where the token's claims must land — the same
+`tid` the emulator's [multi-tenant tokens](04-token-service.md) already carry.
+
+**CLS** follows the same shape, keyed on `groups`: managed warehouses do it
+natively (Snowflake `CREATE MASKING POLICY`, BigQuery policy tags) — e.g. mask
+`ssn` unless the session's groups include an authorized id. Postgres has no native
+CLS; use column privileges, views, or an extension like PostgreSQL Anonymizer.
+
+Use both planes together for defense in depth: the **PDP** decides *"can this
+agent call the reporting API?"*, and **RLS/CLS** then guarantees *"…and even so,
+only their tenant's rows, with sensitive columns masked."*
+
 ## Related
 
 - [SCIM provisioning](15-scim-provisioning.md) — the other enterprise-integration
