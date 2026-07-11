@@ -68,3 +68,22 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: ./scripts/docker-smoke.sh
+
+  samples:
+    name: Samples compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      # Keep the copy-paste samples honest: fully build the typed Go sample
+      # (catches API drift) and syntax-check the scripting samples.
+      - run: go build -o /dev/null ./...
+        working-directory: samples/msal-go
+      - run: node --check samples/msal-node/index.mjs
+      - run: python3 -m py_compile samples/msal-python/main.py
