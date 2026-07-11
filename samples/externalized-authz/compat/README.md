@@ -29,13 +29,18 @@ that table *is* the compatibility proof.
 | Engine | Model | Runs as | Harness |
 |---|---|---|---|
 | **OpenFGA** | ReBAC (Zanzibar) | container (testcontainers) | [`openfga_test.go`](openfga_test.go) |
+| **SpiceDB** (Authzed) | ReBAC (Zanzibar) | container (testcontainers) | [`spicedb_test.go`](spicedb_test.go) |
+| **Ory Keto** | ReBAC (Zanzibar) | container (testcontainers) | [`keto_test.go`](keto_test.go) |
 | **Casbin** | RBAC/ABAC | in-process (library) | [`casbin_test.go`](casbin_test.go) |
 
-The two operational shapes are deliberate: OpenFGA exercises the
-container + bootstrap path (create store → write model → write tuples), Casbin
-exercises the zero-Docker in-process path. Ory Keto / SpiceDB (also Zanzibar)
-drop in as near-copies of the OpenFGA harness; OPA / Cerbos follow the Casbin
-shape.
+The operational shapes are deliberate: the three Zanzibar engines exercise the
+container + bootstrap path (each translates the canonical facts into its own
+relationship writes — OpenFGA tuples, SpiceDB relationships, Keto relation
+tuples), while Casbin exercises the zero-Docker in-process path. The container
+engines are reached over their **HTTP APIs with `net/http`** (no engine SDKs) —
+the OpenFGA leg uses its Go SDK, but SpiceDB and Keto are hand-rolled to keep
+this module's `go.mod` lean and dodge SDK dependency conflicts. OPA / Cerbos
+would follow the Casbin (embeddable) or container shape.
 
 ## Honest caveat: ReBAC vs. RBAC/policy
 
