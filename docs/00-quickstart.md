@@ -5,7 +5,7 @@ tenant, no app registration, no waiting. Every value below is a **seeded dev
 constant**, so the snippets are copy-paste runnable.
 
 By the end you'll have: the emulator running, a client-credentials token from
-`curl` and from MSAL (Node / Go / azidentity), and a Microsoft Graph call
+`curl` and from MSAL (Node / Python / Go / azidentity), and a Microsoft Graph call
 authorized by that token.
 
 ## 1. Run the emulator
@@ -69,10 +69,10 @@ non-Microsoft hosts, mark it known and skip instance discovery).
 :::caution[Two knobs every SDK needs]
 1. **Authority** = `{origin}/{tenantId}` — here
    `https://localhost:8443/11111111-1111-1111-1111-111111111111`.
-2. **Trust the host**: `knownAuthorities` (MSAL.js/Node) or
-   `WithInstanceDiscovery(false)` (MSAL Go) / a cloud-config override
-   (azidentity) — otherwise the SDK tries to validate the authority against
-   `login.microsoftonline.com`.
+2. **Trust the host**: `knownAuthorities` (MSAL.js/Node),
+   `instance_discovery=False` (MSAL Python), `WithInstanceDiscovery(false)`
+   (MSAL Go), or a cloud-config override (azidentity) — otherwise the SDK tries
+   to validate the authority against `login.microsoftonline.com`.
 :::
 
 ### MSAL Node (`@azure/msal-node`)
@@ -94,6 +94,24 @@ const res = await cca.acquireTokenByClientCredential({
   scopes: ['https://graph.microsoft.com/.default'],
 });
 console.log(res.accessToken);
+```
+
+### MSAL Python (`msal`)
+
+```python
+import msal
+
+app = msal.ConfidentialClientApplication(
+    "cccccccc-0000-0000-0000-000000000002",       # client id
+    client_credential="daemon-app-secret",
+    authority="https://localhost:8443/11111111-1111-1111-1111-111111111111",
+    instance_discovery=False,                     # don't probe the real AAD metadata
+    verify="./data/tls/cert.pem",                 # trust the emulator cert
+)
+
+result = app.acquire_token_for_client(
+    scopes=["https://graph.microsoft.com/.default"])
+print(result["access_token"])   # or result["error_description"] on failure
 ```
 
 ### MSAL Go (`microsoft-authentication-library-for-go`)
@@ -195,11 +213,13 @@ forge** panel in the portal.
 ## Troubleshooting
 
 - **`invalid_authority` / instance-discovery errors** — set `knownAuthorities`
-  (MSAL.js/Node) or `WithInstanceDiscovery(false)` (MSAL Go); the SDK is trying
-  to reach `login.microsoftonline.com`.
+  (MSAL.js/Node), `instance_discovery=False` (MSAL Python), or
+  `WithInstanceDiscovery(false)` (MSAL Go); the SDK is trying to reach
+  `login.microsoftonline.com`.
 - **TLS / self-signed errors** — trust the cert (`entra-emulator trust`), set
-  `NODE_EXTRA_CA_CERTS`, or pass a cert-aware HTTP client. MSAL Go **requires**
-  https and won't accept an `http://` authority.
+  `NODE_EXTRA_CA_CERTS` (Node), pass `verify="<cert>"` (MSAL Python), or use a
+  cert-aware HTTP client (Go). MSAL Go **requires** https and won't accept an
+  `http://` authority.
 - **`AADSTS500011` (resource not found)** — client credentials needs exactly one
   `<resource>/.default` scope; check the resource matches a registered app or
   the Graph resource id.
