@@ -111,6 +111,10 @@ jobs:
             test: TestCasbin # in-process, no container
           - engine: openfga
             test: TestOpenFGA # ReBAC reference, via testcontainers
+          - engine: spicedb
+            test: TestSpiceDB # ReBAC (Zanzibar), via testcontainers
+          - engine: keto
+            test: TestKeto # ReBAC (Zanzibar), via testcontainers
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v6
