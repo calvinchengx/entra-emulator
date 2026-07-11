@@ -7,13 +7,19 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/calvinchengx/entra-emulator/internal/clock"
 	_ "modernc.org/sqlite"
 )
 
 // Store owns the SQLite connection and exposes the repositories.
 type Store struct {
-	db  *sql.DB
-	Now func() int64 // injectable clock (epoch seconds)
+	db *sql.DB
+	// Clock is the controllable time source (roadmap #6). Now delegates to
+	// it, so admin clock control affects every timestamp the emulator stamps.
+	Clock *clock.Clock
+	// Now returns the current epoch seconds. Defaults to Clock.Now; tests may
+	// override it directly for fully deterministic time.
+	Now func() int64
 }
 
 const schema = `
@@ -180,7 +186,8 @@ func Open(path string) (*Store, error) {
 			return nil, fmt.Errorf("store: %s: %w", pragma, err)
 		}
 	}
-	s := &Store{db: db, Now: func() int64 { return time.Now().Unix() }}
+	clk := clock.New()
+	s := &Store{db: db, Clock: clk, Now: clk.Now}
 	if err := s.migrate(); err != nil {
 		db.Close()
 		return nil, err
