@@ -17,3 +17,6 @@ __pycache__/
 
 # Xcode/Flutter build output that lands outside the app dir
 e2e/build/
+
+# GoReleaser build output (release binaries + generated cask)
+/dist/

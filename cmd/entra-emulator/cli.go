@@ -43,6 +43,9 @@ func runSubcommand(cfg *config.Config, args []string) error {
 		return nil
 	case "healthcheck":
 		return runHealthcheck(cfg)
+	case "version", "--version", "-v":
+		fmt.Println(version)
+		return nil
 	case "help", "--help", "-h":
 		printHelp()
 		return nil
@@ -84,7 +87,8 @@ Usage:
   entra-emulator trust      print the platform command to trust the TLS cert
   entra-emulator cert-path  print the path to cert.pem
   entra-emulator show-cert  print the cert path + SHA-256 fingerprint
-  entra-emulator healthcheck  probe /health (exit 0 healthy) — for containers`)
+  entra-emulator healthcheck  probe /health (exit 0 healthy) — for containers
+  entra-emulator version    print the version`)
 }
 
 const hostsMarkerBegin = "# entra-emulator BEGIN"

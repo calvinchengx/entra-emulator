@@ -12,6 +12,33 @@ import (
 	"github.com/calvinchengx/entra-emulator/internal/config"
 )
 
+// captureStdout runs fn with os.Stdout redirected to a pipe and returns what
+// it wrote.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	orig := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	defer func() { os.Stdout = orig }()
+	fn()
+	_ = w.Close()
+	var sb strings.Builder
+	buf := make([]byte, 1024)
+	for {
+		n, err := r.Read(buf)
+		if n > 0 {
+			sb.Write(buf[:n])
+		}
+		if err != nil {
+			break
+		}
+	}
+	return sb.String()
+}
+
 func testConfig(t *testing.T) *config.Config {
 	t.Helper()
 	cfg, err := config.Load(func(k string) string {
@@ -111,8 +138,8 @@ func TestRunHostsApplyAndRemove(t *testing.T) {
 func TestRunSubcommandDispatch(t *testing.T) {
 	cfg := testConfig(t)
 
-	// help / cert-path / show-cert / trust all succeed.
-	for _, verb := range []string{"help", "--help", "cert-path", "show-cert", "trust"} {
+	// help / cert-path / show-cert / trust / version all succeed.
+	for _, verb := range []string{"help", "--help", "cert-path", "show-cert", "trust", "version", "--version", "-v"} {
 		if err := runSubcommand(cfg, []string{verb}); err != nil {
 			t.Fatalf("subcommand %q: %v", verb, err)
 		}
@@ -120,6 +147,23 @@ func TestRunSubcommandDispatch(t *testing.T) {
 	// Unknown → error.
 	if err := runSubcommand(cfg, []string{"bogus"}); err == nil {
 		t.Fatal("unknown subcommand should error")
+	}
+}
+
+func TestVersionSubcommandPrints(t *testing.T) {
+	cfg := testConfig(t)
+	// Stamp a recognizable version and confirm `version` prints exactly it.
+	orig := version
+	version = "v9.9.9-test"
+	t.Cleanup(func() { version = orig })
+
+	out := captureStdout(t, func() {
+		if err := runSubcommand(cfg, []string{"version"}); err != nil {
+			t.Fatalf("version: %v", err)
+		}
+	})
+	if strings.TrimSpace(out) != "v9.9.9-test" {
+		t.Fatalf("version output = %q, want %q", strings.TrimSpace(out), "v9.9.9-test")
 	}
 }
 
