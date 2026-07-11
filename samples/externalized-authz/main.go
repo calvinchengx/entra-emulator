@@ -4,6 +4,11 @@
 // (PDP) — the "Entra authenticates, a separate service authorizes" pattern.
 // See README.md. It needs no emulator features; it consumes the emulator only
 // as a standards-compliant token issuer.
+//
+// The reusable pieces (token validator, PDP port, resource server, in-memory
+// PDP) live in the authz package so they can be imported — notably by the
+// compat/ module, which proves the PDP port works against real engines
+// (OpenFGA, Casbin, …). This file is only the standalone runner.
 package main
 
 import (
@@ -11,6 +16,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/calvinchengx/entra-emulator/samples/externalized-authz/authz"
 )
 
 func main() {
@@ -20,14 +27,14 @@ func main() {
 	addr := env("LISTEN_ADDR", ":9090")
 
 	// Seed the PDP with a couple of relationship tuples. In production these
-	// live in OpenFGA and are managed independently of this service.
-	pdp := NewInMemoryPDP()
+	// live in the real PDP (OpenFGA, …) and are managed independently.
+	pdp := authz.NewInMemoryPDP()
 	if reader := os.Getenv("SEED_READER_OID"); reader != "" {
 		pdp.Write("user:"+reader, "reader", "doc:readme")
 	}
 
-	srv := &ResourceServer{
-		Validator: &TokenValidator{JWKSURL: jwksURL, Issuer: issuer, Audience: audience},
+	srv := &authz.ResourceServer{
+		Validator: &authz.TokenValidator{JWKSURL: jwksURL, Issuer: issuer, Audience: audience},
 		PDP:       pdp,
 	}
 	log.Printf("externalized-authz resource API listening on %s (aud=%s)", addr, audience)

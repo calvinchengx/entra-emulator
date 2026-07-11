@@ -1,4 +1,4 @@
-package main
+package authz
 
 import (
 	"crypto"

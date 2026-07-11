@@ -95,3 +95,29 @@ jobs:
         working-directory: samples/msal-go
       - run: node --check samples/msal-node/index.mjs
       - run: python3 -m py_compile samples/msal-python/main.py
+      # Compile the PDP-compat suite against the engine SDKs (no run, no Docker)
+      # so API drift is caught on every push; the pdp-compat job runs it for real.
+      - run: CGO_ENABLED=0 go test -tags=pdp_integration -run '^$' ./...
+        working-directory: samples/externalized-authz/compat
+
+  pdp-compat:
+    name: PDP compat (${{ matrix.engine }})
+    runs-on: ubuntu-latest # Docker preinstalled → testcontainers works
+    strategy:
+      fail-fast: false # one engine's failure must not hide the others
+      matrix:
+        include:
+          - engine: casbin
+            test: TestCasbin # in-process, no container
+          - engine: openfga
+            test: TestOpenFGA # ReBAC reference, via testcontainers
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+      - name: Integration test
+        working-directory: samples/externalized-authz/compat
+        env:
+          CGO_ENABLED: '0'
+        run: go test -tags=pdp_integration -run '${{ matrix.test }}' -v ./...
