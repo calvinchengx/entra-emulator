@@ -17,8 +17,8 @@ import (
 
 func (a *Admin) workspaceIdentityDTO(wi *store.WorkspaceIdentity) map[string]any {
 	return map[string]any{
-		"id":            wi.ID,     // service principal object id
-		"appId":         wi.AppID,  // the SP's client/app id
+		"id":            wi.ID,    // service principal object id
+		"appId":         wi.AppID, // the SP's client/app id
 		"tenantId":      wi.TenantID,
 		"workspaceId":   wi.WorkspaceID,
 		"workspaceName": wi.WorkspaceName,

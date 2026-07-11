@@ -59,8 +59,9 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service, cert *tlscert.
 
 	id := identity.New(cfg, st, ts, fs, au)
 	gr := graph.New(cfg, st, ts)
-	ad := admin.New(cfg, st, ts, fs, au, ce, cert, version)
 	sc := scim.New(cfg, st)
+	pv := scim.NewProvisioner(st)
+	ad := admin.New(cfg, st, ts, fs, au, ce, pv, cert, version)
 
 	// login surface: OIDC only + /health-free root descriptor.
 	loginMux := http.NewServeMux()

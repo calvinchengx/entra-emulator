@@ -15,24 +15,26 @@ import (
 	"github.com/calvinchengx/entra-emulator/internal/customext"
 	"github.com/calvinchengx/entra-emulator/internal/faults"
 	"github.com/calvinchengx/entra-emulator/internal/httpx"
+	"github.com/calvinchengx/entra-emulator/internal/scim"
 	"github.com/calvinchengx/entra-emulator/internal/store"
 	"github.com/calvinchengx/entra-emulator/internal/tlscert"
 	"github.com/calvinchengx/entra-emulator/internal/tokens"
 )
 
 type Admin struct {
-	Cfg       *config.Config
-	Store     *store.Store
-	Tokens    *tokens.Service
-	Faults    *faults.Store
-	Audit     *audit.Recorder
-	CustomExt *customext.Store
-	Cert      *tlscert.Material
-	Version   string
-	Started   time.Time
+	Cfg         *config.Config
+	Store       *store.Store
+	Tokens      *tokens.Service
+	Faults      *faults.Store
+	Audit       *audit.Recorder
+	CustomExt   *customext.Store
+	Provisioner *scim.Provisioner
+	Cert        *tlscert.Material
+	Version     string
+	Started     time.Time
 }
 
-func New(cfg *config.Config, st *store.Store, ts *tokens.Service, fs *faults.Store, au *audit.Recorder, ce *customext.Store, cert *tlscert.Material, version string) *Admin {
+func New(cfg *config.Config, st *store.Store, ts *tokens.Service, fs *faults.Store, au *audit.Recorder, ce *customext.Store, pv *scim.Provisioner, cert *tlscert.Material, version string) *Admin {
 	if fs == nil {
 		fs = faults.New()
 	}
@@ -42,7 +44,10 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service, fs *faults.Sto
 	if ce == nil {
 		ce = customext.NewStore()
 	}
-	return &Admin{Cfg: cfg, Store: st, Tokens: ts, Faults: fs, Audit: au, CustomExt: ce, Cert: cert, Version: version, Started: time.Now()}
+	if pv == nil {
+		pv = scim.NewProvisioner(st)
+	}
+	return &Admin{Cfg: cfg, Store: st, Tokens: ts, Faults: fs, Audit: au, CustomExt: ce, Provisioner: pv, Cert: cert, Version: version, Started: time.Now()}
 }
 
 func (a *Admin) Register(mux *http.ServeMux) {
@@ -97,6 +102,13 @@ func (a *Admin) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/api/import", a.importDirectory)
 	mux.HandleFunc("GET /admin/api/audit", a.getAudit)
 	mux.HandleFunc("DELETE /admin/api/audit", a.clearAudit)
+
+	mux.HandleFunc("GET /admin/api/scim/target", a.getScimTarget)
+	mux.HandleFunc("POST /admin/api/scim/target", a.setScimTarget)
+	mux.HandleFunc("DELETE /admin/api/scim/target", a.clearScimTarget)
+	mux.HandleFunc("POST /admin/api/scim/sync", a.scimSync)
+	mux.HandleFunc("GET /admin/api/scim/log", a.getScimLog)
+	mux.HandleFunc("DELETE /admin/api/scim/log", a.clearScimLog)
 
 	mux.HandleFunc("GET /admin/api/custom-extensions", a.listCustomExtensions)
 	mux.HandleFunc("PUT /admin/api/apps/{id}/custom-extension", a.setCustomExtension)

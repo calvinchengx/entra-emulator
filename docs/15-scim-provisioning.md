@@ -62,6 +62,9 @@ the admin API, or SCIM.
 
 ## Phase 2 — provisioning client (emulate Entra outbound)
 
+**Built** (`internal/scim` provisioner + admin API); the portal view, group
+member-correlation, and true incremental (watermark) remain open.
+
 A controllable provisioning engine (admin-triggered, not a real 40-min timer)
 that pushes the directory to a configured target using Entra's request
 sequence:
