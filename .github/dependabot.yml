@@ -1,9 +1,10 @@
 version: 2
 
-# Managed, grouped dependency updates. The docs stack (Astro/Starlight) is
-# deliberately pinned for reproducible GitHub Pages builds — majors are held so
-# an Astro-major bump can't land without a matching Starlight release; take them
-# on purpose, not as a surprise PR.
+# Managed, grouped dependency updates. Astro and Starlight are grouped so they
+# always upgrade as one compatible pair (Starlight peers a specific Astro
+# major) — including majors, so security fixes that only land in a new Astro
+# major aren't held back. The exact pins in package.json stay reproducible; the
+# grouped PR proposes the next matched pair for CI to verify before merge.
 updates:
   # pnpm workspace: root + portal + website (single root pnpm-lock.yaml).
   - package-ecosystem: npm
@@ -16,12 +17,6 @@ updates:
         patterns: ['astro', '@astrojs/*', 'sharp']
       portal:
         patterns: ['svelte', '@sveltejs/*', 'vite']
-    ignore:
-      # Astro + Starlight move in lockstep; upgrade the pair manually.
-      - dependency-name: 'astro'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@astrojs/starlight'
-        update-types: ['version-update:semver-major']
 
   # Standalone TS e2e suite (its own npm project, outside the workspace).
   - package-ecosystem: npm
