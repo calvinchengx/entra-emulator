@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/calvinchengx/entra-emulator/internal/config"
 	"github.com/calvinchengx/entra-emulator/internal/store"
@@ -13,9 +14,10 @@ import (
 
 // Service mints and validates tokens and grant artifacts.
 type Service struct {
-	Store  *store.Store
-	Signer *Signer
-	Cfg    *config.Config
+	Store    *store.Store
+	Signer   *Signer // guarded by signerMu; use sign()
+	Cfg      *config.Config
+	signerMu sync.RWMutex
 	// ClaimsEnricher, when set, is called during delegated-token minting to
 	// merge additional claims from a custom authentication extension
 	// (roadmap #10). It returns claims to add; protocol claims are protected
@@ -31,6 +33,40 @@ var protectedClaims = map[string]bool{
 	"name": true, "preferred_username": true, "email": true,
 }
 
+// sign signs claims with the current active signer under a read lock, so a
+// concurrent Rotate cannot swap the key mid-sign.
+func (s *Service) sign(claims map[string]any) (string, error) {
+	s.signerMu.RLock()
+	signer := s.Signer
+	s.signerMu.RUnlock()
+	return SignRS256(signer.PrivateKey, signer.Kid, claims)
+}
+
+// ActiveKid returns the current signing key id.
+func (s *Service) ActiveKid() string {
+	s.signerMu.RLock()
+	defer s.signerMu.RUnlock()
+	return s.Signer.Kid
+}
+
+// Rotate generates a new active signing key and retires the previous active
+// key(s), keeping them in JWKS until now+graceSeconds so tokens already issued
+// still verify. Returns the new kid.
+func (s *Service) Rotate(graceSeconds int) (string, error) {
+	now := s.Store.Now()
+	if err := s.Store.DemoteActiveSigningKeys(s.Cfg.TenantID, now+int64(graceSeconds)); err != nil {
+		return "", err
+	}
+	newSigner, err := generateAndActivate(s.Store, s.Cfg.TenantID)
+	if err != nil {
+		return "", err
+	}
+	s.signerMu.Lock()
+	s.Signer = newSigner
+	s.signerMu.Unlock()
+	return newSigner.Kid, nil
+}
+
 // MintSystemToken mints a short-lived app-only token the emulator uses to
 // authenticate its own outbound callouts (e.g. custom-extension webhooks),
 // mirroring Entra authenticating to a customer's Function with its own token.
@@ -41,7 +77,7 @@ func (s *Service) MintSystemToken(audience string) string {
 		"iat": now, "nbf": now, "exp": now + 300,
 		"tid": s.Cfg.TenantID, "idtyp": "app", "ver": "2.0",
 	}
-	jwt, _ := SignRS256(s.Signer.PrivateKey, s.Signer.Kid, claims)
+	jwt, _ := s.sign(claims)
 	return jwt
 }
 
@@ -143,7 +179,7 @@ func (s *Service) BuildAppOnlyResponse(app *store.App, aud string, roles []strin
 		"tid": s.Cfg.TenantID, "azp": app.ID, "appid": app.ID,
 		"roles": roles, "ver": "2.0",
 	}
-	jwt, err := SignRS256(s.Signer.PrivateKey, s.Signer.Kid, claims)
+	jwt, err := s.sign(claims)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +210,7 @@ func (s *Service) mintIDToken(g DelegatedGrant, now int64) (string, error) {
 	}
 	s.applyTokenConfig(claims, g.App, g.User, "idToken")
 	s.enrich(claims, g.App, g.User, "idToken")
-	return SignRS256(s.Signer.PrivateKey, s.Signer.Kid, claims)
+	return s.sign(claims)
 }
 
 func (s *Service) mintAccessDelegated(g DelegatedGrant, aud string, now int64) (string, error) {
@@ -200,7 +236,7 @@ func (s *Service) mintAccessDelegated(g DelegatedGrant, aud string, now int64) (
 	}
 	s.applyTokenConfig(claims, resourceApp, g.User, "accessToken")
 	s.enrich(claims, g.App, g.User, "accessToken")
-	return SignRS256(s.Signer.PrivateKey, s.Signer.Kid, claims)
+	return s.sign(claims)
 }
 
 // ---- Optional claims & group claims (docs/04, token configuration) ----

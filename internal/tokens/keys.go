@@ -46,6 +46,12 @@ func EnsureActiveKey(st *store.Store, tenantID string) (*Signer, error) {
 		return nil, err
 	}
 
+	return generateAndActivate(st, tenantID)
+}
+
+// generateAndActivate mints, persists (as the active key), and returns a fresh
+// RSA-2048 signing key.
+func generateAndActivate(st *store.Store, tenantID string) (*Signer, error) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, fmt.Errorf("tokens: generate signing key: %w", err)
