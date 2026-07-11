@@ -49,6 +49,11 @@ func (a *Admin) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/api/health", a.handleHealth)
 	mux.HandleFunc("GET /health", a.handleHealth)
 
+	mux.HandleFunc("GET /admin/api/tenants", a.listTenants)
+	mux.HandleFunc("POST /admin/api/tenants", a.createTenant)
+	mux.HandleFunc("GET /admin/api/tenants/{id}", a.getTenant)
+	mux.HandleFunc("DELETE /admin/api/tenants/{id}", a.deleteTenant)
+
 	mux.HandleFunc("GET /admin/api/users", a.listUsers)
 	mux.HandleFunc("POST /admin/api/users", a.createUser)
 	mux.HandleFunc("GET /admin/api/users/{id}", a.getUser)

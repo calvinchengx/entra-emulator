@@ -164,12 +164,18 @@ func (i *Identity) clearSession(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// tenantSegment validates the {tenant} path value; ok=false means the
-// caller must reject the request.
+// tenantSegment validates the {tenant} path value and resolves it to a
+// concrete tenant ID. The home GUID and the multi-tenant aliases (common,
+// organizations, consumers) resolve to the home tenant; any other value is
+// treated as a tenant GUID and accepted only if that tenant exists. ok=false
+// means the caller must reject the request.
 func (i *Identity) tenantSegment(r *http.Request) (string, bool) {
 	seg := r.PathValue("tenant")
 	switch seg {
 	case i.Cfg.TenantID, "common", "organizations", "consumers":
+		return i.Cfg.TenantID, true
+	}
+	if _, err := i.Store.GetTenantByID(seg); err == nil {
 		return seg, true
 	}
 	return seg, false

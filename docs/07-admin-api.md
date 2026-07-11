@@ -15,6 +15,24 @@ origin). Powers the Svelte portal and scripted CI seeding.
   codes `validation_error` 400, `not_found` 404, `conflict` 409, `invalid_reference` 400,
   `internal_error` 500.
 
+## Tenants (multi-tenant, roadmap #15b)
+
+| Method | Path | → |
+|---|---|---|
+| GET | `/admin/api/tenants` | `{ value: [Tenant] }`, home first |
+| POST | `/admin/api/tenants` | 201 Tenant |
+| GET | `/admin/api/tenants/{id}` | 200 Tenant |
+| DELETE | `/admin/api/tenants/{id}` | 204 (home → 400) |
+
+Tenant DTO: `{ id, displayName, issuer, initialDomain?, isHome, createdAt }`. Create body
+is optional `{ displayName?, initialDomain? }`; missing fields are generated with gofakeit
+(`displayName` → a company name, `initialDomain` → `<slug>.onmicrosoft.com` derived from
+the name). The server assigns a GUID `id`, sets the GUID-form `issuer`
+(`{login}/{id}/v2.0`), and lazily provisions the tenant's RS256 signing key so its
+discovery/JWKS/token endpoints work immediately. Delete cascades the tenant's apps, users,
+groups, grants, and signing keys; the home tenant cannot be deleted (400). To register an
+app in a non-home tenant, pass `tenantId` on `POST /admin/api/apps`.
+
 ## Users
 
 | Method | Path | → |
@@ -53,8 +71,10 @@ App DTO: `{ id, displayName, isConfidential, appIdUri?, redirectUris[{id,uri,typ
 exposedScopes[{id,value,adminConsentDisplayName,isEnabled}],
 appRoles[{id,value,displayName,allowedMemberTypes,isEnabled}],
 secrets[{id,displayName,hint,expiresAt,createdAt}], createdAt }` — secrets list **hint
-only**. Non-null `appIdUri` must be unique (409) for `.default` resolution. PATCH covers
-scalars only; sub-collections use:
+only**. Non-null `appIdUri` must be unique (409) for `.default` resolution. Create accepts
+an optional `tenantId` to register the app in a non-home tenant (unknown → 400
+`invalid_reference`); it defaults to the home tenant. PATCH covers scalars only;
+sub-collections use:
 
 | Method | Path | Notes |
 |---|---|---|

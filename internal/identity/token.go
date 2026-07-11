@@ -302,7 +302,7 @@ func (i *Identity) grantClientCredentials(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	resp, err := i.Tokens.BuildAppOnlyResponse(app, aud, roles, scopes[0])
+	resp, err := i.Tokens.BuildAppOnlyResponse(app, aud, roles, scopes[0], app.TenantID)
 	if err != nil {
 		httpx.WriteOAuthError(w, "invalid_request", "AADSTS90002: Token minting failed.")
 		return

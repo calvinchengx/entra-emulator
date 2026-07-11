@@ -14,10 +14,11 @@ import (
 
 // Service mints and validates tokens and grant artifacts.
 type Service struct {
-	Store    *store.Store
-	Signer   *Signer // guarded by signerMu; use sign()
-	Cfg      *config.Config
-	signerMu sync.RWMutex
+	Store         *store.Store
+	Signer        *Signer // home-tenant signer; guarded by signerMu
+	Cfg           *config.Config
+	signerMu      sync.RWMutex
+	tenantSigners map[string]*Signer // non-home tenant signers (roadmap #15b)
 	// ClaimsEnricher, when set, is called during delegated-token minting to
 	// merge additional claims from a custom authentication extension
 	// (roadmap #10). It returns claims to add; protocol claims are protected
@@ -33,12 +34,71 @@ var protectedClaims = map[string]bool{
 	"name": true, "preferred_username": true, "email": true,
 }
 
-// sign signs claims with the current active signer under a read lock, so a
-// concurrent Rotate cannot swap the key mid-sign.
+// sign signs claims with the home tenant's active signer under a read lock,
+// so a concurrent Rotate cannot swap the key mid-sign.
 func (s *Service) sign(claims map[string]any) (string, error) {
 	s.signerMu.RLock()
 	signer := s.Signer
 	s.signerMu.RUnlock()
+	return SignRS256(signer.PrivateKey, signer.Kid, claims)
+}
+
+// resolveTenant returns tid, defaulting empty to the home tenant.
+func (s *Service) resolveTenant(tid string) string {
+	if tid == "" {
+		return s.Cfg.TenantID
+	}
+	return tid
+}
+
+// issuerForTenant returns the GUID-form issuer for a tenant.
+func (s *Service) issuerForTenant(tid string) string {
+	if tid == s.Cfg.TenantID {
+		return s.Cfg.Issuer
+	}
+	return s.Cfg.Origins.Login + "/" + tid + "/v2.0"
+}
+
+// signerForTenant returns the active signer for a tenant, loading/generating
+// and caching it for non-home tenants.
+func (s *Service) signerForTenant(tid string) (*Signer, error) {
+	if tid == s.Cfg.TenantID {
+		s.signerMu.RLock()
+		signer := s.Signer
+		s.signerMu.RUnlock()
+		return signer, nil
+	}
+	s.signerMu.RLock()
+	cached := s.tenantSigners[tid]
+	s.signerMu.RUnlock()
+	if cached != nil {
+		return cached, nil
+	}
+	signer, err := EnsureActiveKey(s.Store, tid)
+	if err != nil {
+		return nil, err
+	}
+	s.signerMu.Lock()
+	if s.tenantSigners == nil {
+		s.tenantSigners = map[string]*Signer{}
+	}
+	s.tenantSigners[tid] = signer
+	s.signerMu.Unlock()
+	return signer, nil
+}
+
+// SignerForTenant ensures a tenant has an active signing key (loading or
+// generating it) and returns it. Used by JWKS to serve per-tenant keys.
+func (s *Service) SignerForTenant(tid string) (*Signer, error) {
+	return s.signerForTenant(tid)
+}
+
+// signTenant signs claims with a specific tenant's active signer.
+func (s *Service) signTenant(tid string, claims map[string]any) (string, error) {
+	signer, err := s.signerForTenant(tid)
+	if err != nil {
+		return "", err
+	}
 	return SignRS256(signer.PrivateKey, signer.Kid, claims)
 }
 
@@ -109,14 +169,14 @@ type TokenResponse struct {
 // defaultGroupOverageLimit mirrors Entra's JWT groups-claim cap.
 const defaultGroupOverageLimit = 200
 
-// PairwiseSub derives the stable pairwise subject for (user, app).
-func (s *Service) PairwiseSub(userID, appID string) string {
-	sum := sha256.Sum256([]byte(userID + "|" + appID + "|" + s.Cfg.TenantID))
+// PairwiseSub derives the stable pairwise subject for (user, app, tenant).
+func (s *Service) PairwiseSub(userID, appID, tid string) string {
+	sum := sha256.Sum256([]byte(userID + "|" + appID + "|" + s.resolveTenant(tid)))
 	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
 
-func (s *Service) clientInfo(userOID string) string {
-	raw, _ := json.Marshal(map[string]string{"uid": userOID, "utid": s.Cfg.TenantID})
+func (s *Service) clientInfo(userOID, tid string) string {
+	raw, _ := json.Marshal(map[string]string{"uid": userOID, "utid": s.resolveTenant(tid)})
 	return base64.RawURLEncoding.EncodeToString(raw)
 }
 
@@ -128,6 +188,7 @@ type DelegatedGrant struct {
 	Resource string   // resolved audience ("" -> GraphResourceID)
 	Nonce    string   // echoed into the ID token when present
 	AMR      string   // authentication method reference (e.g. "fido") -> amr claim
+	TenantID string   // resolved tenant ("" -> home); drives tid/iss/signing key
 	// SkipRefreshToken suppresses issuing a fresh refresh token — used by
 	// the refresh grant, whose rotation already produced the successor.
 	SkipRefreshToken bool
@@ -151,7 +212,7 @@ func (s *Service) BuildDelegatedResponse(g DelegatedGrant) (*TokenResponse, erro
 		ExtExpiresIn: s.Cfg.Lifetimes.AccessToken,
 		Scope:        strings.Join(g.Scopes, " "),
 		AccessToken:  access,
-		ClientInfo:   s.clientInfo(g.User.ID),
+		ClientInfo:   s.clientInfo(g.User.ID, g.TenantID),
 	}
 	if hasScope(g.Scopes, "openid") {
 		idt, err := s.mintIDToken(g, now)
@@ -171,15 +232,17 @@ func (s *Service) BuildDelegatedResponse(g DelegatedGrant) (*TokenResponse, erro
 }
 
 // BuildAppOnlyResponse mints the client-credentials response (no user).
-func (s *Service) BuildAppOnlyResponse(app *store.App, aud string, roles []string, scopeEcho string) (*TokenResponse, error) {
+// tenantID selects the issuing tenant ("" -> home).
+func (s *Service) BuildAppOnlyResponse(app *store.App, aud string, roles []string, scopeEcho, tenantID string) (*TokenResponse, error) {
 	now := s.Store.Now()
+	tid := s.resolveTenant(tenantID)
 	claims := map[string]any{
-		"iss": s.Cfg.Issuer, "sub": app.ID, "aud": aud,
+		"iss": s.issuerForTenant(tid), "sub": app.ID, "aud": aud,
 		"iat": now, "nbf": now, "exp": now + int64(s.Cfg.Lifetimes.AccessToken),
-		"tid": s.Cfg.TenantID, "azp": app.ID, "appid": app.ID,
+		"tid": tid, "azp": app.ID, "appid": app.ID,
 		"roles": roles, "ver": "2.0",
 	}
-	jwt, err := s.sign(claims)
+	jwt, err := s.signTenant(tid, claims)
 	if err != nil {
 		return nil, err
 	}
@@ -190,12 +253,13 @@ func (s *Service) BuildAppOnlyResponse(app *store.App, aud string, roles []strin
 }
 
 func (s *Service) mintIDToken(g DelegatedGrant, now int64) (string, error) {
+	tid := s.resolveTenant(g.TenantID)
 	claims := map[string]any{
-		"iss": s.Cfg.Issuer,
-		"sub": s.PairwiseSub(g.User.ID, g.App.ID),
+		"iss": s.issuerForTenant(tid),
+		"sub": s.PairwiseSub(g.User.ID, g.App.ID, tid),
 		"aud": g.App.ID,
 		"iat": now, "nbf": now, "exp": now + int64(s.Cfg.Lifetimes.IDToken),
-		"tid": s.Cfg.TenantID, "oid": g.User.ID,
+		"tid": tid, "oid": g.User.ID,
 		"name": g.User.DisplayName, "preferred_username": g.User.UserPrincipalName,
 		"ver": "2.0",
 	}
@@ -210,16 +274,17 @@ func (s *Service) mintIDToken(g DelegatedGrant, now int64) (string, error) {
 	}
 	s.applyTokenConfig(claims, g.App, g.User, "idToken")
 	s.enrich(claims, g.App, g.User, "idToken")
-	return s.sign(claims)
+	return s.signTenant(tid, claims)
 }
 
 func (s *Service) mintAccessDelegated(g DelegatedGrant, aud string, now int64) (string, error) {
+	tid := s.resolveTenant(g.TenantID)
 	claims := map[string]any{
-		"iss": s.Cfg.Issuer,
-		"sub": s.PairwiseSub(g.User.ID, g.App.ID),
+		"iss": s.issuerForTenant(tid),
+		"sub": s.PairwiseSub(g.User.ID, g.App.ID, tid),
 		"aud": aud,
 		"iat": now, "nbf": now, "exp": now + int64(s.Cfg.Lifetimes.AccessToken),
-		"tid": s.Cfg.TenantID, "oid": g.User.ID,
+		"tid": tid, "oid": g.User.ID,
 		"azp": g.App.ID, "appid": g.App.ID,
 		"scp": strings.Join(scopeNamesOnly(g.Scopes), " "),
 		"ver": "2.0",
@@ -236,7 +301,7 @@ func (s *Service) mintAccessDelegated(g DelegatedGrant, aud string, now int64) (
 	}
 	s.applyTokenConfig(claims, resourceApp, g.User, "accessToken")
 	s.enrich(claims, g.App, g.User, "accessToken")
-	return s.sign(claims)
+	return s.signTenant(tid, claims)
 }
 
 // ---- Optional claims & group claims (docs/04, token configuration) ----
@@ -523,7 +588,11 @@ func (s *Service) ValidateAccessToken(bearer string, audiences []string) (*Valid
 		return nil, err
 	}
 
-	if iss, _ := claims["iss"].(string); iss != s.Cfg.Issuer {
+	// Multi-tenant: the issuer must be the GUID-form issuer for the token's
+	// own tenant (home or any other), not necessarily the home issuer.
+	iss, _ := claims["iss"].(string)
+	tid, _ := claims["tid"].(string)
+	if tid == "" || iss != s.issuerForTenant(tid) {
 		return nil, fmt.Errorf("wrong issuer")
 	}
 	now := s.Store.Now()

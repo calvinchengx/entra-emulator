@@ -218,6 +218,7 @@ func (a *Admin) listApps(w http.ResponseWriter, r *http.Request) {
 
 type appBody struct {
 	DisplayName           *string `json:"displayName"`
+	TenantID              *string `json:"tenantId"` // multi-tenant (roadmap #15b); defaults to home
 	IsConfidential        *bool   `json:"isConfidential"`
 	AppIDURI              *string `json:"appIdUri"`
 	GroupMembershipClaims *string `json:"groupMembershipClaims"`
@@ -239,8 +240,17 @@ func (a *Admin) createApp(w http.ResponseWriter, r *http.Request) {
 			httpx.AdminDetail{Field: "displayName", Message: "Required."})
 		return
 	}
+	tenantID := a.Cfg.TenantID
+	if b.TenantID != nil && *b.TenantID != "" {
+		if _, err := a.Store.GetTenantByID(*b.TenantID); err != nil {
+			httpx.WriteAdminError(w, http.StatusBadRequest, "invalid_reference",
+				"tenantId does not resolve to a tenant.")
+			return
+		}
+		tenantID = *b.TenantID
+	}
 	app := &store.App{
-		ID: store.NewGUID(), TenantID: a.Cfg.TenantID, DisplayName: *b.DisplayName,
+		ID: store.NewGUID(), TenantID: tenantID, DisplayName: *b.DisplayName,
 		GroupMembershipClaims: "None", CreatedAt: a.Store.Now(),
 	}
 	applyAppBody(app, &b)

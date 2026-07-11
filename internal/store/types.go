@@ -4,10 +4,11 @@ package store
 // epoch seconds; identifiers are lowercase GUID strings.
 
 type Tenant struct {
-	ID          string
-	DisplayName string
-	Issuer      string
-	CreatedAt   int64
+	ID            string
+	DisplayName   string
+	Issuer        string
+	InitialDomain string // <slug>.onmicrosoft.com
+	CreatedAt     int64
 }
 
 type User struct {

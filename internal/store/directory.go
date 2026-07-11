@@ -22,16 +22,81 @@ func mapConstraint(err error) error {
 
 // ---- Tenants ----
 
-func (s *Store) GetTenant() (*Tenant, error) {
-	row := s.db.QueryRow(`SELECT id, display_name, issuer, created_at FROM tenants LIMIT 1`)
+const tenantCols = `id, display_name, issuer, COALESCE(initial_domain,''), created_at`
+
+func scanTenant(row interface{ Scan(...any) error }) (*Tenant, error) {
 	t := &Tenant{}
-	if err := row.Scan(&t.ID, &t.DisplayName, &t.Issuer, &t.CreatedAt); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
-		}
+	err := row.Scan(&t.ID, &t.DisplayName, &t.Issuer, &t.InitialDomain, &t.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return t, err
+}
+
+// GetTenant returns the home (first-created) tenant.
+func (s *Store) GetTenant() (*Tenant, error) {
+	return scanTenant(s.db.QueryRow(`SELECT ` + tenantCols + ` FROM tenants ORDER BY created_at LIMIT 1`))
+}
+
+// GetTenantByID returns a specific tenant (multi-tenant, roadmap #15b).
+func (s *Store) GetTenantByID(id string) (*Tenant, error) {
+	return scanTenant(s.db.QueryRow(`SELECT `+tenantCols+` FROM tenants WHERE id=?`, id))
+}
+
+// ListTenants returns every tenant, home first.
+func (s *Store) ListTenants() ([]*Tenant, error) {
+	rows, err := s.db.Query(`SELECT ` + tenantCols + ` FROM tenants ORDER BY created_at`)
+	if err != nil {
 		return nil, err
 	}
-	return t, nil
+	defer rows.Close()
+	var out []*Tenant
+	for rows.Next() {
+		tn, err := scanTenant(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, tn)
+	}
+	return out, rows.Err()
+}
+
+// CreateTenant inserts a new tenant.
+func (s *Store) CreateTenant(t *Tenant) error {
+	_, err := s.db.Exec(`INSERT INTO tenants (id, display_name, issuer, initial_domain, created_at)
+		VALUES (?,?,?,?,?)`, t.ID, t.DisplayName, t.Issuer, nullable(t.InitialDomain), t.CreatedAt)
+	return mapConstraint(err)
+}
+
+// DeleteTenant removes a tenant and all its scoped data. Grants FK-reference
+// the tenant's apps/users without cascade, so they are cleared first.
+func (s *Store) DeleteTenant(id string) error {
+	return s.tx(func(tx *sql.Tx) error {
+		apps := `(SELECT app_id FROM app_registrations WHERE tenant_id=?)`
+		users := `(SELECT id FROM users WHERE tenant_id=?)`
+		stmts := []struct {
+			q    string
+			args []any
+		}{
+			{`DELETE FROM authorization_codes WHERE app_id IN ` + apps + ` OR user_id IN ` + users, []any{id, id}},
+			{`DELETE FROM refresh_tokens WHERE app_id IN ` + apps + ` OR user_id IN ` + users, []any{id, id}},
+			{`DELETE FROM device_codes WHERE app_id IN ` + apps, []any{id}},
+			{`DELETE FROM app_registrations WHERE tenant_id=?`, []any{id}}, // cascades sub-tables
+			{`DELETE FROM groups WHERE tenant_id=?`, []any{id}},            // cascades group_members
+			{`DELETE FROM users WHERE tenant_id=?`, []any{id}},             // cascades sessions/webauthn
+			{`DELETE FROM signing_keys WHERE tenant_id=?`, []any{id}},
+		}
+		for _, s := range stmts {
+			if _, err := tx.Exec(s.q, s.args...); err != nil {
+				return err
+			}
+		}
+		res, err := tx.Exec(`DELETE FROM tenants WHERE id=?`, id)
+		if err != nil {
+			return err
+		}
+		return requireRow(res)
+	})
 }
 
 // ---- Users ----
