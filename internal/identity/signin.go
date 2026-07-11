@@ -100,6 +100,32 @@ func (i *Identity) renderPasswordForm(w http.ResponseWriter, action, signedState
 	writeHTML(w, http.StatusOK, "Sign in", body)
 }
 
+// renderConsent shows the app + requested scopes with Approve/Deny, posting
+// back to the authorize endpoint (roadmap #15a). The signed authorize state
+// survives the round-trip.
+func (i *Identity) renderConsent(w http.ResponseWriter, st authorizeState, app *store.App) {
+	action := "/" + st.Tenant + "/oauth2/v2.0/authorize"
+	signed := i.signState(st)
+	scopesHTML := ""
+	for _, sc := range SplitScopes(st.Scope) {
+		scopesHTML += "<li>" + html.EscapeString(sc) + "</li>"
+	}
+	fields := func(decision string) string {
+		return hiddenFields(map[string]string{
+			fieldConsent: "1", fieldState: signed, fieldDecision: decision,
+		})
+	}
+	body := fmt.Sprintf(`<h1>Permissions requested</h1>
+<p><strong>%s</strong> is requesting access to:</p>
+<ul class="scopes">%s</ul>
+<form method="post" action="%s" style="display:inline">%s<button class="primary" type="submit">Accept</button></form>
+<form method="post" action="%s" style="display:inline">%s<button class="primary" type="submit" style="background:#605e5c">Cancel</button></form>`,
+		html.EscapeString(app.DisplayName), scopesHTML,
+		html.EscapeString(action), fields("approve"),
+		html.EscapeString(action), fields("deny"))
+	writeHTML(w, http.StatusOK, "Permissions requested", body)
+}
+
 func (i *Identity) renderErrorPage(w http.ResponseWriter, status int, title, message string) {
 	body := `<h1>` + html.EscapeString(title) + `</h1><div class="error">` +
 		html.EscapeString(message) + `</div>`

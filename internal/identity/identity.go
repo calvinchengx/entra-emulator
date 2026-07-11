@@ -24,6 +24,7 @@ const (
 	sessionLifetimeSeconds = 8 * 60 * 60
 	fieldState             = "__ee_state"
 	fieldStep              = "__ee_step"
+	fieldConsent           = "__ee_consent"
 	fieldUser              = "__ee_user"
 	fieldUsername          = "__ee_username"
 	fieldPassword          = "__ee_password"

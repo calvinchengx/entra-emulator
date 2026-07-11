@@ -98,8 +98,10 @@ Deeper Microsoft identity platform coverage:
     until `not_after`), so tokens already issued still verify during the grace window;
     `graceSeconds:0` drops the old key immediately. Signer swap is mutex-guarded
     (race-clean). 2 integration tests (grace cross-verify, no-grace drop).
-15. ⬜ **Optional consent screen** (currently auto-consent), then **multi-tenant**
-    directories (`tid` per tenant) last — it touches everything.
+15. 🚧 **Consent + multi-tenant.** (a) ✅ **Optional consent screen** — `REQUIRE_CONSENT`
+    gates a scope-consent page during authorize (Accept -> code, Cancel ->
+    `access_denied`); 2 integration tests. (b) ⬜ **Multi-tenant** directories (`tid`
+    per tenant) — the large invasive item, still open.
 16. ⬜ **Fabric-flavored identities (Entra layer only).** Make the emulator issue the
     tokens a Microsoft Fabric environment relies on, without emulating Fabric itself:
     (a) recognize the Fabric resource — `https://api.fabric.microsoft.com` and the legacy
