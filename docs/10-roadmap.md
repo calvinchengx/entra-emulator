@@ -83,7 +83,10 @@ Deeper Microsoft identity platform coverage:
     full register → assert → SSO → amr chain. Non-goals: attestation policy, AAGUID
     allowlists, cross-device CTAP.
     Ref: `entra-docs/docs/identity/authentication/concept-authentication-passkeys-fido2.md`.
-12. ⬜ **ROPC** — deprecated in production, but pragmatic for headless CI sign-ins.
+12. ✅ **ROPC** — `grant_type=password`: verifies user credentials, mints a delegated
+    token (`amr:["pwd"]`, refresh when `offline_access`). Public or confidential
+    clients; bad credential → `invalid_grant` (AADSTS50126). Advertised in discovery.
+    4 integration tests. Deprecated in production but pragmatic for headless CI.
 13. ⬜ **`private_key_jwt` / certificate client authentication.**
 14. ⬜ **Signing-key rotation** — multiple keys in JWKS, admin-triggered rollover.
 15. ⬜ **Optional consent screen** (currently auto-consent), then **multi-tenant**
