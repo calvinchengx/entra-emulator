@@ -66,8 +66,8 @@ func parseFilter(expr string) (func(map[string]any) bool, error) {
 	}
 	if m := reCmpFilter.FindStringSubmatch(expr); m != nil {
 		field, op, rawVal := m[1], m[2], strings.TrimSpace(m[3])
-		want, isStr := literalValue(rawVal)
-		if want == nil && !isStr {
+		want, isStr, ok := literalValue(rawVal)
+		if !ok {
 			return nil, fmt.Errorf("unparseable filter value %q", rawVal)
 		}
 		return func(shape map[string]any) bool {
@@ -82,20 +82,21 @@ func parseFilter(expr string) (func(map[string]any) bool, error) {
 }
 
 // literalValue parses an OData literal: 'quoted string', true/false, or null.
-// isStr distinguishes a (possibly empty) string literal from a bare token.
-func literalValue(raw string) (val any, isStr bool) {
+// isStr distinguishes a (possibly empty) string literal from a bare token; ok
+// is false only for genuinely unparseable input (so null stays valid).
+func literalValue(raw string) (val any, isStr, ok bool) {
 	if len(raw) >= 2 && raw[0] == '\'' && raw[len(raw)-1] == '\'' {
-		return raw[1 : len(raw)-1], true
+		return raw[1 : len(raw)-1], true, true
 	}
 	switch strings.ToLower(raw) {
 	case "true":
-		return true, false
+		return true, false, true
 	case "false":
-		return false, false
+		return false, false, true
 	case "null":
-		return nil, false
+		return nil, false, true
 	}
-	return nil, false
+	return nil, false, false
 }
 
 func valueEquals(got, want any, wantIsStr bool) bool {

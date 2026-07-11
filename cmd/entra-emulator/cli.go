@@ -101,11 +101,31 @@ func hostsEntries(cfg *config.Config) []string {
 	return lines
 }
 
+// hostsFilePathFn resolves the hosts file to edit; a var so tests can point it
+// at a scratch file instead of the real system hosts file.
+var hostsFilePathFn = hostsFilePath
+
 func hostsFilePath() string {
 	if runtime.GOOS == "windows" {
 		return `C:\Windows\System32\drivers\etc\hosts`
 	}
 	return "/etc/hosts"
+}
+
+// mergeHostsBlock returns content with the managed block removed (idempotent)
+// and, unless remove is set, re-appended. Pure so the add/remove/idempotency
+// logic is unit-testable without filesystem access.
+func mergeHostsBlock(content, block string, remove bool) string {
+	if start := strings.Index(content, hostsMarkerBegin); start >= 0 {
+		if end := strings.Index(content, hostsMarkerEnd); end >= 0 {
+			content = content[:start] + content[end+len(hostsMarkerEnd):]
+			content = strings.TrimRight(content, "\n") + "\n"
+		}
+	}
+	if !remove {
+		content = strings.TrimRight(content, "\n") + "\n\n" + block + "\n"
+	}
+	return content
 }
 
 func runHosts(cfg *config.Config, args []string) error {
@@ -131,22 +151,12 @@ func runHosts(cfg *config.Config, args []string) error {
 		return nil
 	}
 
-	path := hostsFilePath()
+	path := hostsFilePathFn()
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read %s (elevation required?): %w", path, err)
 	}
-	content := string(raw)
-	// Idempotent: drop any existing managed block first.
-	if start := strings.Index(content, hostsMarkerBegin); start >= 0 {
-		if end := strings.Index(content, hostsMarkerEnd); end >= 0 {
-			content = content[:start] + content[end+len(hostsMarkerEnd):]
-			content = strings.TrimRight(content, "\n") + "\n"
-		}
-	}
-	if !remove {
-		content = strings.TrimRight(content, "\n") + "\n\n" + block + "\n"
-	}
+	content := mergeHostsBlock(string(raw), block, remove)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("write %s (elevation required?): %w", path, err)
 	}
