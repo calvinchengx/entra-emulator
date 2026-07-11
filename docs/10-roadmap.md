@@ -179,16 +179,21 @@ Deeper Microsoft identity platform coverage:
 
 ## Phase 5 — SCIM provisioning
 
-21. 🚧 **SCIM 2.0 (RFC 7643/7644).** Emulate Entra's provisioning both ways
+21. ✅ **SCIM 2.0 (RFC 7643/7644).** Emulate Entra's provisioning both ways
     ([full design](15-scim-provisioning.md)):
     - (a) ✅ **Service provider (server).** `/scim/v2/{Users,Groups}` over the directory —
       list + `userName eq` correlation filter + pagination, create, read, replace, PatchOp
       (soft-deprovision `active:false`, member add/remove), delete; bearer-secret auth;
       `application/scim+json` + ListResponse/Error schemas; discovery endpoints. Backed by
       the shared store, wired on the compat origin at `/scim`. 3 integration suites.
-    - (b) ⬜ **Provisioning client.** Push the directory *out* to a configured SCIM endpoint
-      replicating Entra's outbound cycle (initial/incremental sync, deprovision, Entra
-      request shapes) + a provisioning log + portal view + a mock-target e2e suite.
+    - (b) ✅ **Provisioning client.** Admin-controlled outbound provisioning
+      (`POST /admin/api/scim/{target,sync}`, `GET /admin/api/scim/log`): reconciles each
+      user to a configured SCIM endpoint with Entra's request sequence — `GET` existence
+      probe → `POST` create (new+active) / `PATCH active:false` (deprovision disabled) /
+      `PATCH` attributes (update) — with a provisioning-request log. Verified by a
+      stateful mock-target e2e. Open sub-threads: a portal "Provisioning" view, group
+      (member-correlated) provisioning, and true incremental (needs an `updated_at`
+      watermark).
 
 ## Explicit non-goals
 
