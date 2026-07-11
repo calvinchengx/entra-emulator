@@ -10,11 +10,13 @@ export default defineConfig({
       title: 'Entra Emulator',
       description:
         'A local, MSAL-compatible emulator of Microsoft Entra ID (Azure AD) in a single Go binary.',
-      social: { github: 'https://github.com/calvinchengx/entra-emulator' },
+      social: [
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/calvinchengx/entra-emulator' },
+      ],
       editLink: {
         baseUrl: 'https://github.com/calvinchengx/entra-emulator/edit/main/docs/',
       },
-      sidebar: [{ label: 'Documentation', autogenerate: { directory: '.' } }],
+      sidebar: [{ label: 'Documentation', items: [{ autogenerate: { directory: '.' } }] }],
     }),
   ],
 });
