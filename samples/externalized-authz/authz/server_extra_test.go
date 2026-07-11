@@ -1,4 +1,4 @@
-package main
+package authz
 
 import (
 	"context"
@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 )
@@ -110,19 +109,6 @@ func TestAuthorizePDPError(t *testing.T) {
 	tok := signRS256(t, key, kid, baseClaims("api://docs-api"))
 	if code := doCall(t, "GET", api.URL+"/documents/readme", tok); code != http.StatusBadGateway {
 		t.Fatalf("PDP error: want 502, got %d", code)
-	}
-}
-
-// TestEnv covers the env() helper both branches.
-func TestEnv(t *testing.T) {
-	const k = "EXTAUTHZ_TEST_ENV"
-	os.Unsetenv(k)
-	if got := env(k, "fallback"); got != "fallback" {
-		t.Fatalf("unset env: want fallback, got %q", got)
-	}
-	t.Setenv(k, "explicit")
-	if got := env(k, "fallback"); got != "explicit" {
-		t.Fatalf("set env: want explicit, got %q", got)
 	}
 }
 
