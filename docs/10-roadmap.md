@@ -137,7 +137,14 @@ Deeper Microsoft identity platform coverage:
 
 ## Phase 4 — Broader Graph & samples
 
-17. ⬜ `/me/memberOf`, basic OData (`$select`, `$filter`, `$top`, `$count`).
+17. ✅ `/me/memberOf` (+ `/users/{id}/memberOf`) returning the user's groups as directory
+    objects (`@odata.type`-tagged). Basic OData in `internal/graph/odata.go`: `$select`
+    (projection, always keeps `id`; also on single entities), `$filter` (single clause —
+    `field eq|ne 'v'|true|false`, `startswith`/`endswith(field,'v')`; malformed → 400),
+    `$top`/`$skiptoken` paging (preserved), and `$count=true` (`@odata.count` = matches,
+    post-filter). Filtering/projection run in-memory over shaped entities at emulator
+    scale. 2 integration tests (memberOf delegated + app-only; select/filter/count/combined
+    + bad-filter 400).
 18. ⬜ User/group/app **writes** through Graph (portal already covers admin writes).
 19. ⬜ Service principals / `/applications` read surface.
 20. ⬜ **Externalized-authorization sample** — a Go resource API validating emulator JWTs

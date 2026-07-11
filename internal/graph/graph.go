@@ -27,14 +27,19 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service) *Graph {
 // "/graph" on the compat origin).
 func (g *Graph) Register(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc("GET "+prefix+"/v1.0/me", g.requireDelegated(g.handleMe))
+	mux.HandleFunc("GET "+prefix+"/v1.0/me/memberOf", g.requireDelegated(g.handleMemberOf))
 	mux.HandleFunc("GET "+prefix+"/v1.0/users", g.requireBearer(g.handleUsers))
 	mux.HandleFunc("GET "+prefix+"/v1.0/users/{id}", g.requireBearer(g.handleUserByID))
+	mux.HandleFunc("GET "+prefix+"/v1.0/users/{id}/memberOf", g.requireBearer(g.handleMemberOf))
 	mux.HandleFunc("GET "+prefix+"/v1.0/groups", g.requireBearer(g.handleGroups))
 	mux.HandleFunc("GET "+prefix+"/v1.0/groups/{id}", g.requireBearer(g.handleGroupByID))
 	mux.HandleFunc("GET "+prefix+"/v1.0/groups/{id}/members", g.requireBearer(g.handleGroupMembers))
 	mux.HandleFunc("GET "+prefix+"/oidc/userinfo", g.requireDelegatedUserInfo(g.handleUserInfo))
 	mux.HandleFunc("POST "+prefix+"/oidc/userinfo", g.requireDelegatedUserInfo(g.handleUserInfo))
 }
+
+// allRows fetches every row for in-memory OData processing (emulator scale).
+const allRows = 1 << 30
 
 type handler func(w http.ResponseWriter, r *http.Request, tok *tokens.ValidatedToken)
 
@@ -168,27 +173,42 @@ func (g *Graph) handleMe(w http.ResponseWriter, r *http.Request, tok *tokens.Val
 		httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound", "The signed-in user no longer exists.")
 		return
 	}
-	shape := userShape(u)
+	shape := g.selectEntity(r, userShape(u))
 	shape["@odata.context"] = g.contextURL("users/$entity")
 	httpx.WriteJSON(w, http.StatusOK, shape)
 }
 
+// selectEntity applies $select to a single entity, always keeping id.
+func (g *Graph) selectEntity(r *http.Request, shape map[string]any) map[string]any {
+	sel := r.URL.Query().Get("$select")
+	if sel == "" {
+		return shape
+	}
+	var fields []string
+	for _, f := range strings.Split(sel, ",") {
+		if f = strings.TrimSpace(f); f != "" {
+			fields = append(fields, f)
+		}
+	}
+	return applySelect(shape, fields)
+}
+
 func (g *Graph) handleUsers(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
-	top, skip := paging(r)
-	users, count, err := g.Store.ListUsers(top, skip, "")
+	q, err := parseOData(r)
+	if err != nil {
+		httpx.WriteGraphError(w, http.StatusBadRequest, "BadRequest", err.Error())
+		return
+	}
+	users, _, err := g.Store.ListUsers(allRows, 0, "")
 	if err != nil {
 		httpx.WriteGraphError(w, http.StatusInternalServerError, "InternalServerError", err.Error())
 		return
 	}
-	value := make([]map[string]any, 0, len(users))
+	shapes := make([]map[string]any, 0, len(users))
 	for _, u := range users {
-		value = append(value, userShape(u))
+		shapes = append(shapes, userShape(u))
 	}
-	resp := map[string]any{"@odata.context": g.contextURL("users"), "value": value}
-	if skip+len(users) < count {
-		resp["@odata.nextLink"] = g.nextLink(r, skip+len(users))
-	}
-	httpx.WriteJSON(w, http.StatusOK, resp)
+	g.writeCollection(w, r, "users", shapes, q)
 }
 
 func (g *Graph) handleUserByID(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
@@ -201,27 +221,27 @@ func (g *Graph) handleUserByID(w http.ResponseWriter, r *http.Request, _ *tokens
 		httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound", "Resource '"+id+"' does not exist.")
 		return
 	}
-	shape := userShape(u)
+	shape := g.selectEntity(r, userShape(u))
 	shape["@odata.context"] = g.contextURL("users/$entity")
 	httpx.WriteJSON(w, http.StatusOK, shape)
 }
 
 func (g *Graph) handleGroups(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
-	top, skip := paging(r)
-	groups, count, err := g.Store.ListGroups(top, skip, "")
+	q, err := parseOData(r)
+	if err != nil {
+		httpx.WriteGraphError(w, http.StatusBadRequest, "BadRequest", err.Error())
+		return
+	}
+	groups, _, err := g.Store.ListGroups(allRows, 0, "")
 	if err != nil {
 		httpx.WriteGraphError(w, http.StatusInternalServerError, "InternalServerError", err.Error())
 		return
 	}
-	value := make([]map[string]any, 0, len(groups))
+	shapes := make([]map[string]any, 0, len(groups))
 	for _, gr := range groups {
-		value = append(value, groupShape(gr))
+		shapes = append(shapes, groupShape(gr))
 	}
-	resp := map[string]any{"@odata.context": g.contextURL("groups"), "value": value}
-	if skip+len(groups) < count {
-		resp["@odata.nextLink"] = g.nextLink(r, skip+len(groups))
-	}
-	httpx.WriteJSON(w, http.StatusOK, resp)
+	g.writeCollection(w, r, "groups", shapes, q)
 }
 
 func (g *Graph) handleGroupByID(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
@@ -230,12 +250,17 @@ func (g *Graph) handleGroupByID(w http.ResponseWriter, r *http.Request, _ *token
 		httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound", "Group does not exist.")
 		return
 	}
-	shape := groupShape(gr)
+	shape := g.selectEntity(r, groupShape(gr))
 	shape["@odata.context"] = g.contextURL("groups/$entity")
 	httpx.WriteJSON(w, http.StatusOK, shape)
 }
 
 func (g *Graph) handleGroupMembers(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
+	q, err := parseOData(r)
+	if err != nil {
+		httpx.WriteGraphError(w, http.StatusBadRequest, "BadRequest", err.Error())
+		return
+	}
 	groupID := r.PathValue("id")
 	if _, err := g.Store.GetGroup(groupID); err != nil {
 		httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound", "Group does not exist.")
@@ -246,13 +271,43 @@ func (g *Graph) handleGroupMembers(w http.ResponseWriter, r *http.Request, _ *to
 		httpx.WriteGraphError(w, http.StatusInternalServerError, "InternalServerError", err.Error())
 		return
 	}
-	value := make([]map[string]any, 0, len(members))
+	shapes := make([]map[string]any, 0, len(members))
 	for _, u := range members {
-		value = append(value, userShape(u))
+		s := userShape(u)
+		s["@odata.type"] = "#microsoft.graph.user"
+		shapes = append(shapes, s)
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{
-		"@odata.context": g.contextURL("directoryObjects"), "value": value,
-	})
+	g.writeCollection(w, r, "directoryObjects", shapes, q)
+}
+
+// handleMemberOf serves /me/memberOf and /users/{id}/memberOf — the groups the
+// user belongs to, as directory objects.
+func (g *Graph) handleMemberOf(w http.ResponseWriter, r *http.Request, tok *tokens.ValidatedToken) {
+	q, err := parseOData(r)
+	if err != nil {
+		httpx.WriteGraphError(w, http.StatusBadRequest, "BadRequest", err.Error())
+		return
+	}
+	userID := r.PathValue("id")
+	if userID == "" { // /me/memberOf
+		userID = tok.OID
+	}
+	if _, err := g.Store.GetUser(userID); err != nil {
+		httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound", "Resource '"+userID+"' does not exist.")
+		return
+	}
+	groups, err := g.Store.ListGroupsForUser(userID)
+	if err != nil {
+		httpx.WriteGraphError(w, http.StatusInternalServerError, "InternalServerError", err.Error())
+		return
+	}
+	shapes := make([]map[string]any, 0, len(groups))
+	for _, gr := range groups {
+		s := groupShape(gr)
+		s["@odata.type"] = "#microsoft.graph.group"
+		shapes = append(shapes, s)
+	}
+	g.writeCollection(w, r, "directoryObjects", shapes, q)
 }
 
 func (g *Graph) handleUserInfo(w http.ResponseWriter, r *http.Request, tok *tokens.ValidatedToken) {

@@ -17,12 +17,16 @@ require a **delegated** token (`oid` present); app-only → 403.
 | Method | Path | Returns |
 |---|---|---|
 | GET | `/v1.0/me` | user resolved from token `oid` (404 if gone) |
+| GET | `/v1.0/me/memberOf` | signed-in user's groups (directory objects) |
 | GET | `/v1.0/users` | paged user collection |
 | GET | `/v1.0/users/{id}` | by GUID **or UPN** |
+| GET | `/v1.0/users/{id}/memberOf` | a user's groups (directory objects) |
 | GET | `/v1.0/groups` | paged group collection |
 | GET | `/v1.0/groups/{id}` | single group |
 | GET | `/v1.0/groups/{id}/members` | member users |
 | GET, POST | `/oidc/userinfo` | OIDC UserInfo claims |
+
+`memberOf` items carry an `@odata.type` (`#microsoft.graph.group`).
 
 ## Shapes
 
@@ -36,6 +40,17 @@ mailEnabled: false, securityEnabled: true }`. Collections:
 - Paging: `$top` (default 100, max 999) + `$skiptoken` (integer offset). `nextLink` only
   when more rows remain and **preserves the caller's query params**. Collections ordered
   by `id`.
+
+### OData query options (basic)
+
+- `$select=a,b` — projects to the named fields; `id` is always retained. Applies to
+  collections and single entities.
+- `$filter` — a **single clause**: `field eq 'v'` / `field ne 'v'`, `field eq true|false`,
+  or `startswith(field,'v')` / `endswith(field,'v')`. Logical `and`/`or` is out of scope;
+  a malformed filter returns **400 `BadRequest`**.
+- `$count=true` — adds `@odata.count` (total **after** filtering).
+- Filtering and projection run in-memory over the shaped entities (fine at emulator sizes);
+  `$top`/`$skiptoken` paging is applied after filtering.
 
 ## Graph errors
 
