@@ -7,8 +7,9 @@ toolchain required at runtime).
 | Method | Platforms | Best for |
 |---|---|---|
 | [Homebrew](#homebrew-macos--linux) | macOS, Linux | Mac/Linux dev machines |
+| [winget](#windows-winget) | **Windows** | Windows dev machines |
 | [Docker](#docker) | anywhere Docker runs | CI, containers, zero local install |
-| [Pre-built binary](#pre-built-binaries-all-platforms) | macOS, Linux, **Windows** | pinned versions, air-gapped |
+| [Pre-built binary](#pre-built-binaries-all-platforms) | macOS, Linux, Windows | pinned versions, air-gapped |
 | [`go install`](#go-install) | any platform with Go | Go developers |
 | [From source](#from-source) | any platform with Go | hacking on the emulator |
 
@@ -99,9 +100,18 @@ Rebuilding the portal UI needs [pnpm](https://pnpm.io)
 (`pnpm --filter entra-emulator-portal build`), but a plain `go build` uses the
 committed `portal/dist` and needs no Node.
 
-## Windows package managers
+## Windows (winget)
 
-There is no `winget` / `scoop` / `choco` manifest yet — on Windows, use the
+Once a release is published to the winget community catalog:
+
+```powershell
+winget install calvinchengx.entra-emulator
+entra-emulator version
+```
+
+Each tagged release opens a manifest PR against `microsoft/winget-pkgs`; the
+package becomes installable after that PR is merged (validation can take a day
+or two). Until then — or for `scoop` / `choco`, which aren't published — use the
 [release archive](#pre-built-binaries-all-platforms) or [`go install`](#go-install).
 
 ## After installing
