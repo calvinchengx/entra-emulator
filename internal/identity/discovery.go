@@ -28,7 +28,7 @@ func (i *Identity) handleDiscovery(w http.ResponseWriter, r *http.Request) {
 		"response_types_supported":      []string{"code"},
 		"response_modes_supported":      []string{"query", "fragment", "form_post"},
 		"grant_types_supported": []string{
-			"authorization_code", "refresh_token", "client_credentials",
+			"authorization_code", "refresh_token", "client_credentials", "password",
 			"urn:ietf:params:oauth:grant-type:device_code",
 			"urn:ietf:params:oauth:grant-type:jwt-bearer",
 		},
