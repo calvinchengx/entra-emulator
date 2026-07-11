@@ -45,6 +45,21 @@ Backed by the same store as the admin API. Store errors map to Graph shapes: not
 404 `Request_ResourceNotFound`, unique conflict (e.g. duplicate UPN) → 400
 `Request_BadRequest`. No fine-grained permission enforcement (documented divergence).
 
+### Applications & service principals (roadmap #19)
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/v1.0/applications` | collection; OData options apply (e.g. `$filter=appId eq '<guid>'`) |
+| GET | `/v1.0/applications/{id}` | by object id (== appId) |
+| GET | `/v1.0/servicePrincipals` | collection |
+| GET | `/v1.0/servicePrincipals/{id}` | by object id (== appId) |
+
+Application shape: `{ id, appId, displayName, signInAudience, identifierUris, appRoles,
+api: { oauth2PermissionScopes } }`. Service-principal shape adds `servicePrincipalType`,
+`accountEnabled`, `oauth2PermissionScopes`, and `servicePrincipalNames`. There is **no
+separate SP store** — each app registration is its own service principal and the object
+`id` is conflated with `appId` (documented divergence).
+
 ## Shapes
 
 User: `{ "@odata.context", id, displayName, userPrincipalName, mail, givenName, surname,
