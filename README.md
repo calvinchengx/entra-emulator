@@ -74,6 +74,11 @@ binaries, `go install`, source — is in
   (`<resource>/.default`, app-role auto-grant), rotating Refresh Tokens with
   family-revocation-on-reuse, Device Code (RFC 8628, with the human approval page),
   front-channel logout, OIDC UserInfo.
+- **Sign-in methods:** account-picker / password (`amr: ["pwd"]`) and
+  **passkeys (FIDO2/WebAuthn)** — register + assert ceremonies yielding
+  `amr: ["fido"]`, with the relying party built per-request from the `Host` header
+  (so passkeys work on any origin). See
+  [How-to: passkey sign-in](docs/17-passkey-sign-in.md).
 - **Tokens:** real RS256-signed JWTs with Entra v2.0 claim shapes (`tid`, `oid`,
   `scp`/`roles`, pairwise `sub`, `ver: "2.0"`, `client_info`), verifiable against the
   live JWKS (`kid` = RFC 7638 thumbprint). Optional claims + group claims (with the
