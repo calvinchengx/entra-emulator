@@ -35,6 +35,32 @@ The token carries **identity** (`oid`) and **coarse context** (`groups`); the PD
 owns the policy. Neither side needs the other's internals — which is exactly why
 the resource API needs no emulator-specific features.
 
+## The four roles (PEP · PDP · PIP · PAP)
+
+The classic authorization vocabulary (from XACML) splits the work into four
+roles. The key thing to internalize: **the emulator is none of them.** It is the
+**IdP** — it authenticates and issues identity claims. All four roles live in
+*your* resource application and the PDP; the emulator only feeds them a
+trustworthy identity.
+
+| Role | Answers | In this sample | Emulator's part |
+|---|---|---|---|
+| **PEP** — Policy *Enforcement* Point | "intercept the call, ask, then allow or block" | `authz/server.go` — the `authorize()` middleware guarding each route | — |
+| **PDP** — Policy *Decision* Point | "given the request + facts + policy: permit or deny?" | `authz/pdp.go` — the `PDP` port + `InMemoryPDP`; real OpenFGA/Casbin in `compat/` | — |
+| **PIP** — Policy *Information* Point | "supply the attributes the decision needs" | `authz/validator.go` → `Claims`, mapped to `user:<oid>` + `group:<gid>` in `server.go` | **issues** `oid` / `groups` in the JWT — the emulator is the upstream attribute source |
+| **PAP** — Policy *Administration* Point | "where policy / relationships are authored & stored" | `main.go` `pdp.Write(...)` seed; the OpenFGA model + tuples in `compat/` | — |
+
+```
+                    ┌───────────────────── your resource app ─────────────────────┐
+ client ──token──▶  │  PEP (server.go) ──asks──▶ PDP (pdp.go / OpenFGA)            │
+   ▲                │    │                          ▲         ▲                     │
+   │ identity       │    │ attributes               │ policy  │                     │
+   │ (JWT: oid,     │    └──▶ PIP (validator.go) ───┘         PAP (tuples/model)    │
+   │  groups)       └──────────────────────────────────────────────────────────────┘
+   │
+  emulator = IdP (authentication only — not a XACML box; it feeds the PIP)
+```
+
 ## What the emulator provides
 
 Everything the resource server needs to authenticate, and nothing it needs to
@@ -77,6 +103,56 @@ go run ./samples/externalized-authz
 
 curl -H "Authorization: Bearer $TOKEN" http://localhost:9090/documents/readme
 ```
+
+## Worked example: trace one request
+
+Follow a single call through all four roles. The runner seeds one relationship
+(the **PAP** writing to the store):
+
+```go
+// main.go — author the policy (PAP)
+pdp.Write("user:"+readerOID, "reader", "doc:readme")   // alice may READ readme
+```
+
+The routes declare what each needs (`server.go`): `GET /documents/{id}` requires
+`reader`, `POST` requires `writer`.
+
+**Allowed read** — alice's token, `GET`:
+
+```sh
+curl -H "Authorization: Bearer $ALICE_TOKEN" http://localhost:9090/documents/readme
+# → 200 {"id":"readme","action":"read","subject":"<alice-oid>"}
+```
+
+What happened, role by role:
+
+1. **PEP** (`authorize("reader", …)`) intercepts the request and pulls the bearer token.
+2. **PIP** (`validator.Validate`) verifies the JWT against the emulator's JWKS and
+   extracts `oid` + `groups` — the emulator, as IdP, is the source of those facts.
+3. The PEP shapes the question: `Subject: "user:<alice-oid>"`, `Relation: "reader"`,
+   `Object: "doc:readme"`, `Groups: ["group:<gid>", …]`.
+4. **PDP** (`PDP.Check`) matches the seeded tuple → **permit**.
+5. PEP lets the handler run → `200`.
+
+**Denied write** — same token, `POST`:
+
+```sh
+curl -X POST -H "Authorization: Bearer $ALICE_TOKEN" http://localhost:9090/documents/readme
+# → 403 {"error":"not permitted to writer doc:readme"}
+```
+
+Same identity, but the relation is now `writer` and no `writer` tuple exists, so
+the **PDP denies** and the **PEP** returns `403` — the handler never runs.
+Changing this is a **PAP** operation (write a `writer` tuple), *not* a token
+change — the whole point of externalizing authorization.
+
+Two more paths the sample proves:
+
+- **Group-derived allow** — seed `group:<gid>#member reader doc:handbook`; any token
+  whose `groups` claim contains `<gid>` is permitted, because the PEP passes the
+  token's groups as usersets and the PDP matches on membership.
+- **Rejected at the PEP** — a missing token → `401`; a token minted for a different
+  audience → `401` (the PIP's `aud` check fails before the PDP is ever consulted).
 
 ## Proven against real engines
 
