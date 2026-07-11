@@ -39,16 +39,16 @@ type OAuthError struct {
 
 // aadstsCodes maps OAuth error codes to best-effort AADSTS numerics.
 var aadstsCodes = map[string]int{
-	"invalid_request":          900144,
-	"invalid_client":           7000215,
-	"invalid_grant":            70008,
-	"invalid_scope":            70011,
-	"unsupported_grant_type":   70003,
-	"authorization_pending":    70016,
-	"access_denied":            65004,
-	"expired_token":            70020,
-	"authorization_declined":   70018, // device-code: user denied (entra-docs name)
-	"bad_verification_code":    70019, // device-code: unknown device_code (entra-docs name)
+	"invalid_request":        900144,
+	"invalid_client":         7000215,
+	"invalid_grant":          70008,
+	"invalid_scope":          70011,
+	"unsupported_grant_type": 70003,
+	"authorization_pending":  70016,
+	"access_denied":          65004,
+	"expired_token":          70020,
+	"authorization_declined": 70018, // device-code: user denied (entra-docs name)
+	"bad_verification_code":  70019, // device-code: unknown device_code (entra-docs name)
 }
 
 // oauthStatus maps error codes to HTTP status.

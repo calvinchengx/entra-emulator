@@ -25,7 +25,7 @@ func (i *Identity) handleMSIToken(w http.ResponseWriter, r *http.Request) {
 	// SSRF mitigation in real Azure: the platform-injected secret header.
 	if got := r.Header.Get("X-IDENTITY-HEADER"); got == "" || got != i.Cfg.ManagedIdentitySecret {
 		httpx.WriteJSON(w, http.StatusUnauthorized, map[string]any{
-			"error":            "unauthorized",
+			"error":             "unauthorized",
 			"error_description": "Missing or invalid X-IDENTITY-HEADER.",
 		})
 		return
@@ -35,7 +35,7 @@ func (i *Identity) handleMSIToken(w http.ResponseWriter, r *http.Request) {
 	resource := q.Get("resource")
 	if resource == "" {
 		httpx.WriteJSON(w, http.StatusBadRequest, map[string]any{
-			"error":            "invalid_request",
+			"error":             "invalid_request",
 			"error_description": "The 'resource' query parameter is required.",
 		})
 		return
@@ -53,7 +53,7 @@ func (i *Identity) handleMSIToken(w http.ResponseWriter, r *http.Request) {
 	app, err := i.Store.GetApp(clientID)
 	if err != nil {
 		httpx.WriteJSON(w, http.StatusBadRequest, map[string]any{
-			"error":            "invalid_request",
+			"error":             "invalid_request",
 			"error_description": "identity_not_found: no managed identity matches the request.",
 		})
 		return

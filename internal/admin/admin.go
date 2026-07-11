@@ -12,6 +12,7 @@ import (
 
 	"github.com/calvinchengx/entra-emulator/internal/audit"
 	"github.com/calvinchengx/entra-emulator/internal/config"
+	"github.com/calvinchengx/entra-emulator/internal/customext"
 	"github.com/calvinchengx/entra-emulator/internal/faults"
 	"github.com/calvinchengx/entra-emulator/internal/httpx"
 	"github.com/calvinchengx/entra-emulator/internal/store"
@@ -20,24 +21,28 @@ import (
 )
 
 type Admin struct {
-	Cfg     *config.Config
-	Store   *store.Store
-	Tokens  *tokens.Service
-	Faults  *faults.Store
-	Audit   *audit.Recorder
-	Cert    *tlscert.Material
-	Version string
-	Started time.Time
+	Cfg       *config.Config
+	Store     *store.Store
+	Tokens    *tokens.Service
+	Faults    *faults.Store
+	Audit     *audit.Recorder
+	CustomExt *customext.Store
+	Cert      *tlscert.Material
+	Version   string
+	Started   time.Time
 }
 
-func New(cfg *config.Config, st *store.Store, ts *tokens.Service, fs *faults.Store, au *audit.Recorder, cert *tlscert.Material, version string) *Admin {
+func New(cfg *config.Config, st *store.Store, ts *tokens.Service, fs *faults.Store, au *audit.Recorder, ce *customext.Store, cert *tlscert.Material, version string) *Admin {
 	if fs == nil {
 		fs = faults.New()
 	}
 	if au == nil {
 		au = audit.New(0)
 	}
-	return &Admin{Cfg: cfg, Store: st, Tokens: ts, Faults: fs, Audit: au, Cert: cert, Version: version, Started: time.Now()}
+	if ce == nil {
+		ce = customext.NewStore()
+	}
+	return &Admin{Cfg: cfg, Store: st, Tokens: ts, Faults: fs, Audit: au, CustomExt: ce, Cert: cert, Version: version, Started: time.Now()}
 }
 
 func (a *Admin) Register(mux *http.ServeMux) {
@@ -87,6 +92,10 @@ func (a *Admin) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/api/import", a.importDirectory)
 	mux.HandleFunc("GET /admin/api/audit", a.getAudit)
 	mux.HandleFunc("DELETE /admin/api/audit", a.clearAudit)
+
+	mux.HandleFunc("GET /admin/api/custom-extensions", a.listCustomExtensions)
+	mux.HandleFunc("PUT /admin/api/apps/{id}/custom-extension", a.setCustomExtension)
+	mux.HandleFunc("DELETE /admin/api/apps/{id}/custom-extension", a.deleteCustomExtension)
 	mux.HandleFunc("POST /admin/api/seed", a.seed)
 	mux.HandleFunc("POST /admin/api/reset", a.reset)
 	mux.HandleFunc("GET /admin/api/certificate", a.certificateMeta)
