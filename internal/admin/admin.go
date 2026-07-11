@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/calvinchengx/entra-emulator/internal/audit"
 	"github.com/calvinchengx/entra-emulator/internal/config"
 	"github.com/calvinchengx/entra-emulator/internal/faults"
 	"github.com/calvinchengx/entra-emulator/internal/httpx"
@@ -23,16 +24,20 @@ type Admin struct {
 	Store   *store.Store
 	Tokens  *tokens.Service
 	Faults  *faults.Store
+	Audit   *audit.Recorder
 	Cert    *tlscert.Material
 	Version string
 	Started time.Time
 }
 
-func New(cfg *config.Config, st *store.Store, ts *tokens.Service, fs *faults.Store, cert *tlscert.Material, version string) *Admin {
+func New(cfg *config.Config, st *store.Store, ts *tokens.Service, fs *faults.Store, au *audit.Recorder, cert *tlscert.Material, version string) *Admin {
 	if fs == nil {
 		fs = faults.New()
 	}
-	return &Admin{Cfg: cfg, Store: st, Tokens: ts, Faults: fs, Cert: cert, Version: version, Started: time.Now()}
+	if au == nil {
+		au = audit.New(0)
+	}
+	return &Admin{Cfg: cfg, Store: st, Tokens: ts, Faults: fs, Audit: au, Cert: cert, Version: version, Started: time.Now()}
 }
 
 func (a *Admin) Register(mux *http.ServeMux) {
@@ -80,6 +85,8 @@ func (a *Admin) Register(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /admin/api/clock", a.resetClock)
 	mux.HandleFunc("GET /admin/api/export", a.exportDirectory)
 	mux.HandleFunc("POST /admin/api/import", a.importDirectory)
+	mux.HandleFunc("GET /admin/api/audit", a.getAudit)
+	mux.HandleFunc("DELETE /admin/api/audit", a.clearAudit)
 	mux.HandleFunc("POST /admin/api/seed", a.seed)
 	mux.HandleFunc("POST /admin/api/reset", a.reset)
 	mux.HandleFunc("GET /admin/api/certificate", a.certificateMeta)

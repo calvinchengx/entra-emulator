@@ -49,9 +49,11 @@ The features only a Go implementation can offer; cheap and differentiating.
    dump/replace the directory (users, groups + memberships, apps + sub-resources) as a
    JSON fixture. Hashes preserved so a round-trip keeps auth; signing keys + live grants
    excluded. Shareable, versionable CI states.
-8. ⬜ **Flow audit trail.** Record every authorize/token exchange with the concrete
-   accept/reject reason ("PKCE verifier mismatch", "redirect_uri not registered");
-   expose via admin API and the portal. Turns "why won't MSAL sign in" into reading a log.
+8. ✅ **Flow audit trail.** Every authorize/token exchange recorded with its concrete
+   accept/reject reason (OAuth `error` + `error_description`), including
+   redirect-delivered authorize errors and injected faults. `GET/DELETE /admin/api/audit`;
+   in-memory ring buffer. Turns "why won't MSAL sign in" into reading a log.
+   (Portal surfacing still open.)
 
 ## Phase 3 — Protocol surface parity-plus
 

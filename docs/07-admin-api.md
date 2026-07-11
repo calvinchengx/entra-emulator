@@ -114,6 +114,22 @@ Config: `{ tokenError?, tokenErrorDescription?, tokenLatencyMs?, probability? }`
 every token response; `probability` (0–1, default 1) makes a set error intermittent.
 In-memory only — cleared by DELETE or a process restart.
 
+## Flow audit trail (roadmap #8 — "why won't sign-in work")
+
+Every authorize/token exchange is recorded with its concrete accept/reject reason, so a
+failing MSAL flow becomes a log line instead of a guess.
+
+| Method | Path | → |
+|---|---|---|
+| GET | `/admin/api/audit` `?limit=100` | `{ value: [event…], count }`, newest first |
+| DELETE | `/admin/api/audit` | 204 — clear the trail |
+
+Event: `{ time, timeISO, flow ("token"\|"authorize"), grantType, clientId, status, ok,
+error, reason }`. `error`/`reason` carry the OAuth code + `error_description` (e.g.
+`invalid_grant` / "the redirect URI does not match", `invalid_client` / bad secret).
+Authorize errors delivered via redirect (`?error=…`) are captured too. In-memory ring
+buffer (last 500); injected faults show up here as well.
+
 ## Directory import/export (roadmap #7 — shareable fixtures)
 
 Dump the directory as a portable JSON fixture and load it back — versionable, shareable
