@@ -156,7 +156,15 @@ Deeper Microsoft identity platform coverage:
     `ErrConflict`→400 `Request_BadRequest`). No permission enforcement (documented
     divergence). 3 integration tests (user CRUD + duplicate-UPN 400; group CRUD + `$ref`
     membership; application CRUD verified via admin read-back).
-19. ⬜ Service principals / `/applications` read surface.
+19. ✅ Service principals / `/applications` read surface (`internal/graph/reads.go`).
+    `GET /v1.0/applications` + `/{id}` and `GET /v1.0/servicePrincipals` + `/{id}`, both
+    honouring the basic OData options (`$select`/`$filter`/`$count`/paging) — e.g.
+    `$filter=appId eq '<guid>'`. Applications expose `appRoles` and
+    `api.oauth2PermissionScopes`; service principals add `servicePrincipalType`,
+    `oauth2PermissionScopes`, and `servicePrincipalNames`. No separate SP store — each app
+    registration is its own SP and the object id is conflated with `appId` (documented
+    divergence). 2 integration tests (applications list/get/$filter/404 with role+scope
+    assertions; servicePrincipals list/$count/get).
 20. ⬜ **Externalized-authorization sample** — a Go resource API validating emulator JWTs
     via JWKS, then calling a third-party PDP (e.g. OpenFGA) with `oid` + `groups` for
     fine-grained decisions. No emulator features needed — pure `samples/` teaching

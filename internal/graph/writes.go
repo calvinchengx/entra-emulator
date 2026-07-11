@@ -304,7 +304,7 @@ func (g *Graph) createApplication(w http.ResponseWriter, r *http.Request, tok *t
 		writeStoreErrGraph(w, err)
 		return
 	}
-	shape := applicationShape(app)
+	shape := g.applicationDTO(app)
 	shape["@odata.context"] = g.contextURL("applications/$entity")
 	httpx.WriteJSON(w, http.StatusCreated, shape)
 }
@@ -344,19 +344,3 @@ func (g *Graph) deleteApplication(w http.ResponseWriter, r *http.Request, _ *tok
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// applicationShape renders an application. The emulator conflates the object id
-// and appId (single stored identifier) — a documented divergence.
-func applicationShape(a *store.App) map[string]any {
-	uris := []string{}
-	if a.AppIDURI != "" {
-		uris = []string{a.AppIDURI}
-	}
-	audience := "AzureADMyOrg"
-	return map[string]any{
-		"id":             a.ID,
-		"appId":          a.ID,
-		"displayName":    a.DisplayName,
-		"signInAudience": audience,
-		"identifierUris": uris,
-	}
-}
