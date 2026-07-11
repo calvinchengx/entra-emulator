@@ -41,6 +41,7 @@ export default defineConfig({
           items: [
             { slug: '07-admin-api' },
             { slug: '09-testing' },
+            { slug: '14-testing-with-forged-tokens' },
             { slug: '11-e2e-sdk-matrix' },
           ],
         },
