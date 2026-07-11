@@ -55,11 +55,11 @@ function writeIndex() {
       `:::caution\nLocal development tool only — intentionally insecure (open admin API, publicly known ` +
       `seeded users/secrets, self-signed TLS, unencrypted signing key). Run it on \`localhost\` only.\n:::\n\n` +
       `## Start here\n\n` +
-      `- [Architecture](01-architecture.md) — how the pieces fit together\n` +
-      `- [Configuration](02-configuration.md) — environment and origins\n` +
-      `- [OIDC endpoints](05-oidc-endpoints.md) — discovery, authorize, token, device code\n` +
-      `- [Admin REST API](07-admin-api.md) — the portal's control surface\n` +
-      `- [Roadmap](10-roadmap.md) — delivered features and what's out of scope\n`,
+      `- [Architecture](03-architecture.md) — how the pieces fit together\n` +
+      `- [Configuration](04-configuration.md) — environment and origins\n` +
+      `- [OIDC endpoints](08-oidc-endpoints.md) — discovery, authorize, token, device code\n` +
+      `- [Admin REST API](11-admin-api.md) — the portal's control surface\n` +
+      `- [Roadmap](17-roadmap.md) — delivered features and what's out of scope\n`,
   );
   // The landing page is synthesized here (no /docs source), so it has no
   // "Edit this page" target.

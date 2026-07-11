@@ -26,7 +26,7 @@ func putJSON(t *testing.T, url string, body map[string]any) (int, map[string]any
 	return resp.StatusCode, out
 }
 
-// These tests exercise the admin REST API directly (docs/07-admin-api.md) —
+// These tests exercise the admin REST API directly (docs/11-admin-api.md) —
 // the portal's contract and the write path underpinning several roadmap items
 // (directory CRUD, tenants #15b, workspace identities #16, key credentials #13,
 // custom extensions #10, passkeys #11). They reuse postJSON/getJSON/patchJSON/

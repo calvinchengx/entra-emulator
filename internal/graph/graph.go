@@ -1,5 +1,5 @@
 // Package graph implements the minimal read-only Microsoft Graph surface
-// plus OIDC UserInfo (docs/06-graph-api.md).
+// plus OIDC UserInfo (docs/09-graph-api.md).
 package graph
 
 import (

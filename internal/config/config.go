@@ -1,5 +1,5 @@
 // Package config loads and validates emulator configuration with precedence
-// environment > config file > defaults (see docs/02-configuration.md).
+// environment > config file > defaults (see docs/04-configuration.md).
 package config
 
 import (

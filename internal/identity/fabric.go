@@ -12,7 +12,7 @@ import (
 // client-credentials and delegated grants mint correct-aud tokens without a
 // registered resource app, and models the workspace-identity directory object
 // whose tokens are minted internally (no caller-held credential). The Fabric
-// control plane itself is out of scope (see docs/12-fabric-companion.md).
+// control plane itself is out of scope (see docs/18-fabric-companion.md).
 
 const (
 	fabricResource  = "https://api.fabric.microsoft.com"

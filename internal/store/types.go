@@ -1,6 +1,6 @@
 package store
 
-// Entity types mirror docs/03-data-model-and-seed.md. Timestamps are Unix
+// Entity types mirror docs/06-data-model-and-seed.md. Timestamps are Unix
 // epoch seconds; identifiers are lowercase GUID strings.
 
 type Tenant struct {
