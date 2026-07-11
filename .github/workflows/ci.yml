@@ -29,6 +29,7 @@ jobs:
           node-version: '22'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter entra-emulator-portal test
       - run: pnpm --filter entra-emulator-portal build
       # portal/dist is committed (go:embed bakes it into the binary so `go build`
       # / `go install @latest` need no Node). Fail if the committed copy has
