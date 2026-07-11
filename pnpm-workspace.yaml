@@ -1,0 +1,9 @@
+packages:
+  - portal
+  - website
+
+# pnpm 10 blocks dependency build scripts by default; allow the ones Astro and
+# Vite need to compile native/optimized assets.
+onlyBuiltDependencies:
+  - esbuild
+  - sharp

@@ -9,6 +9,9 @@ binary.** The OIDC/OAuth 2.0 v2.0 endpoints MSAL talks to, a minimal read-only
 Microsoft Graph, and an unauthenticated admin REST API, so you can develop sign-in,
 token acquisition, and protected-API calls offline with no cloud tenant.
 
+📖 **[Documentation site](https://calvinchengx.github.io/entra-emulator/)** — the full
+reference, also browsable as Markdown in [`docs/`](docs/).
+
 > ⚠️ **Local development tool only — intentionally insecure.** Open admin API,
 > publicly known seeded users/secrets, self-signed TLS, signing key stored unencrypted.
 > Run it on `localhost` only. Never point real users or secrets at it.
