@@ -178,23 +178,33 @@ real authorization engines through the same `PDP` port:
 | Engine | Model | Runs as |
 |---|---|---|
 | **OpenFGA** | ReBAC (Zanzibar) | container (testcontainers) |
+| **SpiceDB** (Authzed) | ReBAC (Zanzibar) | container (testcontainers) |
+| **Ory Keto** | ReBAC (Zanzibar) | container (testcontainers) |
+| **Permify** | ReBAC (Zanzibar) | container (testcontainers) |
 | **Casbin** | RBAC/ABAC | in-process (library) |
+| **OPA** | Rego policy | in-process (library) |
+| **Cedar** (cedar-go) | Cedar policy | in-process (library) |
 
 It asserts a single invariant: *given the same relationship facts and checks,
 every adapter returns the same allow/deny matrix, and the full HTTP flow
 (emulator token → JWKS validation → PDP → `200`/`403`) behaves identically
 regardless of which engine is wired in* — which catches `oid`→subject and
-`groups`→userset mapping bugs. Ory Keto / SpiceDB drop in as near-copies of the
-OpenFGA harness; OPA / Cerbos follow the Casbin shape.
+`groups`→userset mapping bugs. Adding an engine is one `PDPHarness`; the
+canonical matrix and assertions are reused. The container engines are reached
+over their HTTP APIs (only OpenFGA uses a Go SDK — SpiceDB/Keto/Permify are
+hand-rolled to keep the module's `go.mod` lean), while OPA and Cedar embed
+directly like Casbin.
 
-The two engines are CI-verified on every push by the **`pdp-compat`** job — a
-matrix that runs Casbin in-process (no Docker) and OpenFGA via testcontainers —
-so the compatibility claim is checked, not just asserted.
+All seven are CI-verified on every push by the **`pdp-compat`** matrix (one leg
+per engine, `fail-fast: false`): the three policy engines run in-process with no
+Docker, the four Zanzibar engines via testcontainers — so the compatibility
+claim is checked, not just asserted.
 
 > **Honest caveat.** The canonical facts are ReBAC-shaped (subject / relation /
-> object). For OpenFGA the translation is faithful and genuinely proves
-> cross-engine equivalence. For Casbin we hand-author an equivalent model that
-> yields the same decisions — so that leg proves *"our adapter + our authored
+> object). For the Zanzibar engines (OpenFGA, SpiceDB, Keto, Permify) the
+> translation is faithful and genuinely proves cross-engine equivalence. For the
+> policy engines (Casbin, OPA, Cedar) we hand-author an equivalent model that
+> yields the same decisions — so those legs prove *"our adapter + our authored
 > model reproduce the contract,"* not that the engines are semantically
 > identical.
 
