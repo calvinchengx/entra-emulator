@@ -210,6 +210,35 @@ wrong-audience, custom scopes/roles — in one call. See the Admin API's
 forge** panel in the portal.
 :::
 
+### Mobile (Flutter)
+
+There's no first-party MSAL package for Flutter, so mobile apps use a generic
+AppAuth client. Point [`flutter_appauth`](https://pub.dev/packages/flutter_appauth)
+at the emulator's endpoints — it's just OIDC authorization code + PKCE:
+
+```dart
+final result = await const FlutterAppAuth().authorizeAndExchangeCode(
+  AuthorizationTokenRequest(
+    'cccccccc-0000-0000-0000-000000000001',      // seeded SPA client id
+    'com.example.app://auth',                     // your registered redirect
+    serviceConfiguration: AuthorizationServiceConfiguration(
+      authorizationEndpoint: '$authority/oauth2/v2.0/authorize',
+      tokenEndpoint:         '$authority/oauth2/v2.0/token',
+      endSessionEndpoint:    '$authority/oauth2/v2.0/logout',
+    ),
+    scopes: ['openid', 'profile', 'email', 'offline_access'],
+  ),
+);
+```
+
+:::note[Reaching the host from a device]
+The **Android emulator** reaches your machine at `10.0.2.2`, not `localhost`;
+the **iOS simulator** shares the host network, so `localhost` works. So
+`authority` is `http://10.0.2.2:8443/{tenant}` on Android and
+`https://localhost:8443/{tenant}` on iOS. A full working app (plus an automated
+device-code integration test) lives in [`e2e/flutter/`](https://github.com/calvinchengx/entra-emulator/tree/main/e2e/flutter).
+:::
+
 ## Troubleshooting
 
 - **`invalid_authority` / instance-discovery errors** — set `knownAuthorities`

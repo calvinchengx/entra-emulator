@@ -1,0 +1,11 @@
+{
+  "name": "entra-emulator-sample-msal-node",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^5.4.0"
+  }
+}
