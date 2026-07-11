@@ -55,6 +55,19 @@ entra-emulator version
 
 Each tagged release refreshes the cask automatically. `brew upgrade` picks up new versions.
 
+### winget (Windows)
+
+```powershell
+winget install calvinchengx.entra-emulator
+entra-emulator version
+```
+
+Available once a release's manifest PR merges into `microsoft/winget-pkgs`
+(validation can take a day or two); until then, use the release archive or
+`go install`. Every install method — Homebrew, winget, Docker, pre-built
+binaries, `go install`, source — is in
+[docs/13-installation.md](docs/13-installation.md).
+
 ## What works
 
 - **Flows:** Authorization Code + PKCE (S256/plain), Client Credentials
