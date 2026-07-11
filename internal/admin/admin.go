@@ -1,5 +1,5 @@
 // Package admin implements the unauthenticated admin REST API and serves the
-// portal assets (docs/07-admin-api.md).
+// portal assets (docs/11-admin-api.md).
 package admin
 
 import (

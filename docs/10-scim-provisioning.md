@@ -77,7 +77,7 @@ sequence:
   - *Incremental:* replay changes since a watermark.
   - *Deprovision:* disabled/removed → `PATCH {active:false}`, then `DELETE`.
 - **Provisioning log:** `GET /admin/api/scim/log` — every SCIM request/response,
-  mirroring the [audit trail](07-admin-api.md).
+  mirroring the [audit trail](11-admin-api.md).
 - **Fidelity:** `enterprise:2.0:User` extension, `externalId` correlation,
   soft-delete semantics, quarantine/retry on target errors.
 
@@ -92,11 +92,11 @@ SCIM request log stream (reuses the Audit view pattern).
 - **Phase 2:** an e2e suite stands up a **mock SCIM target** (a tiny Go server),
   points the emulator at it, triggers a sync, and asserts the emulator emitted
   Entra-shaped requests (correlation filter, PatchOp, `active:false` on disable)
-  — CI-verifiable like the [SDK matrix](11-e2e-sdk-matrix.md).
+  — CI-verifiable like the [SDK matrix](16-e2e-sdk-matrix.md).
 
 ## Non-goals
 
 The full SCIM filter grammar (only the `eq` correlation filters Entra uses),
 bulk operations, ETags/versioning, and `/Me`. Provisioning runs on demand (via
 the admin API or portal), not a background scheduler — deterministic for tests,
-consistent with [clock control](02-configuration.md).
+consistent with [clock control](04-configuration.md).

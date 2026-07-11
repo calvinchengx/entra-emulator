@@ -130,7 +130,7 @@ committed `portal/dist` and needs no Node.
 ORIGIN_MODE=compat entra-emulator        # everything on https://localhost:8443
 ```
 
-Then head to the [Quickstart](00-quickstart.md) to acquire your first token, and
-[TLS & origins](08-tls-and-origins.md) if you want the subdomain layout
+Then head to the [Quickstart](01-quickstart.md) to acquire your first token, and
+[TLS & origins](05-tls-and-origins.md) if you want the subdomain layout
 (`login.` / `graph.` / `portal.`) instead of compat mode. To trust the
 self-signed cert, run `entra-emulator trust` (it prints the platform command).

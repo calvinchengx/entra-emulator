@@ -66,7 +66,7 @@ Available once a release's manifest PR merges into `microsoft/winget-pkgs`
 (validation can take a day or two); until then, use the release archive or
 `go install`. Every install method — Homebrew, winget, Docker, pre-built
 binaries, `go install`, source — is in
-[docs/13-installation.md](docs/13-installation.md).
+[docs/02-installation.md](docs/02-installation.md).
 
 ## What works
 
@@ -78,7 +78,7 @@ binaries, `go install`, source — is in
   **passkeys (FIDO2/WebAuthn)** — register + assert ceremonies yielding
   `amr: ["fido"]`, with the relying party built per-request from the `Host` header
   (so passkeys work on any origin). See
-  [How-to: passkey sign-in](docs/17-passkey-sign-in.md).
+  [How-to: passkey sign-in](docs/14-passkey-sign-in.md).
 - **Tokens:** real RS256-signed JWTs with Entra v2.0 claim shapes (`tid`, `oid`,
   `scp`/`roles`, pairwise `sub`, `ver: "2.0"`, `client_info`), verifiable against the
   live JWKS (`kid` = RFC 7638 thumbprint). Optional claims + group claims (with the
@@ -121,7 +121,7 @@ Trust the self-signed cert (`./entra-emulator trust` prints the platform command
 Environment > `entra-emulator.config.json` > defaults; invalid config aborts naming the
 offending key. Key settings: `PORT` (8443), `TENANT_ID`, `ORIGIN_MODE`
 (`subdomains`|`compat`), `PUBLIC_ORIGIN`, `REQUIRE_PASSWORD`, `DB_PATH`,
-`TOKEN_LIFETIME_*`. Full reference: [docs/02-configuration.md](docs/02-configuration.md).
+`TOKEN_LIFETIME_*`. Full reference: [docs/04-configuration.md](docs/04-configuration.md).
 
 ## Design & development
 
@@ -137,7 +137,7 @@ go vet ./...
 ```
 
 The e2e suites prove unmodified Microsoft SDKs complete real flows against the
-emulator (see [docs/11-e2e-sdk-matrix.md](docs/11-e2e-sdk-matrix.md)): client
+emulator (see [docs/16-e2e-sdk-matrix.md](docs/16-e2e-sdk-matrix.md)): client
 credentials, Authorization Code + PKCE with `client_info` account identity, silent
 refresh, and device code with headless approval — in TypeScript, Go, and Python.
 

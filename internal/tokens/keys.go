@@ -1,6 +1,6 @@
 // Package tokens implements the emulator's token service: RSA signing keys,
 // JWKS, Entra v2.0 claim assembly, and grant-artifact issuance/redemption
-// (docs/04-token-service.md).
+// (docs/07-token-service.md).
 package tokens
 
 import (

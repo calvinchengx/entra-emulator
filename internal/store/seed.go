@@ -3,7 +3,7 @@ package store
 import "database/sql"
 
 // Fixed seed identifiers — deterministic GUIDs so CI fixtures and
-// documentation stay stable (docs/03-data-model-and-seed.md).
+// documentation stay stable (docs/06-data-model-and-seed.md).
 const (
 	SeedUserAliceID  = "aaaaaaaa-0000-0000-0000-000000000001"
 	SeedUserBobID    = "aaaaaaaa-0000-0000-0000-000000000002"

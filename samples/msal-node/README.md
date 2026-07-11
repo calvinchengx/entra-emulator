@@ -25,5 +25,5 @@ Expected output:
 
 Override any default with an env var: `EMU_ORIGIN`, `EMU_TENANT`,
 `EMU_CLIENT_ID`, `EMU_CLIENT_SECRET`. See the
-[quickstart](https://calvinchengx.github.io/entra-emulator/00-quickstart/) for
+[quickstart](https://calvinchengx.github.io/entra-emulator/01-quickstart/) for
 the delegated (user sign-in) flow.

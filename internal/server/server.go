@@ -1,5 +1,5 @@
 // Package server wires the three surfaces onto one listener with
-// Host-header routing (docs/08-tls-and-origins.md).
+// Host-header routing (docs/05-tls-and-origins.md).
 package server
 
 import (

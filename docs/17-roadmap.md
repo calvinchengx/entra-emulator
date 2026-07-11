@@ -131,7 +131,7 @@ Deeper Microsoft identity platform coverage:
     identity lifecycle: internal token, name-follows-rename, state gating, cascade delete).
     **Strict boundary:** Entra token layer only — the Fabric control plane (REST API,
     workspace RBAC, identity lifecycle orchestration, OneLake) is *out of scope* and belongs
-    to the companion project ([12-fabric-companion.md](12-fabric-companion.md)). Composes with
+    to the companion project ([18-fabric-companion.md](18-fabric-companion.md)). Composes with
     #2/#3. Refs: `fabric-docs/docs/security/workspace-identity.md`,
     `fabric-docs/docs/data-warehouse/service-principals.md`.
 
@@ -166,7 +166,7 @@ Deeper Microsoft identity platform coverage:
     divergence). 2 integration tests (applications list/get/$filter/404 with role+scope
     assertions; servicePrincipals list/$count/get).
 20. ✅ **Externalized authorization** (`samples/externalized-authz/`,
-    [full guide](16-externalized-authorization.md)) — a Go resource API that validates
+    [full guide](15-externalized-authorization.md)) — a Go resource API that validates
     emulator JWTs via JWKS (RS256 + `iss`/`aud`/`exp`, key cache with rotation refresh)
     then delegates fine-grained decisions to a `PDP` port, passing `user:<oid>` +
     `group:<gid>` derived from the token's `oid`/`groups`. Strict authN/authZ separation —
@@ -186,7 +186,7 @@ Deeper Microsoft identity platform coverage:
 ## Phase 5 — SCIM provisioning
 
 21. ✅ **SCIM 2.0 (RFC 7643/7644).** Emulate Entra's provisioning both ways
-    ([full design](15-scim-provisioning.md)):
+    ([full design](10-scim-provisioning.md)):
     - (a) ✅ **Service provider (server).** `/scim/v2/{Users,Groups}` over the directory —
       list + `userName eq` correlation filter + pagination, create, read, replace, PatchOp
       (soft-deprovision `active:false`, member add/remove), delete; bearer-secret auth;
