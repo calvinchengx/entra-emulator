@@ -42,6 +42,11 @@ jobs:
             echo "$changes"
             exit 1
           fi
+      # Headless mount smoke: `vite build` + jsdom unit tests pass even when the
+      # bundle resolves Svelte to its server build and never mounts. Only a real
+      # browser catches that, so assert the built dist actually renders.
+      - run: pnpm --filter entra-emulator-portal exec playwright install --with-deps chromium
+      - run: pnpm --filter entra-emulator-portal smoke
 
   sdk-e2e:
     name: Real-SDK e2e (msal-node, MSAL Go/azidentity/.NET/Java, MSAL Python)

@@ -20,3 +20,7 @@ e2e/build/
 
 # GoReleaser build output (release binaries + generated cask)
 /dist/
+
+# Playwright
+test-results/
+playwright-report/
