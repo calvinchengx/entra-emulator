@@ -165,17 +165,23 @@ Deeper Microsoft identity platform coverage:
     registration is its own SP and the object id is conflated with `appId` (documented
     divergence). 2 integration tests (applications list/get/$filter/404 with role+scope
     assertions; servicePrincipals list/$count/get).
-20. ✅ **Externalized-authorization sample** (`samples/externalized-authz/`) — a Go
-    resource API that validates emulator JWTs via JWKS (RS256 + `iss`/`aud`/`exp`, key
-    cache with rotation refresh) then delegates fine-grained decisions to a PDP port,
-    passing `user:<oid>` + `group:<gid>` derived from the token's `oid`/`groups`. Ships an
-    in-memory OpenFGA-style tuple checker (`InMemoryPDP`) so it runs with zero external
-    services, with a README + DSL showing how to swap in real
-    [OpenFGA](https://openfga.dev). Strict authN/authZ separation — the emulator only
-    proves identity. No emulator features needed; consumed purely as a token issuer. Part
-    of the root module so CI covers it. 1 end-to-end test (direct-grant allow, no-grant
-    deny, group-derived allow, missing-token 401, wrong-audience 401) using the admin token
-    forge to mint the access tokens.
+20. ✅ **Externalized authorization** (`samples/externalized-authz/`,
+    [full guide](16-externalized-authorization.md)) — a Go resource API that validates
+    emulator JWTs via JWKS (RS256 + `iss`/`aud`/`exp`, key cache with rotation refresh)
+    then delegates fine-grained decisions to a `PDP` port, passing `user:<oid>` +
+    `group:<gid>` derived from the token's `oid`/`groups`. Strict authN/authZ separation —
+    the emulator only proves identity; no emulator features needed, consumed purely as a
+    token issuer.
+    - (a) ✅ **Sample.** Ships an in-memory OpenFGA-style tuple checker (`InMemoryPDP`) so
+      it runs with zero external services. Part of the root module so CI covers it. 1
+      end-to-end test (direct-grant allow, no-grant deny, group-derived allow, missing-token
+      401, wrong-audience 401) using the admin token forge to mint the access tokens.
+    - (b) ✅ **PDP compatibility suite** (`compat/`, `pdp_integration` tag, separate
+      module). Proves the `PDP` port yields the same decision matrix — and the same
+      end-to-end `200`/`403` — against **real** engines: [OpenFGA](https://openfga.dev)
+      (ReBAC, via testcontainers) and [Casbin](https://casbin.org) (in-process). One
+      canonical fixture, reused per engine; Keto/SpiceDB/OPA/Cerbos drop in as near-copies.
+      CI-verified on every push by the `pdp-compat` matrix job.
 
 ## Phase 5 — SCIM provisioning
 
