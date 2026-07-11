@@ -87,7 +87,12 @@ Deeper Microsoft identity platform coverage:
     token (`amr:["pwd"]`, refresh when `offline_access`). Public or confidential
     clients; bad credential → `invalid_grant` (AADSTS50126). Advertised in discovery.
     4 integration tests. Deprecated in production but pragmatic for headless CI.
-13. ⬜ **`private_key_jwt` / certificate client authentication.**
+13. ✅ **`private_key_jwt` / certificate client authentication.** Apps register a PEM
+    public key or X.509 cert (`GET/POST/DELETE /admin/api/apps/{id}/keyCredentials`);
+    clients authenticate any grant with `client_assertion_type=jwt-bearer` +
+    `client_assertion` (a JWT with `iss=sub=client_id`, `aud`=token endpoint/issuer,
+    RS256-signed). Verified in `authenticateClient` against all registered keys.
+    5 integration tests (happy path, wrong key, expired, wrong audience, no key).
 14. ⬜ **Signing-key rotation** — multiple keys in JWKS, admin-triggered rollover.
 15. ⬜ **Optional consent screen** (currently auto-consent), then **multi-tenant**
     directories (`tid` per tenant) last — it touches everything.

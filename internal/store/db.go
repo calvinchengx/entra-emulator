@@ -163,6 +163,14 @@ CREATE TABLE IF NOT EXISTS device_codes (
   expires_at  INTEGER NOT NULL,
   created_at  INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS app_key_credentials (
+  id           TEXT PRIMARY KEY,
+  app_id       TEXT NOT NULL REFERENCES app_registrations(app_id) ON DELETE CASCADE,
+  public_key   TEXT NOT NULL,             -- PEM (PKIX public key or certificate)
+  display_name TEXT,
+  created_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_app_key_creds_app ON app_key_credentials(app_id);
 CREATE TABLE IF NOT EXISTS webauthn_credentials (
   id          TEXT PRIMARY KEY,          -- credential id (base64url)
   user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

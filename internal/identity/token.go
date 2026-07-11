@@ -73,6 +73,16 @@ func (i *Identity) authenticateClient(r *http.Request) (*store.App, *httpx.OAuth
 			secret = pass // Basic wins over post when both present
 		}
 	}
+	// private_key_jwt / certificate client authentication (roadmap #13): a
+	// signed client_assertion can carry the client_id and stands in for the
+	// secret. Resolve the client_id from the assertion when not given.
+	assertion := r.PostFormValue("client_assertion")
+	assertionType := r.PostFormValue("client_assertion_type")
+	if assertion != "" && clientID == "" {
+		if claims, err := tokens.DecodeUnverified(assertion); err == nil {
+			clientID, _ = claims["sub"].(string)
+		}
+	}
 	if clientID == "" {
 		return nil, &httpx.OAuthError{Error: "invalid_request",
 			ErrorDescription: "AADSTS900144: client_id is required."}
@@ -81,6 +91,16 @@ func (i *Identity) authenticateClient(r *http.Request) (*store.App, *httpx.OAuth
 	if err != nil {
 		return nil, &httpx.OAuthError{Error: "invalid_client",
 			ErrorDescription: "AADSTS700016: Application not found in the directory."}
+	}
+	if assertion != "" {
+		if assertionType != "urn:ietf:params:oauth:grant-type:jwt-bearer" {
+			return nil, &httpx.OAuthError{Error: "invalid_request",
+				ErrorDescription: "AADSTS900144: unsupported client_assertion_type."}
+		}
+		if authErr := i.verifyClientAssertion(app.ID, assertion); authErr != nil {
+			return nil, authErr
+		}
+		return app, nil
 	}
 	if app.IsConfidential {
 		if secret == "" {
@@ -97,6 +117,30 @@ func (i *Identity) authenticateClient(r *http.Request) (*store.App, *httpx.OAuth
 			ErrorDescription: "AADSTS700025: Public clients must not send a client secret."}
 	}
 	return app, nil
+}
+
+// verifyClientAssertion validates a private_key_jwt assertion against the
+// app's registered public keys and the accepted token-endpoint audiences.
+func (i *Identity) verifyClientAssertion(appID, assertion string) *httpx.OAuthError {
+	creds, err := i.Store.ListAppKeyCredentials(appID)
+	if err != nil || len(creds) == 0 {
+		return &httpx.OAuthError{Error: "invalid_client",
+			ErrorDescription: "AADSTS700027: No key credentials are registered for the client."}
+	}
+	keys := make([]string, 0, len(creds))
+	for _, c := range creds {
+		keys = append(keys, c.PublicKey)
+	}
+	base := i.Cfg.Origins.Login + "/" + i.Cfg.TenantID
+	accepted := []string{
+		base + "/oauth2/v2.0/token", // the token endpoint
+		i.Cfg.Issuer,                // issuer form Entra also accepts
+	}
+	if err := tokens.VerifyClientAssertion(assertion, appID, keys, accepted, i.Store.Now()); err != nil {
+		return &httpx.OAuthError{Error: "invalid_client",
+			ErrorDescription: "AADSTS700027: Client assertion validation failed: " + err.Error()}
+	}
+	return nil
 }
 
 // decodeBasicComponent undoes application/x-www-form-urlencoded escaping in

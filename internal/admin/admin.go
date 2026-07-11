@@ -99,6 +99,10 @@ func (a *Admin) Register(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /admin/api/users/{id}/passkeys", a.listPasskeys)
 	mux.HandleFunc("DELETE /admin/api/users/{id}/passkeys/{credId}", a.deletePasskey)
+
+	mux.HandleFunc("GET /admin/api/apps/{id}/keyCredentials", a.listKeyCredentials)
+	mux.HandleFunc("POST /admin/api/apps/{id}/keyCredentials", a.addKeyCredential)
+	mux.HandleFunc("DELETE /admin/api/apps/{id}/keyCredentials/{credId}", a.deleteKeyCredential)
 	mux.HandleFunc("POST /admin/api/seed", a.seed)
 	mux.HandleFunc("POST /admin/api/reset", a.reset)
 	mux.HandleFunc("GET /admin/api/certificate", a.certificateMeta)
