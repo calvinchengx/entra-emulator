@@ -23,15 +23,23 @@ clone" and balloon its scope. Keeping them as two composable emulators preserves
 single-responsibility boundary: **fabric-emulator validates bearer tokens against
 entra-emulator's JWKS, exactly as real Fabric validates against Entra.**
 
-```
-  Client / SDK                fabric-emulator                 entra-emulator
- ┌────────────┐  Bearer      ┌──────────────────┐  JWKS      ┌──────────────┐
- │ SP / user  │──token──────▶│ /v1/workspaces/… │──verify───▶│ /discovery/  │
- │            │              │ workspace RBAC   │  (aud =    │   v2.0/keys  │
- │            │◀─items JSON──│ item CRUD        │   fabric)  │              │
- └────────────┘              │ workspace ident. │──mint SP──▶│ token forge/ │
-                             │ lifecycle        │  tokens    │ MSI endpoint │
-                             └──────────────────┘            └──────────────┘
+```mermaid
+flowchart LR
+    Client["Client / SDK (SP or user)"]
+    subgraph fab["fabric-emulator"]
+        direction TB
+        API["/v1/workspaces/… — workspace RBAC, item CRUD"]
+        Ident["workspace identity lifecycle"]
+    end
+    subgraph entra["entra-emulator"]
+        direction TB
+        JWKS["/discovery/v2.0/keys"]
+        Forge["token forge / MSI endpoint"]
+    end
+    Client -->|"Bearer token"| API
+    API -->|"items JSON"| Client
+    API -->|"verify (aud = fabric)"| JWKS
+    Ident -->|"mint SP tokens"| Forge
 ```
 
 ## What the companion would emulate
