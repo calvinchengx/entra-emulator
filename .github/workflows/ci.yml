@@ -35,10 +35,12 @@ jobs:
       # drifted from a fresh build so it can never go stale.
       - name: Verify committed portal/dist is up to date
         run: |
-          git diff --exit-status -- portal/dist || {
+          changes="$(git status --porcelain -- portal/dist)"
+          if [ -n "$changes" ]; then
             echo "::error::portal/dist is stale. Run 'pnpm --filter entra-emulator-portal build' and commit portal/dist."
+            echo "$changes"
             exit 1
-          }
+          fi
 
   sdk-e2e:
     name: Real-SDK e2e (msal-node, MSAL Go, azidentity, MSAL Python)
