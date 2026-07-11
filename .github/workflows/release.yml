@@ -29,6 +29,10 @@ jobs:
           # the cask. Optional: if the secret is unset the homebrew_casks step
           # self-skips (skip_upload) instead of failing the release.
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          # Write access to a calvinchengx/winget-pkgs fork so GoReleaser can
+          # open the manifest PR against microsoft/winget-pkgs. Optional: if the
+          # secret is unset the winget step self-skips (skip_upload).
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
 
   image:
     name: Docker image → GHCR
