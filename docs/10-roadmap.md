@@ -63,13 +63,16 @@ Deeper Microsoft identity platform coverage:
    A middle-tier exchanges a user token (aud=itself) for a downstream token preserving
    the user; enforces the assertion-aud rule and rejects app-only assertions. Advertised
    in discovery. (Cert `client_assertion` deferred to #13.)
-10. ⬜ **Custom authentication extensions** — emulate the `onTokenIssuanceStart` webhook
-    (per-app endpoint config; POST the Microsoft-documented request shape during
-    minting; merge returned claims). Model the real semantics faithfully:
-    timeout-and-continue (~2 s cap, token issued unenriched on failure), protocol
-    claims never overridable, webhook authenticated with an emulator-minted system
-    token. Lets developers build custom claims providers entirely locally.
-    Ref: `entra-docs/docs/identity-platform/custom-extension-overview.md`.
+10. ✅ **Custom authentication extensions** — `onTokenIssuanceStart` webhook per app:
+    during delegated minting the emulator POSTs the Microsoft-documented
+    `onTokenIssuanceStartCalloutData` shape and merges the returned
+    `provideClaimsForToken` claims (optional allowlist). Faithful semantics:
+    timeout-and-continue (~2 s default, token issued unenriched on failure/timeout),
+    protocol claims never overridable, callout carries an emulator-minted system
+    bearer. `GET /admin/api/custom-extensions`, `PUT/DELETE
+    /admin/api/apps/{id}/custom-extension`. 4 integration tests (merge, protocol-claim
+    protection, allowlist, timeout-and-continue).
+    Ref: `entra-docs/docs/identity-platform/custom-extension-tokenissuancestart-*`.
 11. ⬜ **Passkey (FIDO2/WebAuthn) sign-in method** — WebAuthn register + assert
     ceremonies on the sign-in page (`go-webauthn/webauthn`), a `webauthn_credentials`
     table, admin/portal management, `amr: ["fido"]` in ID tokens. RP ID =

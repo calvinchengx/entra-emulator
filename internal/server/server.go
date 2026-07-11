@@ -13,6 +13,7 @@ import (
 	"github.com/calvinchengx/entra-emulator/internal/admin"
 	"github.com/calvinchengx/entra-emulator/internal/audit"
 	"github.com/calvinchengx/entra-emulator/internal/config"
+	"github.com/calvinchengx/entra-emulator/internal/customext"
 	"github.com/calvinchengx/entra-emulator/internal/faults"
 	"github.com/calvinchengx/entra-emulator/internal/graph"
 	"github.com/calvinchengx/entra-emulator/internal/httpx"
@@ -34,9 +35,30 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service, cert *tlscert.
 	// the flow audit recorder (STS records, admin reads).
 	fs := faults.New()
 	au := audit.New(0)
+
+	// Custom authentication extensions (roadmap #10): per-app webhooks called
+	// during delegated-token minting. The STS-side enricher is wired onto the
+	// token service; the admin API controls the registrations.
+	ce := customext.NewStore()
+	inv := &customext.Invoker{
+		TenantID:     cfg.TenantID,
+		BearerMinter: ts.MintSystemToken,
+	}
+	ts.ClaimsEnricher = func(app *store.App, user *store.User, _ string) map[string]any {
+		cfg, ok := ce.Get(app.ID)
+		if !ok {
+			return nil
+		}
+		claims, err := inv.Invoke(cfg, app, user)
+		if err != nil {
+			return nil // timeout-and-continue: issue the token unenriched
+		}
+		return claims
+	}
+
 	id := identity.New(cfg, st, ts, fs, au)
 	gr := graph.New(cfg, st, ts)
-	ad := admin.New(cfg, st, ts, fs, au, cert, version)
+	ad := admin.New(cfg, st, ts, fs, au, ce, cert, version)
 
 	// login surface: OIDC only + /health-free root descriptor.
 	loginMux := http.NewServeMux()

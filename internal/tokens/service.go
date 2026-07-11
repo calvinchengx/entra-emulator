@@ -16,6 +16,46 @@ type Service struct {
 	Store  *store.Store
 	Signer *Signer
 	Cfg    *config.Config
+	// ClaimsEnricher, when set, is called during delegated-token minting to
+	// merge additional claims from a custom authentication extension
+	// (roadmap #10). It returns claims to add; protocol claims are protected
+	// at the merge site and can never be overridden. nil = no enrichment.
+	ClaimsEnricher func(app *store.App, user *store.User, tokenKind string) map[string]any
+}
+
+// protectedClaims can never be set or overridden by a custom extension.
+var protectedClaims = map[string]bool{
+	"iss": true, "aud": true, "exp": true, "iat": true, "nbf": true,
+	"sub": true, "tid": true, "oid": true, "azp": true, "appid": true,
+	"scp": true, "roles": true, "ver": true, "nonce": true,
+	"name": true, "preferred_username": true, "email": true,
+}
+
+// MintSystemToken mints a short-lived app-only token the emulator uses to
+// authenticate its own outbound callouts (e.g. custom-extension webhooks),
+// mirroring Entra authenticating to a customer's Function with its own token.
+func (s *Service) MintSystemToken(audience string) string {
+	now := s.Store.Now()
+	claims := map[string]any{
+		"iss": s.Cfg.Issuer, "sub": "entra-emulator-system", "aud": audience,
+		"iat": now, "nbf": now, "exp": now + 300,
+		"tid": s.Cfg.TenantID, "idtyp": "app", "ver": "2.0",
+	}
+	jwt, _ := SignRS256(s.Signer.PrivateKey, s.Signer.Kid, claims)
+	return jwt
+}
+
+// enrich merges extension-provided claims into base, skipping protected ones.
+func (s *Service) enrich(claims map[string]any, app *store.App, user *store.User, kind string) {
+	if s.ClaimsEnricher == nil {
+		return
+	}
+	for k, v := range s.ClaimsEnricher(app, user, kind) {
+		if protectedClaims[k] {
+			continue // extensions may add claims, never override protocol claims
+		}
+		claims[k] = v
+	}
 }
 
 // TokenResponse is the OAuth token-endpoint success JSON.
@@ -129,6 +169,7 @@ func (s *Service) mintIDToken(g DelegatedGrant, now int64) (string, error) {
 		claims["nonce"] = g.Nonce
 	}
 	s.applyTokenConfig(claims, g.App, g.User, "idToken")
+	s.enrich(claims, g.App, g.User, "idToken")
 	return SignRS256(s.Signer.PrivateKey, s.Signer.Kid, claims)
 }
 
@@ -154,6 +195,7 @@ func (s *Service) mintAccessDelegated(g DelegatedGrant, aud string, now int64) (
 		}
 	}
 	s.applyTokenConfig(claims, resourceApp, g.User, "accessToken")
+	s.enrich(claims, g.App, g.User, "accessToken")
 	return SignRS256(s.Signer.PrivateKey, s.Signer.Kid, claims)
 }
 
@@ -236,9 +278,9 @@ func (s *Service) applyTokenConfig(claims map[string]any, app *store.App, user *
 // ---- Authorization codes ----
 
 type AuthCodeRequest struct {
-	AppID, UserID, RedirectURI  string
-	Scopes                      []string
-	Resource                    string
+	AppID, UserID, RedirectURI            string
+	Scopes                                []string
+	Resource                              string
 	CodeChallenge, ChallengeMethod, Nonce string
 }
 
@@ -263,7 +305,9 @@ type RedeemErr struct{ Code, Description string }
 
 func (e *RedeemErr) Error() string { return e.Code + ": " + e.Description }
 
-func invalidGrant(desc string) *RedeemErr { return &RedeemErr{Code: "invalid_grant", Description: desc} }
+func invalidGrant(desc string) *RedeemErr {
+	return &RedeemErr{Code: "invalid_grant", Description: desc}
+}
 
 // RedeemAuthCode validates and atomically consumes an authorization code.
 func (s *Service) RedeemAuthCode(code, appID, redirectURI, codeVerifier string) (*store.AuthCode, error) {
@@ -322,7 +366,7 @@ func (s *Service) IssueRefreshToken(appID, userID string, scopes []string, resou
 	err := s.Store.InsertRefreshToken(&store.RefreshToken{
 		TokenHash: store.HashToken(plain), AppID: appID, UserID: userID,
 		Scopes: strings.Join(scopes, " "), Resource: resource,
-		ExpiresAt: now + int64(s.Cfg.Lifetimes.RefreshToken),
+		ExpiresAt:   now + int64(s.Cfg.Lifetimes.RefreshToken),
 		RotatedFrom: rotatedFrom, CreatedAt: now,
 	})
 	if err != nil {

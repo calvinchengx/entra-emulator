@@ -189,3 +189,23 @@ generator per app (browser/node tabs, redirect-URI selector, derived from the ad
 origins), and seed/reset actions. Visual identity: Fluent-mimic (Azure-portal
 familiarity) with a persistent amber "LOCAL EMULATOR" badge as the not-production
 signal.
+
+## Custom authentication extensions (roadmap #10)
+
+Emulate the Entra `onTokenIssuanceStart` event: a per-app webhook called during
+delegated-token minting whose returned claims are merged into the token.
+
+| Method | Path | → |
+|---|---|---|
+| GET | `/admin/api/custom-extensions` | `{value: {<appId>: config}}` — all registrations |
+| PUT | `/admin/api/apps/{id}/custom-extension` | register/update `{endpoint, claims?, timeoutMs?}` |
+| DELETE | `/admin/api/apps/{id}/custom-extension` | 204 — remove |
+
+During minting the emulator POSTs the Microsoft `onTokenIssuanceStartCalloutData`
+shape (type, source, tenantId, authenticationContext with the client SP + user) to
+`endpoint`, carrying an emulator-minted system bearer, and merges the
+`provideClaimsForToken` claims the webhook returns. `claims` optionally allowlists
+which returned names are merged. Semantics match Entra: **protocol claims can never be
+overridden**, and a slow/failing webhook is **timeout-and-continue** (default ~2 s,
+overridable via `timeoutMs`) — the token is still issued, just unenriched. In-memory
+config (dev tool).

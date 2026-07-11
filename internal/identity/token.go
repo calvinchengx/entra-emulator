@@ -274,4 +274,3 @@ func writeRedeemErr(w http.ResponseWriter, err error) {
 	}
 	httpx.WriteOAuthError(w, "invalid_request", "AADSTS90002: The request could not be processed.")
 }
-

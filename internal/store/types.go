@@ -61,11 +61,11 @@ type AppSecret struct {
 }
 
 type AppScope struct {
-	ID                       string
-	AppID                    string
-	Value                    string
-	AdminConsentDisplayName  string
-	IsEnabled                bool
+	ID                      string
+	AppID                   string
+	Value                   string
+	AdminConsentDisplayName string
+	IsEnabled               bool
 }
 
 type AppRole struct {
