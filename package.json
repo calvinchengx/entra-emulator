@@ -1,0 +1,15 @@
+{
+  "name": "entra-emulator-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.29.3",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10"
+  },
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "portal:build": "pnpm --filter entra-emulator-portal build",
+    "docs:dev": "pnpm --filter entra-emulator-docs dev",
+    "docs:build": "pnpm --filter entra-emulator-docs build"
+  }
+}

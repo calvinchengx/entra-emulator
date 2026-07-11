@@ -23,13 +23,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
-      - run: npm install
-        working-directory: portal
-      - run: npm run build
-        working-directory: portal
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter entra-emulator-portal build
 
   sdk-e2e:
     name: Real-SDK e2e (msal-node, MSAL Go, azidentity, MSAL Python)

@@ -13,7 +13,7 @@ __pycache__/
 .claude/
 
 # Note: portal/dist IS committed — go:embed needs it for `go build` to be
-# self-sufficient. Rebuild with `cd portal && npm run build`.
+# self-sufficient. Rebuild with `pnpm --filter entra-emulator-portal build`.
 
 # Xcode/Flutter build output that lands outside the app dir
 e2e/build/
