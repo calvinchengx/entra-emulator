@@ -44,7 +44,8 @@ homebrew_casks:
     repository:
       owner: calvinchengx
       name: homebrew-tap
-      branch: main
+      # branch omitted → GoReleaser pushes to the tap's default branch
+      # (currently `master`); hardcoding `main` created a stray ref and 403'd.
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: "https://github.com/calvinchengx/entra-emulator"
     description: "A local, MSAL-compatible emulator of Microsoft Entra ID (Azure AD) in a single Go binary."
