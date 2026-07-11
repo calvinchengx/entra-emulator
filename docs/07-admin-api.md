@@ -114,6 +114,22 @@ Config: `{ tokenError?, tokenErrorDescription?, tokenLatencyMs?, probability? }`
 every token response; `probability` (0–1, default 1) makes a set error intermittent.
 In-memory only — cleared by DELETE or a process restart.
 
+## Clock control (roadmap #6 — testing superpower)
+
+Freeze or offset the emulator clock so token-expiry and refresh logic are testable
+without real sleeps. Every timestamp the emulator stamps (token `iat`/`exp`, refresh and
+device-code expiry, sessions) flows through this clock.
+
+| Method | Path | → |
+|---|---|---|
+| GET | `/admin/api/clock` | `{ offsetSeconds, frozen, now, nowISO }` |
+| POST | `/admin/api/clock` | `{ offsetSeconds?, advanceSeconds?, frozen? }` — apply, returns state |
+| DELETE | `/admin/api/clock` | 204 — reset to real time |
+
+`advanceSeconds` moves time forward (e.g. past a token's lifetime to make it expire);
+`offsetSeconds` sets an absolute offset; `frozen` pins/resumes time (unfreeze is
+continuous — no jump). In-memory; DELETE or restart restores real time.
+
 ## System
 
 | Method | Path | → |
