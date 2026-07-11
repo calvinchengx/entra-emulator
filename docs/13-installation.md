@@ -4,6 +4,15 @@ Pick whichever fits your platform. All methods give you the same single,
 self-contained `entra-emulator` binary (the Svelte portal is baked in — no Node
 toolchain required at runtime).
 
+### Quick pick by platform
+
+- **macOS** (Intel / Apple Silicon) → [Homebrew](#homebrew-macos--linux)
+- **Windows** → [winget](#windows-winget) — or the [release `.zip`](#pre-built-binaries-all-platforms) until the catalog PR merges
+- **Linux** → [Homebrew](#homebrew-macos--linux) or [Docker](#docker)
+- **CI / containers / any OS** → [Docker](#docker) or [`go install`](#go-install)
+
+### All methods
+
 | Method | Platforms | Best for |
 |---|---|---|
 | [Homebrew](#homebrew-macos--linux) | macOS, Linux | Mac/Linux dev machines |
@@ -31,6 +40,19 @@ refreshes the cask, so `brew upgrade` picks up new versions. The cask clears the
 macOS quarantine attribute for you, so the unsigned binary runs without a
 Gatekeeper prompt.
 
+## Windows (winget)
+
+```powershell
+winget install calvinchengx.entra-emulator
+entra-emulator version
+```
+
+Each tagged release opens a manifest PR against `microsoft/winget-pkgs`; the
+package is installable once that PR is merged (Microsoft's validation can take a
+day or two). Until then — or for `scoop` / `choco`, which aren't published — use
+the [release archive](#pre-built-binaries-all-platforms) or
+[`go install`](#go-install).
+
 ## Docker
 
 A ~13 MB distroless image (pure-Go, no cgo) on GHCR, with a built-in
@@ -49,16 +71,17 @@ restarts. Tags: `latest` and each released `X.Y.Z`.
 
 Every tagged release attaches cross-platform archives (linux / macOS / Windows
 × amd64 / arm64) to the [GitHub Releases page](https://github.com/calvinchengx/entra-emulator/releases).
-Download the one for your OS/arch and extract it:
+Download the one for your OS/arch and extract it.
+
+**macOS / Linux** (`…_darwin_arm64.tar.gz`, `…_linux_amd64.tar.gz`, …):
 
 ```sh
-# macOS / Linux (…_darwin_arm64.tar.gz, …_linux_amd64.tar.gz, etc.)
 tar -xzf entra-emulator_*_"$(uname -s | tr A-Z a-z)"_*.tar.gz
 ./entra-emulator version
 ```
 
-On **Windows**, download `entra-emulator_<version>_windows_amd64.zip` (or
-`arm64`), unzip it, and run `entra-emulator.exe` from PowerShell:
+**Windows** — download `entra-emulator_<version>_windows_amd64.zip` (or `arm64`),
+unzip it, and run `entra-emulator.exe` from PowerShell:
 
 ```powershell
 .\entra-emulator.exe version
@@ -71,12 +94,13 @@ Homebrew), macOS may quarantine it. Clear it with:
 :::
 
 Each release also publishes `checksums.txt` — verify with
-`sha256sum -c` (Linux) / `shasum -a 256 -c` (macOS).
+`sha256sum -c` (Linux) / `shasum -a 256 -c` (macOS) /
+`Get-FileHash` (Windows PowerShell).
 
 ## `go install`
 
 With a Go toolchain (1.25+), install straight from the module — no clone, no
-Node:
+Node — on any platform:
 
 ```sh
 go install github.com/calvinchengx/entra-emulator/cmd/entra-emulator@latest
@@ -99,20 +123,6 @@ go build ./cmd/entra-emulator
 Rebuilding the portal UI needs [pnpm](https://pnpm.io)
 (`pnpm --filter entra-emulator-portal build`), but a plain `go build` uses the
 committed `portal/dist` and needs no Node.
-
-## Windows (winget)
-
-Once a release is published to the winget community catalog:
-
-```powershell
-winget install calvinchengx.entra-emulator
-entra-emulator version
-```
-
-Each tagged release opens a manifest PR against `microsoft/winget-pkgs`; the
-package becomes installable after that PR is merged (validation can take a day
-or two). Until then — or for `scoop` / `choco`, which aren't published — use the
-[release archive](#pre-built-binaries-all-platforms) or [`go install`](#go-install).
 
 ## After installing
 
