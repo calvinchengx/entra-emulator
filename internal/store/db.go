@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS users (
   mail                TEXT,
   password_hash       TEXT,
   account_enabled     INTEGER NOT NULL DEFAULT 1,
-  created_at          INTEGER NOT NULL
+  created_at          INTEGER NOT NULL,
+  updated_at          INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_users_mail ON users(mail);
 CREATE TABLE IF NOT EXISTS groups (
@@ -241,6 +242,7 @@ func (s *Store) migrate() error {
 		`ALTER TABLE authorization_codes ADD COLUMN amr TEXT`,
 		`ALTER TABLE sessions ADD COLUMN auth_method TEXT NOT NULL DEFAULT 'pwd'`,
 		`ALTER TABLE tenants ADD COLUMN initial_domain TEXT`,
+		`ALTER TABLE users ADD COLUMN updated_at INTEGER`,
 	} {
 		if _, err := s.db.Exec(alter); err != nil &&
 			!strings.Contains(err.Error(), "duplicate column name") {

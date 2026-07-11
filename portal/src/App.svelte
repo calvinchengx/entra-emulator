@@ -9,6 +9,7 @@
   import Clock from './Clock.svelte';
   import Faults from './Faults.svelte';
   import Ops from './Ops.svelte';
+  import Provisioning from './Provisioning.svelte';
   import Fabric from './Fabric.svelte';
   import { api } from './api.js';
 
@@ -36,6 +37,7 @@
     ]],
     ['Operations', [
       ['ops', 'Import / export & keys'],
+      ['provisioning', 'SCIM provisioning'],
     ]],
     ['Fabric', [
       ['fabric', 'Workspace identities'],
@@ -71,6 +73,7 @@
     {:else if route === 'clock'}<Clock />
     {:else if route === 'faults'}<Faults />
     {:else if route === 'ops'}<Ops />
+    {:else if route === 'provisioning'}<Provisioning />
     {:else if route === 'fabric'}<Fabric {health} />
     {:else}<Dashboard {health} />{/if}
   </main>

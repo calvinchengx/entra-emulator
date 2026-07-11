@@ -12,8 +12,11 @@ export default defineConfig(({ mode }) => ({
       '/health': { target: 'https://localhost:8443', secure: false },
     },
   },
-  // Vitest resolves Svelte's client (browser) build so components mount in jsdom.
-  resolve: { conditions: mode === 'test' ? ['browser'] : [] },
+  // Only under Vitest, resolve Svelte's client (browser) build so components
+  // mount in jsdom. In dev/build we must NOT override resolve.conditions — an
+  // empty list clobbers Vite's defaults and makes Svelte resolve to its server
+  // build (`mount(...)` unavailable → the app never mounts in the browser).
+  resolve: mode === 'test' ? { conditions: ['browser'] } : {},
   test: {
     environment: 'jsdom',
     globals: true,

@@ -36,6 +36,7 @@ type User struct {
 	PasswordHash      string
 	AccountEnabled    bool
 	CreatedAt         int64
+	UpdatedAt         int64 // last mutation; drives incremental SCIM sync
 }
 
 type Group struct {

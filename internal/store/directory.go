@@ -103,12 +103,12 @@ func (s *Store) DeleteTenant(id string) error {
 
 const userCols = `id, tenant_id, user_principal_name, display_name,
 	COALESCE(given_name,''), COALESCE(surname,''), COALESCE(mail,''),
-	COALESCE(password_hash,''), account_enabled, created_at`
+	COALESCE(password_hash,''), account_enabled, created_at, COALESCE(updated_at, created_at)`
 
 func scanUser(row interface{ Scan(...any) error }) (*User, error) {
 	u := &User{}
 	err := row.Scan(&u.ID, &u.TenantID, &u.UserPrincipalName, &u.DisplayName,
-		&u.GivenName, &u.Surname, &u.Mail, &u.PasswordHash, &u.AccountEnabled, &u.CreatedAt)
+		&u.GivenName, &u.Surname, &u.Mail, &u.PasswordHash, &u.AccountEnabled, &u.CreatedAt, &u.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -154,20 +154,24 @@ func (s *Store) ListUsers(top, skip int, search string) ([]*User, int, error) {
 }
 
 func (s *Store) CreateUser(u *User) error {
+	if u.UpdatedAt == 0 {
+		u.UpdatedAt = u.CreatedAt
+	}
 	_, err := s.db.Exec(`INSERT INTO users
-		(id, tenant_id, user_principal_name, display_name, given_name, surname, mail, password_hash, account_enabled, created_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?)`,
+		(id, tenant_id, user_principal_name, display_name, given_name, surname, mail, password_hash, account_enabled, created_at, updated_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
 		u.ID, u.TenantID, u.UserPrincipalName, u.DisplayName,
 		nullable(u.GivenName), nullable(u.Surname), nullable(u.Mail), nullable(u.PasswordHash),
-		u.AccountEnabled, u.CreatedAt)
+		u.AccountEnabled, u.CreatedAt, u.UpdatedAt)
 	return mapConstraint(err)
 }
 
 func (s *Store) UpdateUser(u *User) error {
+	u.UpdatedAt = s.Now()
 	res, err := s.db.Exec(`UPDATE users SET user_principal_name=?, display_name=?, given_name=?,
-		surname=?, mail=?, password_hash=?, account_enabled=? WHERE id=?`,
+		surname=?, mail=?, password_hash=?, account_enabled=?, updated_at=? WHERE id=?`,
 		u.UserPrincipalName, u.DisplayName, nullable(u.GivenName), nullable(u.Surname),
-		nullable(u.Mail), nullable(u.PasswordHash), u.AccountEnabled, u.ID)
+		nullable(u.Mail), nullable(u.PasswordHash), u.AccountEnabled, u.UpdatedAt, u.ID)
 	if err != nil {
 		return mapConstraint(err)
 	}
