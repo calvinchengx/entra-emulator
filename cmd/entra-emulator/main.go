@@ -33,20 +33,42 @@ func run() error {
 		return runSubcommand(cfg, os.Args[1:])
 	}
 
-	st, err := store.Open(cfg.DBPath)
+	srv, st, err := boot(cfg)
 	if err != nil {
 		return err
 	}
 	defer st.Close()
 
+	log.Printf("entra-emulator %s", version)
+	log.Printf("  login:  %s", cfg.Origins.Login)
+	log.Printf("  portal: %s", cfg.Origins.Portal)
+	log.Printf("  graph:  %s", cfg.Origins.Graph)
+	log.Printf("  issuer: %s", cfg.Issuer)
+	if cfg.OriginMode == "subdomains" {
+		log.Printf("  hint: if *.%s does not resolve, run `entra-emulator hosts --apply`", cfg.BaseDomain)
+	}
+	log.Printf("listening on %s:%d (tls=%v)", cfg.Host, cfg.Port, cfg.TLSEnabled)
+	return srv.Listen()
+}
+
+// boot opens the store, ensures the tenant/seed/signing key, loads TLS material
+// when enabled, and constructs the server. Separated from run so the boot
+// sequence is testable without binding a listener.
+func boot(cfg *config.Config) (*server.Server, *store.Store, error) {
+	st, err := store.Open(cfg.DBPath)
+	if err != nil {
+		return nil, nil, err
+	}
 	// The tenant is infrastructure (the signing key FK-references it); ensure
 	// it independently of SEED_ON_START so an unseeded boot still works.
 	if err := st.EnsureTenant(cfg.TenantID, cfg.Issuer); err != nil {
-		return fmt.Errorf("ensure tenant: %w", err)
+		st.Close()
+		return nil, nil, fmt.Errorf("ensure tenant: %w", err)
 	}
 	if cfg.SeedOnStart {
 		if seeded, err := st.Seed(cfg.TenantID, cfg.Issuer); err != nil {
-			return fmt.Errorf("seed: %w", err)
+			st.Close()
+			return nil, nil, fmt.Errorf("seed: %w", err)
 		} else if seeded {
 			log.Printf("seeded deterministic directory (tenant %s)", cfg.TenantID)
 		}
@@ -54,7 +76,8 @@ func run() error {
 
 	signer, err := tokens.EnsureActiveKey(st, cfg.TenantID)
 	if err != nil {
-		return fmt.Errorf("signing key: %w", err)
+		st.Close()
+		return nil, nil, fmt.Errorf("signing key: %w", err)
 	}
 	ts := &tokens.Service{Store: st, Signer: signer, Cfg: cfg}
 
@@ -66,19 +89,10 @@ func run() error {
 			cert, err = tlscert.LoadOrCreate(cfg.TLSCertDir, cfg.BaseDomain, cfg.LocalDomains)
 		}
 		if err != nil {
-			return err
+			st.Close()
+			return nil, nil, err
 		}
 	}
 
-	srv := server.New(cfg, st, ts, cert, version)
-	log.Printf("entra-emulator %s", version)
-	log.Printf("  login:  %s", cfg.Origins.Login)
-	log.Printf("  portal: %s", cfg.Origins.Portal)
-	log.Printf("  graph:  %s", cfg.Origins.Graph)
-	log.Printf("  issuer: %s", cfg.Issuer)
-	if cfg.OriginMode == "subdomains" {
-		log.Printf("  hint: if *.%s does not resolve, run `entra-emulator hosts --apply`", cfg.BaseDomain)
-	}
-	log.Printf("listening on %s:%d (tls=%v)", cfg.Host, cfg.Port, cfg.TLSEnabled)
-	return srv.Listen()
+	return server.New(cfg, st, ts, cert, version), st, nil
 }
