@@ -36,6 +36,7 @@ func (g *Graph) Register(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc("GET "+prefix+"/v1.0/groups/{id}/members", g.requireBearer(g.handleGroupMembers))
 	mux.HandleFunc("GET "+prefix+"/oidc/userinfo", g.requireDelegatedUserInfo(g.handleUserInfo))
 	mux.HandleFunc("POST "+prefix+"/oidc/userinfo", g.requireDelegatedUserInfo(g.handleUserInfo))
+	g.registerWrites(mux, prefix)
 }
 
 // allRows fetches every row for in-memory OData processing (emulator scale).

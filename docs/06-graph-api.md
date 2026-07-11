@@ -28,6 +28,23 @@ require a **delegated** token (`oid` present); app-only → 403.
 
 `memberOf` items carry an `@odata.type` (`#microsoft.graph.group`).
 
+### Writes (roadmap #18)
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/v1.0/users` | 201; requires `displayName` + `userPrincipalName`; optional `passwordProfile.password` |
+| PATCH / DELETE | `/v1.0/users/{id}` | 204 / 204 |
+| POST | `/v1.0/groups` | 201; requires `displayName` |
+| PATCH / DELETE | `/v1.0/groups/{id}` | 204 / 204 |
+| POST | `/v1.0/groups/{id}/members/$ref` | 204; body `{"@odata.id": ".../directoryObjects/{userId}"}` |
+| DELETE | `/v1.0/groups/{id}/members/{userId}/$ref` | 204 |
+| POST | `/v1.0/applications` | 201; object `id` == `appId` (documented conflation) |
+| PATCH / DELETE | `/v1.0/applications/{id}` | 204 / 204 |
+
+Backed by the same store as the admin API. Store errors map to Graph shapes: not-found →
+404 `Request_ResourceNotFound`, unique conflict (e.g. duplicate UPN) → 400
+`Request_BadRequest`. No fine-grained permission enforcement (documented divergence).
+
 ## Shapes
 
 User: `{ "@odata.context", id, displayName, userPrincipalName, mail, givenName, surname,

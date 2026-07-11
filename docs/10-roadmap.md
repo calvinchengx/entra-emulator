@@ -145,7 +145,17 @@ Deeper Microsoft identity platform coverage:
     post-filter). Filtering/projection run in-memory over shaped entities at emulator
     scale. 2 integration tests (memberOf delegated + app-only; select/filter/count/combined
     + bad-filter 400).
-18. ⬜ User/group/app **writes** through Graph (portal already covers admin writes).
+18. ✅ User/group/app **writes** through Graph (`internal/graph/writes.go`), backed by the
+    same store as the portal admin API. Users: `POST /v1.0/users` (201, requires
+    displayName + userPrincipalName, optional passwordProfile), `PATCH` (204, partial),
+    `DELETE` (204). Groups: `POST`/`PATCH`/`DELETE /v1.0/groups`, plus membership via the
+    `$ref` link shape — `POST /v1.0/groups/{id}/members/$ref` with `{"@odata.id": ".../
+    directoryObjects/{userId}"}` and `DELETE .../members/{userId}/$ref`. Applications:
+    `POST`/`PATCH`/`DELETE /v1.0/applications` (object id == appId — documented conflation).
+    Store sentinels map to Graph errors (`ErrNotFound`→404 `Request_ResourceNotFound`,
+    `ErrConflict`→400 `Request_BadRequest`). No permission enforcement (documented
+    divergence). 3 integration tests (user CRUD + duplicate-UPN 400; group CRUD + `$ref`
+    membership; application CRUD verified via admin read-back).
 19. ⬜ Service principals / `/applications` read surface.
 20. ⬜ **Externalized-authorization sample** — a Go resource API validating emulator JWTs
     via JWKS, then calling a third-party PDP (e.g. OpenFGA) with `oid` + `groups` for
