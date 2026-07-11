@@ -5,7 +5,7 @@ tenant, no app registration, no waiting. Every value below is a **seeded dev
 constant**, so the snippets are copy-paste runnable.
 
 By the end you'll have: the emulator running, a client-credentials token from
-`curl` and from MSAL (Node / Python / Go / azidentity), and a Microsoft Graph call
+`curl` and from MSAL (Node / Python / Go / azidentity / .NET / Java), and a Microsoft Graph call
 authorized by that token.
 
 ## 1. Run the emulator
@@ -72,10 +72,11 @@ non-Microsoft hosts, mark it known and skip instance discovery).
 :::caution[Two knobs every SDK needs]
 1. **Authority** = `{origin}/{tenantId}` — here
    `https://localhost:8443/11111111-1111-1111-1111-111111111111`.
-2. **Trust the host**: `knownAuthorities` (MSAL.js/Node),
-   `instance_discovery=False` (MSAL Python), `WithInstanceDiscovery(false)`
-   (MSAL Go), or a cloud-config override (azidentity) — otherwise the SDK tries
-   to validate the authority against `login.microsoftonline.com`.
+2. **Trust the host** (skip instance discovery): `knownAuthorities` (MSAL.js/Node),
+   `instance_discovery=False` (MSAL Python), `.WithInstanceDiscovery(false)`
+   (MSAL Go / .NET), `.instanceDiscovery(false)` (MSAL4J), or a cloud-config
+   override (azidentity) — otherwise the SDK tries to validate the authority
+   against `login.microsoftonline.com`.
 :::
 
 ### MSAL Node (`@azure/msal-node`)
@@ -146,6 +147,39 @@ cred, _ := azidentity.NewClientSecretCredential(
     })
 tok, _ := cred.GetToken(ctx, policy.TokenRequestOptions{
     Scopes: []string{"https://graph.microsoft.com/.default"}})
+```
+
+### MSAL.NET (`Microsoft.Identity.Client`)
+
+```csharp
+var app = ConfidentialClientApplicationBuilder
+    .Create("cccccccc-0000-0000-0000-000000000002")          // client id
+    .WithClientSecret("daemon-app-secret")
+    .WithAuthority(new Uri("https://localhost:8443/11111111-1111-1111-1111-111111111111"),
+                   validateAuthority: false)
+    .WithInstanceDiscovery(false)                             // don't probe AAD metadata
+    // Dev-only: trust the emulator's self-signed cert.
+    .WithHttpClientFactory(certTrustingFactory)
+    .Build();
+
+var result = await app.AcquireTokenForClient(
+    new[] { "https://graph.microsoft.com/.default" }).ExecuteAsync();
+```
+
+### MSAL4J (`com.microsoft.azure:msal4j`)
+
+```java
+var app = ConfidentialClientApplication.builder(
+        "cccccccc-0000-0000-0000-000000000002",              // client id
+        ClientCredentialFactory.createFromSecret("daemon-app-secret"))
+    .authority("https://localhost:8443/11111111-1111-1111-1111-111111111111/")
+    .validateAuthority(false)
+    .instanceDiscovery(false)                                // don't probe AAD metadata
+    .build();                                                // trust the cert via the JVM trust store
+
+var result = app.acquireToken(ClientCredentialParameters
+    .builder(Collections.singleton("https://graph.microsoft.com/.default"))
+    .build()).get();
 ```
 
 :::tip[Prefer a file you can just run?]

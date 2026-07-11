@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # E2E runner: boots the emulator with an ephemeral store, then runs the
 # per-language SDK suites (docs/11-e2e-sdk-matrix.md).
-# Usage: ./e2e/run.sh [ts|go|python ...]   (default: all available)
+# Usage: ./e2e/run.sh [ts|go|python|dotnet|java ...]   (default: ts go python)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -46,6 +46,10 @@ for s in "${suites[@]}"; do
     python)
       (cd "$ROOT/e2e/python" && [ -d .venv ] || python3 -m venv .venv
        cd "$ROOT/e2e/python" && ./.venv/bin/pip install -q msal && ./.venv/bin/python suite.py) || fail=1 ;;
+    dotnet)
+      (cd "$ROOT/e2e/dotnet" && dotnet run -c Release) || fail=1 ;;
+    java)
+      (cd "$ROOT/e2e/java" && mvn -q -B compile exec:java) || fail=1 ;;
     *) echo "unknown suite: $s"; fail=1 ;;
   esac
 done

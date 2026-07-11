@@ -19,8 +19,8 @@ Two knobs make custom authorities work in every Microsoft SDK:
 
 | Concern | Setting |
 |---|---|
-| Instance discovery | Must be **disabled** (the emulator is not in Microsoft's cloud metadata): msal-js `knownAuthorities`; MSAL Go `WithInstanceDiscovery(false)`; MSAL Python / .NET `instance_discovery=False` / `WithInstanceDiscoveryMetadata`; azure-identity `DisableInstanceDiscovery` |
-| TLS trust | Node `NODE_EXTRA_CA_CERTS`; Go custom `http.Client` with the cert in `RootCAs`; Python `verify=<cert>` (msal) / `connection_verify` (azure-identity); browsers via Playwright `ignoreHTTPSErrors` |
+| Instance discovery | Must be **disabled** (the emulator is not in Microsoft's cloud metadata): msal-js `knownAuthorities`; MSAL Go `WithInstanceDiscovery(false)`; MSAL Python `instance_discovery=False`; MSAL.NET `.WithInstanceDiscovery(false)`; MSAL4J `.instanceDiscovery(false)`; azure-identity `DisableInstanceDiscovery` |
+| TLS trust | Node `NODE_EXTRA_CA_CERTS`; Go custom `http.Client` with the cert in `RootCAs`; Python `verify=<cert>` (msal) / `connection_verify` (azure-identity); .NET cert-trusting `HttpClient` via `WithHttpClientFactory`; Java: load the cert into a trust store and set the default `SSLContext`; browsers via Playwright `ignoreHTTPSErrors` |
 
 ## Language matrix
 
@@ -30,6 +30,8 @@ Two knobs make custom authorities work in every Microsoft SDK:
 | TypeScript (browser) | `@azure/msal-browser` | auth code + PKCE, silent renewal, logout | Playwright headless Chromium (opt-in, heavier) |
 | Go | `microsoft-authentication-library-for-go` + `azidentity` | client credentials (both layers), device code | HTTP approval sequence |
 | Python | `msal` (+ optional `azure-identity`) | client credentials, device code | HTTP approval sequence in a thread |
+| C# / .NET | `Microsoft.Identity.Client` (MSAL.NET) | client credentials (+ token-cache hit) | — (no interactive flow) |
+| Java | `com.microsoft.azure:msal4j` (MSAL4J) | client credentials | — (no interactive flow) |
 | Flutter/Dart | Dart `http` (automated) + `flutter_appauth` (manual screen) | device code end-to-end on-device; auth code + PKCE manually | `integration_test` on Android emulator / iOS simulator — **nightly, not PR gate** |
 
 Notes per language:
@@ -47,6 +49,16 @@ Notes per language:
   verify=EMU_CERT)`; device flow via `initiate_device_flow` +
   `acquire_token_by_device_flow` with the approval driven concurrently. The suite
   provisions its own venv.
+- **.NET** (`e2e/dotnet/`): `ConfidentialClientApplicationBuilder` with
+  `.WithAuthority(authority, validateAuthority: false).WithInstanceDiscovery(false)`
+  and a cert-trusting `HttpClient` supplied via `WithHttpClientFactory`. Asserts the
+  app-only claim shape (`aud`, `roles`, no `scp`/`oid`) and that a second call is served
+  from MSAL's token cache. Built and run with `dotnet run`.
+- **Java** (`e2e/java/`): `ConfidentialClientApplication.builder(...)
+  .authority(authority).validateAuthority(false).instanceDiscovery(false)`; the suite
+  loads `EMU_CERT` into a fresh trust store and sets it as the default `SSLContext` so
+  msal4j's HTTP client accepts the TLS connection. Built and run with Maven
+  (`mvn compile exec:java`).
 - **Flutter** (`e2e/flutter/`, run by `.github/workflows/flutter-e2e.yml`): no
   official MSAL exists for Dart. The **automated** on-device test drives the
   device-code flow end-to-end with Dart `http` (device authorization → pending poll →
