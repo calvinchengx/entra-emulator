@@ -45,7 +45,7 @@ homebrew_casks:
       owner: calvinchengx
       name: homebrew-tap
       branch: main
-      token: '{{ index .Env "HOMEBREW_TAP_TOKEN" }}'
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
     homepage: "https://github.com/calvinchengx/entra-emulator"
     description: "A local, MSAL-compatible emulator of Microsoft Entra ID (Azure AD) in a single Go binary."
     skip_upload: '{{ if index .Env "HOMEBREW_TAP_TOKEN" }}false{{ else }}true{{ end }}'
