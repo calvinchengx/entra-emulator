@@ -44,7 +44,7 @@ jobs:
           fi
 
   sdk-e2e:
-    name: Real-SDK e2e (msal-node, MSAL Go, azidentity, MSAL Python)
+    name: Real-SDK e2e (msal-node, MSAL Go/azidentity/.NET/Java, MSAL Python)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -60,7 +60,15 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - run: ./e2e/run.sh ts go python
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - run: ./e2e/run.sh ts go python dotnet java
 
   docker-smoke:
     name: Docker image smoke test
