@@ -177,6 +177,19 @@ Deeper Microsoft identity platform coverage:
     deny, group-derived allow, missing-token 401, wrong-audience 401) using the admin token
     forge to mint the access tokens.
 
+## Phase 5 — SCIM provisioning
+
+21. 🚧 **SCIM 2.0 (RFC 7643/7644).** Emulate Entra's provisioning both ways
+    ([full design](15-scim-provisioning.md)):
+    - (a) ✅ **Service provider (server).** `/scim/v2/{Users,Groups}` over the directory —
+      list + `userName eq` correlation filter + pagination, create, read, replace, PatchOp
+      (soft-deprovision `active:false`, member add/remove), delete; bearer-secret auth;
+      `application/scim+json` + ListResponse/Error schemas; discovery endpoints. Backed by
+      the shared store, wired on the compat origin at `/scim`. 3 integration suites.
+    - (b) ⬜ **Provisioning client.** Push the directory *out* to a configured SCIM endpoint
+      replicating Entra's outbound cycle (initial/incremental sync, deprovision, Entra
+      request shapes) + a provisioning log + portal view + a mock-target e2e suite.
+
 ## Explicit non-goals
 
 SAML/WS-Fed, B2C user flows, MFA/Conditional Access emulation, production hardening.

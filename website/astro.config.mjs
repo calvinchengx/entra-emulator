@@ -34,7 +34,11 @@ export default defineConfig({
         },
         {
           label: 'Protocol surface',
-          items: [{ slug: '05-oidc-endpoints' }, { slug: '06-graph-api' }],
+          items: [
+            { slug: '05-oidc-endpoints' },
+            { slug: '06-graph-api' },
+            { slug: '15-scim-provisioning' },
+          ],
         },
         {
           label: 'Admin & testing',

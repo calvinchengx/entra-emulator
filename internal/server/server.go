@@ -18,6 +18,7 @@ import (
 	"github.com/calvinchengx/entra-emulator/internal/graph"
 	"github.com/calvinchengx/entra-emulator/internal/httpx"
 	"github.com/calvinchengx/entra-emulator/internal/identity"
+	"github.com/calvinchengx/entra-emulator/internal/scim"
 	"github.com/calvinchengx/entra-emulator/internal/store"
 	"github.com/calvinchengx/entra-emulator/internal/tlscert"
 	"github.com/calvinchengx/entra-emulator/internal/tokens"
@@ -59,6 +60,7 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service, cert *tlscert.
 	id := identity.New(cfg, st, ts, fs, au)
 	gr := graph.New(cfg, st, ts)
 	ad := admin.New(cfg, st, ts, fs, au, ce, cert, version)
+	sc := scim.New(cfg, st)
 
 	// login surface: OIDC only + /health-free root descriptor.
 	loginMux := http.NewServeMux()
@@ -82,6 +84,7 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service, cert *tlscert.
 	id.RegisterMSI(compatMux)
 	gr.Register(compatMux, "/graph")
 	ad.Register(compatMux)
+	sc.Register(compatMux, "/scim")
 	compatMux.HandleFunc("/", portalFallback)
 
 	root := &hostRouter{
@@ -131,7 +134,7 @@ func surfaceDescriptor(role string) http.HandlerFunc {
 }
 
 // apiPrefixes are never shadowed by the SPA fallback.
-var apiPrefixes = []string{"/admin/", "/graph/", "/health"}
+var apiPrefixes = []string{"/admin/", "/graph/", "/scim/", "/health"}
 
 // portalFallback serves the portal SPA for non-API GETs and JSON 404s for
 // unmatched API paths.
