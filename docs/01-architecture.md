@@ -39,17 +39,26 @@ resource APIs cannot tell the difference.
 
 ## Process shape
 
-```
-  Your app (MSAL)                      entra-emulator (one process, one :8443 TLS listener)
- ┌───────────────┐                     ┌──────────────────────────────────────────┐
- │  SPA / Web /  │  authority =        │ Host-header router                        │
- │ Daemon / CLI  │─ login host ──────▶ │  login.entra.localhost  → STS/OIDC        │
- └───────────────┘  :8443/{tenant}     │  graph.entra.localhost  → minimal Graph   │
-        ▲                              │  portal.entra.localhost → admin API+pages │
-        │ validate JWT via JWKS        │  (localhost/127.0.0.1 = compat: all)      │
- ┌──────┴────────┐                     │ Token service (RS256, persisted key)      │
- │  Resource API │◀──── JWKS ──────────│ JSON store (data/entra-emulator.json)     │
- └───────────────┘                     └──────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    App["Your app (MSAL): SPA / Web / Daemon / CLI"]
+    Res["Resource API"]
+    subgraph emu["entra-emulator — one process, one :8443 TLS listener"]
+        direction TB
+        Router{"Host-header router"}
+        STS["login.entra.localhost → STS / OIDC"]
+        Graph["graph.entra.localhost → minimal Graph"]
+        Portal["portal.entra.localhost → admin API + pages"]
+        Tokens["Token service (RS256, persisted key)"]
+        Store[("JSON store: data/entra-emulator.json")]
+        Router --> STS
+        Router --> Graph
+        Router --> Portal
+        STS --> Tokens
+        Tokens --> Store
+    end
+    App -->|"authority = login host, :8443/{tenant}"| Router
+    Res -->|"validate JWT via JWKS"| STS
 ```
 
 Three surfaces share one HTTPS listener, routed by `Host` header. The
