@@ -24,7 +24,7 @@ docker run -p 8443:8443 ghcr.io/calvinchengx/entra-emulator:latest
 ```
 
 Prefer Homebrew, a pre-built binary (incl. Windows), or `go install`? See
-[Installation](13-installation.md) for every method.
+[Installation](02-installation.md) for every method.
 
 First run creates `./data/` with a SQLite store, a **persisted self-signed TLS
 certificate** (stable fingerprint), a persisted RSA signing key (stable `kid`),
@@ -200,13 +200,13 @@ curl --cacert ./data/tls/cert.pem -H "Authorization: Bearer $TOKEN" \
   https://localhost:8443/graph/v1.0/users
 ```
 
-You'll get the seeded users (Alice, Bob). See [Graph API](06-graph-api.md) for
+You'll get the seeded users (Alice, Bob). See [Graph API](09-graph-api.md) for
 the full surface (`/me`, `/me/memberOf`, `$select`/`$filter`, writes).
 
 ## 5. Go teams: zero external process
 
 For Go integration tests, embed the emulator in-process — no ports, no
-`docker`, no cleanup. This is [roadmap #1](10-roadmap.md):
+`docker`, no cleanup. This is [roadmap #1](17-roadmap.md):
 
 ```go
 func TestSignIn(t *testing.T) {
@@ -238,19 +238,19 @@ exported, so tests need no hard-coded fixtures.
 | Group | `Engineering` (Alice + Bob) |
 
 Full details, plus how to add your own, are in
-[Data model & seed](03-data-model-and-seed.md).
+[Data model & seed](06-data-model-and-seed.md).
 
 ## User sign-in (interactive)
 
 To exercise a **user** flow (authorization code + PKCE, device code, ROPC,
 passkeys), use the seeded SPA (`cccccccc-0000-0000-0000-000000000001`) as a
 public client and sign in as Alice at the emulator's sign-in page. The exact
-request/response shapes are in [OIDC endpoints](05-oidc-endpoints.md).
+request/response shapes are in [OIDC endpoints](08-oidc-endpoints.md).
 
 :::tip[Need a token with weird claims?]
 Skip the flow entirely: the **token forge** mints any token you want — expired,
 wrong-audience, custom scopes/roles — in one call. See the Admin API's
-`POST /admin/api/tokens` in [Admin REST API](07-admin-api.md), or the **Token
+`POST /admin/api/tokens` in [Admin REST API](11-admin-api.md), or the **Token
 forge** panel in the portal.
 :::
 
@@ -298,12 +298,12 @@ device-code integration test) lives in [`e2e/flutter/`](https://github.com/calvi
   the Graph resource id.
 - **Subdomain URLs won't resolve** — `ORIGIN_MODE=compat` keeps everything on
   `localhost`; otherwise run `entra-emulator hosts --apply`. See
-  [TLS & origins](08-tls-and-origins.md).
+  [TLS & origins](05-tls-and-origins.md).
 
 ## Next steps
 
-- [Configuration](02-configuration.md) — origins, TLS, lifetimes, seeding.
-- [Token service](04-token-service.md) — claims, signing, optional/group claims.
-- [Testing](09-testing.md) & [E2E SDK matrix](11-e2e-sdk-matrix.md) — how the
+- [Configuration](04-configuration.md) — origins, TLS, lifetimes, seeding.
+- [Token service](07-token-service.md) — claims, signing, optional/group claims.
+- [Testing](12-testing.md) & [E2E SDK matrix](16-e2e-sdk-matrix.md) — how the
   real-SDK suites are wired.
-- [Roadmap](10-roadmap.md) — everything the emulator does and doesn't do.
+- [Roadmap](17-roadmap.md) — everything the emulator does and doesn't do.

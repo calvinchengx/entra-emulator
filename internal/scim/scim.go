@@ -1,5 +1,5 @@
 // Package scim implements a minimal SCIM 2.0 service provider (RFC 7643/7644)
-// over the emulator's directory — the "server" phase of docs/15-scim-provisioning.md.
+// over the emulator's directory — the "server" phase of docs/10-scim-provisioning.md.
 // External SCIM clients can CRUD the emulator's users and groups; bearer-token
 // auth mirrors Entra's SCIM "secret token" model.
 package scim
@@ -117,7 +117,7 @@ func writeStoreErr(w http.ResponseWriter, err error) {
 func (s *Service) serviceProviderConfig(w http.ResponseWriter, r *http.Request) {
 	writeSCIM(w, http.StatusOK, map[string]any{
 		"schemas":               []string{"urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"},
-		"documentationUri":      "https://calvinchengx.github.io/entra-emulator/15-scim-provisioning/",
+		"documentationUri":      "https://calvinchengx.github.io/entra-emulator/10-scim-provisioning/",
 		"patch":                 map[string]any{"supported": true},
 		"bulk":                  map[string]any{"supported": false},
 		"filter":                map[string]any{"supported": true, "maxResults": 200},

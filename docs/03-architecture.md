@@ -136,14 +136,14 @@ data/
 
 | Doc | Covers |
 |---|---|
-| [02-configuration.md](02-configuration.md) | Every config key, precedence, validation |
-| [03-data-model-and-seed.md](03-data-model-and-seed.md) | Entities, JSON document shape, deterministic seed |
-| [04-token-service.md](04-token-service.md) | Keys, JWKS, claim assembly, lifetimes, grant artifacts |
-| [05-oidc-endpoints.md](05-oidc-endpoints.md) | Discovery, authorize/sign-in, token grants, device code, userinfo, logout, errors |
-| [06-graph-api.md](06-graph-api.md) | Graph routes, bearer validation, response/error shapes |
-| [07-admin-api.md](07-admin-api.md) | Admin REST routes, DTOs, pagination, portal pages |
-| [08-tls-and-origins.md](08-tls-and-origins.md) | Cert generation, origin modes, host routing |
-| [09-testing.md](09-testing.md) | Unit/integration/conformance test strategy |
-| [10-roadmap.md](10-roadmap.md) | Post-parity roadmap (phased, with status) |
-| [11-e2e-sdk-matrix.md](11-e2e-sdk-matrix.md) | Real-SDK e2e harness per language |
-| [12-fabric-companion.md](12-fabric-companion.md) | Sketch: separate Fabric control-plane companion emulator |
+| [04-configuration.md](04-configuration.md) | Every config key, precedence, validation |
+| [06-data-model-and-seed.md](06-data-model-and-seed.md) | Entities, JSON document shape, deterministic seed |
+| [07-token-service.md](07-token-service.md) | Keys, JWKS, claim assembly, lifetimes, grant artifacts |
+| [08-oidc-endpoints.md](08-oidc-endpoints.md) | Discovery, authorize/sign-in, token grants, device code, userinfo, logout, errors |
+| [09-graph-api.md](09-graph-api.md) | Graph routes, bearer validation, response/error shapes |
+| [11-admin-api.md](11-admin-api.md) | Admin REST routes, DTOs, pagination, portal pages |
+| [05-tls-and-origins.md](05-tls-and-origins.md) | Cert generation, origin modes, host routing |
+| [12-testing.md](12-testing.md) | Unit/integration/conformance test strategy |
+| [17-roadmap.md](17-roadmap.md) | Post-parity roadmap (phased, with status) |
+| [16-e2e-sdk-matrix.md](16-e2e-sdk-matrix.md) | Real-SDK e2e harness per language |
+| [18-fabric-companion.md](18-fabric-companion.md) | Sketch: separate Fabric control-plane companion emulator |

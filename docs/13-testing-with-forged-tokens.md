@@ -6,7 +6,7 @@ that logic you normally need to *drive a whole sign-in flow* just to get a
 token, and getting a **deliberately bad** one (expired, wrong audience, tampered)
 is even harder.
 
-The **token forge** ([roadmap #2](10-roadmap.md)) skips the flow: one call mints
+The **token forge** ([roadmap #2](17-roadmap.md)) skips the flow: one call mints
 any token you want — valid or intentionally broken — so you can assert your API
 accepts the good ones and rejects the bad ones. This guide drives it with
 `curl`; the same is a form in the portal's **Token forge** panel.
@@ -22,8 +22,8 @@ Configure your API's JWT middleware with the emulator's issuer and JWKS
 | JWKS URI | `https://localhost:8443/11111111-1111-1111-1111-111111111111/discovery/v2.0/keys` |
 | Audience | your API's app-id URI, e.g. `api://my-api` |
 
-(These come from the [discovery document](05-oidc-endpoints.md); trust the
-self-signed cert as in the [quickstart](00-quickstart.md).) Everything below
+(These come from the [discovery document](08-oidc-endpoints.md); trust the
+self-signed cert as in the [quickstart](01-quickstart.md).) Everything below
 assumes `MY_API` is your protected endpoint.
 
 ## Mint a token and call your API
@@ -104,12 +104,12 @@ access token for the seeded SPA.
 
 After a run, the **Audit trail** (portal, or `GET /admin/api/audit`) shows each
 token request with its concrete accept/reject reason — handy when your API and
-the emulator disagree about why a token is bad. And **[clock control](02-configuration.md)**
+the emulator disagree about why a token is bad. And **[clock control](04-configuration.md)**
 (`POST /admin/api/clock {"advanceSeconds": …}`) expires a *real* issued token
 with no `sleep`, if you'd rather test expiry end-to-end than forge it.
 
 ## Next
 
-- [Token service](04-token-service.md) — the exact claim shapes the forge emits.
-- [Admin REST API](07-admin-api.md) — the full forge + audit + clock reference.
-- [Testing](09-testing.md) — embedding the emulator in your test suite.
+- [Token service](07-token-service.md) — the exact claim shapes the forge emits.
+- [Admin REST API](11-admin-api.md) — the full forge + audit + clock reference.
+- [Testing](12-testing.md) — embedding the emulator in your test suite.

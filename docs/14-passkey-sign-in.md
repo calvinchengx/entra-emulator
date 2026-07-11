@@ -5,7 +5,7 @@ proves possession of a private key held by an authenticator instead of typing a
 password. The emulator implements both WebAuthn ceremonies — **registration**
 (enroll a passkey) and **assertion** (sign in with one) — so you can build and
 test passkey flows entirely locally, with **no cloud tenant and no hardware
-security key** ([roadmap #11](10-roadmap.md)).
+security key** ([roadmap #11](17-roadmap.md)).
 
 A passkey sign-in yields an ID token whose `amr` claim is `["fido"]` (versus
 `["pwd"]` for password sign-in), so your app — or a resource API — can tell *how*
@@ -110,10 +110,10 @@ The same endpoints back a browser ceremony: call `register/begin` /
 `assert/begin`, hand the returned options to `navigator.credentials.create()` /
 `.get()`, and POST the result to `…/finish`. Because the RP ID follows the `Host`
 header, this works on any origin the emulator serves — a
-[trusted certificate](08-tls-and-origins.md) is the prerequisite, since
+[trusted certificate](05-tls-and-origins.md) is the prerequisite, since
 `navigator.credentials` requires a secure context on non-`localhost` origins.
 
 ---
 
-Reference: [Passkey / WebAuthn ceremonies](05-oidc-endpoints.md) · implemented as
-[roadmap #11](10-roadmap.md).
+Reference: [Passkey / WebAuthn ceremonies](08-oidc-endpoints.md) · implemented as
+[roadmap #11](17-roadmap.md).
