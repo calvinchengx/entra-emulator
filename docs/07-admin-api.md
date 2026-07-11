@@ -33,6 +33,27 @@ discovery/JWKS/token endpoints work immediately. Delete cascades the tenant's ap
 groups, grants, and signing keys; the home tenant cannot be deleted (400). To register an
 app in a non-home tenant, pass `tenantId` on `POST /admin/api/apps`.
 
+## Workspace identities (Fabric, roadmap #16)
+
+| Method | Path | → |
+|---|---|---|
+| GET | `/admin/api/workspace-identities` | `{ value: [WorkspaceIdentity] }` |
+| POST | `/admin/api/workspace-identities` | 201 WorkspaceIdentity |
+| GET | `/admin/api/workspace-identities/{id}` | 200 |
+| PATCH | `/admin/api/workspace-identities/{id}` | 200 (rename / state) |
+| DELETE | `/admin/api/workspace-identities/{id}` | 204 (cascades the SP app) |
+
+WorkspaceIdentity DTO: `{ id, appId, tenantId, workspaceId, workspaceName, state, createdAt }`
+— `id` is the identity's service-principal object id and `appId` its client id. Create body
+is optional `{ workspaceName?, workspaceId?, tenantId? }`; a missing `workspaceName` is
+generated with gofakeit and a missing `workspaceId` gets a GUID. Creation provisions a
+confidential app registration (the SP) whose display name **follows the workspace** — PATCH
+`{workspaceName}` renames both. PATCH `{state}` accepts `Active`, `Provisioning`, `Failed`,
+`Deprovisioning`. The identity's tokens are minted internally (no caller-held credential) at
+`GET /fabric/workspaceidentities/{id}/token?resource=<uri>` on the STS/compat surface —
+default resource is `https://api.fabric.microsoft.com`; only `Active` identities mint
+(others → 409). Delete removes the identity by deleting its SP app (cascade).
+
 ## Users
 
 | Method | Path | → |

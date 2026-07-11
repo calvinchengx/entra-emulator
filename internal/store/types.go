@@ -11,6 +11,20 @@ type Tenant struct {
 	CreatedAt     int64
 }
 
+// WorkspaceIdentity is a Fabric workspace identity (roadmap #16): an app
+// registration + service principal whose credential is emulator-managed and
+// whose lifecycle is tied to a Fabric workspace. The SP is the app referenced
+// by AppID; ID is the identity's (service-principal) object id.
+type WorkspaceIdentity struct {
+	ID            string
+	TenantID      string
+	AppID         string
+	WorkspaceID   string
+	WorkspaceName string
+	State         string // Active | Provisioning | Failed | Deprovisioning
+	CreatedAt     int64
+}
+
 type User struct {
 	ID                string
 	TenantID          string

@@ -280,6 +280,10 @@ func (i *Identity) grantClientCredentials(w http.ResponseWriter, r *http.Request
 	switch {
 	case resource == i.Cfg.GraphResourceID:
 		aud = i.Cfg.GraphResourceID
+	case fabricAud(resource) != "":
+		// Fabric / Power BI: recognized first-party resource, correct-aud token
+		// without a registered resource app (roadmap #16a).
+		aud = fabricAud(resource)
 	default:
 		resourceApp := i.findResourceApp(resource)
 		if resourceApp == nil {

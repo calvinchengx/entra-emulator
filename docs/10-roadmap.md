@@ -112,20 +112,26 @@ Deeper Microsoft identity platform coverage:
     1 integration test proving isolation (tenant-B `client_credentials` -> `tid`=B,
     B-issuer, RS256-verifiable against B's JWKS with a distinct kid; home unchanged;
     unknown tenant rejected; home tenant undeletable).
-16. ⬜ **Fabric-flavored identities (Entra layer only).** Make the emulator issue the
-    tokens a Microsoft Fabric environment relies on, without emulating Fabric itself:
-    (a) recognize the Fabric resource — `https://api.fabric.microsoft.com` and the legacy
+16. ✅ **Fabric-flavored identities (Entra layer only).** The emulator issues the tokens a
+    Microsoft Fabric environment relies on, without emulating Fabric itself:
+    (a) ✅ recognizes the Fabric resource — `https://api.fabric.microsoft.com` and the legacy
     `https://analysis.windows.net/powerbi/api` (well-known first-party app id
     `00000009-0000-0000-c000-000000000000`) — so `client_credentials` with
-    `<fabric>/.default` mints a correct-`aud` token; (b) a **workspace-identity** object
-    (an app registration + service principal variant with an emulator-managed credential
-    and a linked workspace name/GUID, name-follows-workspace + cascade-delete + the Fabric
-    state enum), its tokens minted internally like managed identity (#3) — the caller
-    never handles a credential; (c) auto-consent delegated **Fabric scopes**
-    (`Fabric.Embed`, `Item.Read.All`) like the Graph carve-out. **Strict boundary:** this
-    is the Entra token layer only — the Fabric control plane (REST API, workspace RBAC,
-    identity lifecycle orchestration, OneLake) is *out of scope* and belongs to the
-    companion project ([12-fabric-companion.md](12-fabric-companion.md)). Composes with
+    `<fabric>/.default` mints a correct-`aud` token (`fabricAud` maps the first-party app id
+    to the canonical Fabric aud); (b) ✅ a **workspace-identity** object (`internal/store/
+    fabric.go`) — an app registration + service principal with an emulator-managed
+    credential and a linked workspace name/GUID, name-follows-workspace + cascade-delete +
+    the Fabric state enum (`Active`/`Provisioning`/`Failed`/`Deprovisioning`); its tokens are
+    minted internally like managed identity (#3) via `GET /fabric/workspaceidentities/{id}/
+    token` — the caller never handles a credential, and only `Active` identities mint;
+    (c) ✅ auto-consents delegated **Fabric scopes** (`Fabric.Embed`, `Item.Read.All`, plus
+    resource-prefixed forms) with aud=Fabric, like the Graph carve-out. Admin CRUD at
+    `/admin/api/workspace-identities` (gofakeit workspace name). 3 integration tests
+    (CC aud for all three resource forms + JWKS verify; delegated carve-out; workspace-
+    identity lifecycle: internal token, name-follows-rename, state gating, cascade delete).
+    **Strict boundary:** Entra token layer only — the Fabric control plane (REST API,
+    workspace RBAC, identity lifecycle orchestration, OneLake) is *out of scope* and belongs
+    to the companion project ([12-fabric-companion.md](12-fabric-companion.md)). Composes with
     #2/#3. Refs: `fabric-docs/docs/security/workspace-identity.md`,
     `fabric-docs/docs/data-warehouse/service-principals.md`.
 

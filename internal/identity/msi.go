@@ -16,6 +16,8 @@ import (
 // 169.254.169.254 can't be redirected without network shims).
 func (i *Identity) RegisterMSI(mux *http.ServeMux) {
 	mux.HandleFunc("GET /msi/token", i.handleMSIToken)
+	// Fabric workspace-identity internal token minting (roadmap #16b).
+	mux.HandleFunc("GET /fabric/workspaceidentities/{id}/token", i.handleWorkspaceIdentityToken)
 }
 
 // handleMSIToken issues a managed-identity token in the App Service response
