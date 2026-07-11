@@ -183,6 +183,16 @@ CREATE TABLE IF NOT EXISTS webauthn_credentials (
   created_at  INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_webauthn_user ON webauthn_credentials(user_id);
+CREATE TABLE IF NOT EXISTS workspace_identities (
+  id             TEXT PRIMARY KEY,          -- the identity's (service principal) object id
+  tenant_id      TEXT NOT NULL REFERENCES tenants(id),
+  app_id         TEXT NOT NULL REFERENCES app_registrations(app_id) ON DELETE CASCADE,
+  workspace_id   TEXT NOT NULL,             -- linked Fabric workspace GUID
+  workspace_name TEXT NOT NULL,             -- name follows the workspace
+  state          TEXT NOT NULL DEFAULT 'Active', -- Fabric provisioning state
+  created_at     INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_workspace_identities_app ON workspace_identities(app_id);
 `
 
 // Open opens (creating if needed) the SQLite store and applies migrations.

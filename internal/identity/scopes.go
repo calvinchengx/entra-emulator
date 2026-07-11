@@ -20,6 +20,17 @@ var knownGraphScopes = map[string]bool{
 	"User.Read": true, "User.ReadBasic.All": true, "User.Read.All": true, "Group.Read.All": true,
 }
 
+// setResource records the single resource audience for a delegated request,
+// enforcing one resource per token. Returns false on a conflicting second
+// resource.
+func (r *ResolvedScopes) setResource(resource string) bool {
+	if r.Resource != "" && r.Resource != resource {
+		return false
+	}
+	r.Resource = resource
+	return true
+}
+
 // SplitScopes parses a space-delimited scope parameter.
 func SplitScopes(raw string) []string {
 	return strings.Fields(raw)
@@ -46,6 +57,7 @@ type ResolvedScopes struct {
 func (i *Identity) ResolveDelegatedScopes(scopes []string) *ResolvedScopes {
 	out := &ResolvedScopes{}
 	graphPrefix := i.Cfg.GraphResourceID + "/"
+	fabricPrefix := fabricResource + "/"
 	for _, sc := range scopes {
 		switch {
 		case oidcScopes[sc]:
@@ -54,6 +66,18 @@ func (i *Identity) ResolveDelegatedScopes(scopes []string) *ResolvedScopes {
 			out.Granted = append(out.Granted, strings.TrimPrefix(sc, graphPrefix))
 		case knownGraphScopes[sc]:
 			out.Granted = append(out.Granted, sc)
+		// Fabric delegated carve-out: bare or resource-prefixed Fabric scopes
+		// auto-consent with aud=Fabric (roadmap #16c).
+		case strings.HasPrefix(sc, fabricPrefix):
+			if !out.setResource(fabricResource) {
+				return nil
+			}
+			out.Granted = append(out.Granted, strings.TrimPrefix(sc, fabricPrefix))
+		case knownFabricScopes[sc]:
+			if !out.setResource(fabricResource) {
+				return nil
+			}
+			out.Granted = append(out.Granted, sc)
 		case strings.Contains(sc, "/"):
 			idx := strings.LastIndex(sc, "/")
 			resource, name := sc[:idx], sc[idx+1:]
@@ -61,10 +85,9 @@ func (i *Identity) ResolveDelegatedScopes(scopes []string) *ResolvedScopes {
 			if app == nil || !i.appExposesScope(app, name) {
 				return nil
 			}
-			if out.Resource != "" && out.Resource != resource {
+			if !out.setResource(resource) {
 				return nil // one resource per request
 			}
-			out.Resource = resource
 			out.Granted = append(out.Granted, name)
 		default:
 			// Lenient: bare non-OIDC scope names pass through

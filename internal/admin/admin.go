@@ -109,6 +109,12 @@ func (a *Admin) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/api/apps/{id}/keyCredentials", a.addKeyCredential)
 	mux.HandleFunc("DELETE /admin/api/apps/{id}/keyCredentials/{credId}", a.deleteKeyCredential)
 
+	mux.HandleFunc("GET /admin/api/workspace-identities", a.listWorkspaceIdentities)
+	mux.HandleFunc("POST /admin/api/workspace-identities", a.createWorkspaceIdentity)
+	mux.HandleFunc("GET /admin/api/workspace-identities/{id}", a.getWorkspaceIdentity)
+	mux.HandleFunc("PATCH /admin/api/workspace-identities/{id}", a.patchWorkspaceIdentity)
+	mux.HandleFunc("DELETE /admin/api/workspace-identities/{id}", a.deleteWorkspaceIdentity)
+
 	mux.HandleFunc("POST /admin/api/signing-keys/rotate", a.rotateSigningKey)
 	mux.HandleFunc("POST /admin/api/seed", a.seed)
 	mux.HandleFunc("POST /admin/api/reset", a.reset)
