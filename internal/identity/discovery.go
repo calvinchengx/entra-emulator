@@ -30,6 +30,7 @@ func (i *Identity) handleDiscovery(w http.ResponseWriter, r *http.Request) {
 		"grant_types_supported": []string{
 			"authorization_code", "refresh_token", "client_credentials",
 			"urn:ietf:params:oauth:grant-type:device_code",
+			"urn:ietf:params:oauth:grant-type:jwt-bearer",
 		},
 		"subject_types_supported":                    []string{"pairwise"},
 		"scopes_supported":                           []string{"openid", "profile", "email", "offline_access"},

@@ -43,6 +43,8 @@ func (i *Identity) handleToken(w http.ResponseWriter, r *http.Request) {
 		i.grantRefreshToken(w, r)
 	case "client_credentials":
 		i.grantClientCredentials(w, r)
+	case "urn:ietf:params:oauth:grant-type:jwt-bearer":
+		i.grantOnBehalfOf(w, r)
 	// The URN is canonical/advertised; msal-node actually polls with the
 	// bare value — both dispatch to the same handler.
 	case "urn:ietf:params:oauth:grant-type:device_code", "device_code":
