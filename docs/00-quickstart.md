@@ -148,6 +148,13 @@ tok, _ := cred.GetToken(ctx, policy.TokenRequestOptions{
     Scopes: []string{"https://graph.microsoft.com/.default"}})
 ```
 
+:::tip[Prefer a file you can just run?]
+These snippets exist as standalone, copy-paste samples (Node, Python, Go) under
+[`samples/`](https://github.com/calvinchengx/entra-emulator/tree/main/samples) —
+each `npm start` / `python main.py` / `go run .` acquires a token and calls the
+emulated Graph.
+:::
+
 ## 4. Call Graph with the token
 
 The emulator serves a minimal read-only Microsoft Graph. Use the token from any
