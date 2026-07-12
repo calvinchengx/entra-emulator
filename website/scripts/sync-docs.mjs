@@ -26,7 +26,9 @@ function cleanTitle(h1) {
 }
 
 function yamlEscape(s) {
-  return '"' + s.replace(/"/g, '\\"') + '"';
+  // Escape backslashes first, then quotes — otherwise a literal backslash in a
+  // title would leak through and corrupt the double-quoted YAML scalar.
+  return '"' + s.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 }
 
 function convert(name) {
