@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -154,17 +155,39 @@ func TestTrustSubcommandOutput(t *testing.T) {
 // TestRunHealthcheckTLSAndBadStatus covers the https scheme branch (TLS-enabled)
 // against an httptest TLS server, and the non-200 status error path.
 func TestRunHealthcheckTLSAndBadStatus(t *testing.T) {
-	// TLS server: the InsecureSkipVerify client must accept the self-signed cert.
-	tlsSrv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer tlsSrv.Close()
-
+	// The healthcheck pins the server's own cert (loaded from cfg.TLSCertDir),
+	// so the test server must serve that exact cert. Materialize it first, then
+	// hand it to httptest — its SAN covers localhost/127.0.0.1, so verification
+	// (not InsecureSkipVerify) succeeds.
 	cfg := testConfig(t)
 	cfg.TLSEnabled = true
+	mat, err := tlscert.LoadOrCreate(cfg.TLSCertDir, cfg.BaseDomain, cfg.LocalDomains)
+	if err != nil {
+		t.Fatalf("materialize server cert: %v", err)
+	}
+	keyPair, err := tls.X509KeyPair(mat.CertPEM, mat.KeyPEM)
+	if err != nil {
+		t.Fatalf("build key pair: %v", err)
+	}
+	tlsSrv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	tlsSrv.TLS = &tls.Config{Certificates: []tls.Certificate{keyPair}}
+	tlsSrv.StartTLS()
+	defer tlsSrv.Close()
+
 	cfg.Port = portOf(t, tlsSrv.URL)
 	if err := runHealthcheck(cfg); err != nil {
 		t.Fatalf("TLS healthcheck should pass: %v", err)
+	}
+
+	// Security guarantee: pinning a *different* cert must reject the server
+	// (verification is real, not skipped).
+	other := testConfig(t)
+	other.TLSEnabled = true
+	other.Port = cfg.Port
+	if err := runHealthcheck(other); err == nil {
+		t.Fatal("healthcheck must reject a server whose cert isn't the pinned one")
 	}
 
 	// Non-200 response → error.
