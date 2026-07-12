@@ -132,6 +132,23 @@ data/
 2. **The relevant RFCs** — OAuth 2.0 (6749/6750), PKCE (7636), Device Authorization
    Grant (8628), JWT/JWS/JWK (7519/7515/7517/7638), and OpenID Connect Core/Discovery.
 
+### Version grounding
+
+Entra ID is evergreen SaaS: there is no product version, and `entra-docs` has
+**no tags or releases** (a continuously published `main`, ~60+ commits/week).
+The stable contracts the emulator targets are the **versioned path segments** —
+the `/oauth2/v2.0` endpoints + `/v2.0` issuer (not legacy v1.0), Microsoft Graph
+`v1.0` (not `beta`) — and the RFCs above, which are immutable.
+
+For clean-room reproducibility we therefore pin the docs **commit**, not a
+version. Claims in this doc set were last verified against:
+
+> `MicrosoftDocs/entra-docs @ 2fd8b0f26d312690b5c7ed739bb07e655eb8cfca` (2026-07-10)
+
+When re-auditing, diff the grounding paths against this SHA
+(`git diff 2fd8b0f2.. -- docs/identity-platform docs/identity/authentication`)
+and bump the pin. The sibling fabric-emulator pins `fabric-docs` the same way.
+
 ## Design doc set
 
 | Doc | Covers |
