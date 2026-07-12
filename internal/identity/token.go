@@ -284,6 +284,11 @@ func (i *Identity) grantClientCredentials(w http.ResponseWriter, r *http.Request
 		// Fabric / Power BI: recognized first-party resource, correct-aud token
 		// without a registered resource app (roadmap #16a).
 		aud = fabricAud(resource)
+	case azureAud(resource) != "":
+		// Well-known Azure resource (Key Vault, Storage, ARM, …): correct-aud
+		// token without a registered resource app, so azsecrets/azstorage/the
+		// ARM SDK can point straight at the emulator.
+		aud = azureAud(resource)
 	default:
 		resourceApp := i.findResourceApp(resource)
 		if resourceApp == nil {
