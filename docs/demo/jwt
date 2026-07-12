@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+jq -Rr 'split(".")[1]|gsub("-";"+")|gsub("_";"/")|.+"=="|@base64d|fromjson'
