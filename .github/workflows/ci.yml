@@ -73,7 +73,7 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
-      - run: ./e2e/run.sh ts go python dotnet java
+      - run: python3 e2e/run.py ts go python dotnet java
 
   docker-smoke:
     name: Docker image smoke test

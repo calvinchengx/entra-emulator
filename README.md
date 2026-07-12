@@ -135,7 +135,7 @@ the post-parity roadmap (embeddable Go test library, token forge, fault injectio
 go build ./...   # everything, including the CLI
 go test ./...    # integration tests drive the full handler stack
 go vet ./...
-./e2e/run.sh     # real-SDK e2e: @azure/msal-node, MSAL Go + azidentity, MSAL Python
+python3 e2e/run.py     # real-SDK e2e: @azure/msal-node, MSAL Go + azidentity, MSAL Python
 ```
 
 The e2e suites prove unmodified Microsoft SDKs complete real flows against the

@@ -6,7 +6,7 @@ against the emulator. Reference: `entra-docs/docs/identity-platform/`
 
 ## Shared harness contract
 
-Every language suite follows the same lifecycle, driven by `e2e/run.sh`:
+Every language suite follows the same lifecycle, driven by `e2e/run.py`:
 
 1. Build the emulator; start it on a fixed port with an ephemeral `DB_PATH`,
    `ORIGIN_MODE=compat` (CI has no hosts entries), and TLS enabled.
