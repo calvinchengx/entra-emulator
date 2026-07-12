@@ -9,6 +9,8 @@ binary.** The OIDC/OAuth 2.0 v2.0 endpoints MSAL talks to, a minimal read-only
 Microsoft Graph, and an unauthenticated admin REST API, so you can develop sign-in,
 token acquisition, and protected-API calls offline with no cloud tenant.
 
+![Entra Emulator demo: OIDC discovery, a client-credentials token, and its decoded Entra v2.0 claims — all against a local binary](docs/demo/demo.gif)
+
 📖 **[Documentation site](https://calvinchengx.github.io/entra-emulator/)** — the full
 reference, also browsable as Markdown in [`docs/`](docs/).
 
