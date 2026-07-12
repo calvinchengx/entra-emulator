@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net/http"
 	"os"
@@ -59,14 +60,23 @@ func runSubcommand(cfg *config.Config, args []string) error {
 // HEALTHCHECK (distroless has no shell/curl). Non-zero exit = unhealthy.
 func runHealthcheck(cfg *config.Config) error {
 	scheme := "http"
+	tr := &http.Transport{}
 	if cfg.TLSEnabled {
 		scheme = "https"
+		// Self-probe over the emulator's own self-signed cert: pin it as the
+		// trust root rather than skipping verification. The cert's SAN covers
+		// localhost / 127.0.0.1 (see internal/tlscert), so this verifies.
+		cert, err := loadServerCert(cfg)
+		if err != nil {
+			return err
+		}
+		pool := x509.NewCertPool()
+		if !pool.AppendCertsFromPEM(cert.CertPEM) {
+			return fmt.Errorf("healthcheck: could not parse server certificate")
+		}
+		tr.TLSClientConfig = &tls.Config{RootCAs: pool}
 	}
-	client := &http.Client{
-		Timeout: 3 * time.Second,
-		// Self-probe over the emulator's own self-signed cert.
-		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
-	}
+	client := &http.Client{Timeout: 3 * time.Second, Transport: tr}
 	resp, err := client.Get(fmt.Sprintf("%s://localhost:%d/health", scheme, cfg.Port))
 	if err != nil {
 		return err
@@ -76,6 +86,16 @@ func runHealthcheck(cfg *config.Config) error {
 		return fmt.Errorf("health returned %d", resp.StatusCode)
 	}
 	return nil
+}
+
+// loadServerCert loads whichever TLS material the running server serves, so a
+// TLS healthcheck can verify against it (custom pair if configured, else the
+// auto-managed self-signed cert).
+func loadServerCert(cfg *config.Config) (*tlscert.Material, error) {
+	if cfg.TLSCertPath != "" {
+		return tlscert.LoadCustom(cfg.TLSCertPath, cfg.TLSKeyPath)
+	}
+	return tlscert.LoadOrCreate(cfg.TLSCertDir, cfg.BaseDomain, cfg.LocalDomains)
 }
 
 func printHelp() {
