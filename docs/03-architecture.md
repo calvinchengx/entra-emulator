@@ -146,4 +146,4 @@ data/
 | [12-testing.md](12-testing.md) | Unit/integration/conformance test strategy |
 | [17-roadmap.md](17-roadmap.md) | Post-parity roadmap (phased, with status) |
 | [16-e2e-sdk-matrix.md](16-e2e-sdk-matrix.md) | Real-SDK e2e harness per language |
-| [18-fabric-companion.md](18-fabric-companion.md) | Sketch: separate Fabric control-plane companion emulator |
+| [18-fabric-companion.md](18-fabric-companion.md) | The Fabric control-plane companion emulator (sibling `fabric-emulator` repo) |
