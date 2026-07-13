@@ -1,0 +1,50 @@
+{
+  "_comment": "Golden reference for Microsoft Graph v1.0 resource shapes. Every property below is a canonical microsoft.graph property (verified against msgraph-metadata openapi/v1.0). The parity test asserts the emulator emits EXACTLY these property sets per resource — additions/renames/removals fail until the golden is reconciled.",
+  "source": "microsoftgraph/msgraph-metadata openapi/v1.0/openapi.yaml",
+  "captured": "2026-07-13",
+  "resources": {
+    "user": {
+      "properties": [
+        "id",
+        "displayName",
+        "userPrincipalName",
+        "mail",
+        "givenName",
+        "surname",
+        "accountEnabled"
+      ]
+    },
+    "group": {
+      "properties": [
+        "id",
+        "displayName",
+        "description",
+        "mailEnabled",
+        "securityEnabled"
+      ]
+    },
+    "application": {
+      "properties": [
+        "id",
+        "appId",
+        "displayName",
+        "signInAudience",
+        "identifierUris",
+        "appRoles",
+        "api"
+      ]
+    },
+    "servicePrincipal": {
+      "properties": [
+        "id",
+        "appId",
+        "displayName",
+        "servicePrincipalType",
+        "accountEnabled",
+        "appRoles",
+        "oauth2PermissionScopes",
+        "servicePrincipalNames"
+      ]
+    }
+  }
+}
