@@ -203,6 +203,18 @@ Deeper Microsoft identity platform coverage:
       Verified by a stateful mock-target e2e (create, deprovision, member correlation,
       incremental) + portal tests.
 
+## Phase 6 — Fidelity tracking
+
+22. ✅ **Golden-reference parity** ([full guide](19-golden-reference-parity.md)).
+    Three canonical references under `e2e/golden/` — the real Entra OIDC discovery
+    doc, the official Microsoft Graph OpenAPI (`msgraph-metadata`), and the SCIM
+    2.0 RFCs — with in-process parity tests (`internal/server/golden_parity_test.go`)
+    that boot the emulator and assert conformance: OIDC required fields + protocol
+    enums as a compatible subset (divergences reported, not hidden), Graph resources
+    emitting **exactly** the canonical property set (hard drift guard), and SCIM
+    responses carrying the verbatim RFC schema URNs. Runs in the standard test job,
+    so drift fails CI.
+
 ## Explicit non-goals
 
 SAML/WS-Fed, B2C user flows, MFA/Conditional Access emulation, production hardening.
