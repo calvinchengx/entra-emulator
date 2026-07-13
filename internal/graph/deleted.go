@@ -10,7 +10,7 @@ import (
 	"github.com/calvinchengx/entra-emulator/internal/tokens"
 )
 
-// Recycle bin (docs/19-stateful-directory.md): directory/deletedItems. Graph
+// Recycle bin (docs/20-stateful-directory.md): directory/deletedItems. Graph
 // DELETE on users/groups/applications soft-deletes into the store's recycle
 // bin; these routes list, restore, and permanently delete those objects. The
 // object-type cast is a literal path segment (microsoft.graph.user, .group,

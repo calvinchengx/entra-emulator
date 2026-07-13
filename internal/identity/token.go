@@ -302,7 +302,7 @@ func (i *Identity) grantClientCredentials(w http.ResponseWriter, r *http.Request
 			aud = resourceApp.ID
 		}
 		// App permissions: explicit appRoleAssignments are authoritative when
-		// present (docs/19-stateful-directory.md); otherwise fall back to
+		// present (docs/20-stateful-directory.md); otherwise fall back to
 		// auto-granting every enabled Application-type role.
 		if assigned, has, err := i.Store.AssignedAppRoleValues(app.ID, resourceApp.ID); err == nil && has {
 			roles = append(roles, assigned...)

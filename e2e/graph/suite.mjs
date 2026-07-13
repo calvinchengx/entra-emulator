@@ -1,6 +1,6 @@
 // Real Microsoft Graph SDK e2e (@microsoft/microsoft-graph-client) against a
 // running emulator — proves the stateful directory surface
-// (docs/19-stateful-directory.md) speaks the wire protocol an unmodified Graph
+// (docs/20-stateful-directory.md) speaks the wire protocol an unmodified Graph
 // client expects: create/patch/soft-delete/restore users, assign a directory
 // role, record consent grants, and read authentication methods.
 //

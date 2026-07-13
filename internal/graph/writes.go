@@ -165,7 +165,7 @@ func (g *Graph) updateUser(w http.ResponseWriter, r *http.Request, _ *tokens.Val
 
 // deleteUser soft-deletes: the user moves to directory/deletedItems (recycle
 // bin), restorable for 30 days. Permanent removal is via DELETE
-// /directory/deletedItems/{id}. See docs/19-stateful-directory.md.
+// /directory/deletedItems/{id}. See docs/20-stateful-directory.md.
 func (g *Graph) deleteUser(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
 	if err := g.Store.SoftDeleteUser(r.PathValue("id")); err != nil {
 		writeStoreErrGraph(w, err)
@@ -227,7 +227,7 @@ func (g *Graph) updateGroup(w http.ResponseWriter, r *http.Request, _ *tokens.Va
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// deleteGroup soft-deletes into the recycle bin (docs/19-stateful-directory.md).
+// deleteGroup soft-deletes into the recycle bin (docs/20-stateful-directory.md).
 func (g *Graph) deleteGroup(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
 	if err := g.Store.SoftDeleteGroup(r.PathValue("id")); err != nil {
 		writeStoreErrGraph(w, err)
@@ -354,7 +354,7 @@ func (g *Graph) updateApplication(w http.ResponseWriter, r *http.Request, _ *tok
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// deleteApplication soft-deletes into the recycle bin (docs/19-stateful-directory.md).
+// deleteApplication soft-deletes into the recycle bin (docs/20-stateful-directory.md).
 func (g *Graph) deleteApplication(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
 	if err := g.Store.SoftDeleteApp(r.PathValue("id")); err != nil {
 		writeStoreErrGraph(w, err)
