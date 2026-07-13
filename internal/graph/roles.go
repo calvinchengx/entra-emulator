@@ -8,7 +8,7 @@ import (
 	"github.com/calvinchengx/entra-emulator/internal/tokens"
 )
 
-// Directory roles (docs/19-stateful-directory.md): the modern unified-RBAC
+// Directory roles (docs/20-stateful-directory.md): the modern unified-RBAC
 // surface, roleManagement/directory. Built-in role definitions are static
 // (their id equals the role template GUID); assignments are persisted. A
 // tenant-wide assignment (directoryScopeId "/") drives the user's wids claim.

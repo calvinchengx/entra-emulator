@@ -11,7 +11,7 @@ import (
 	"github.com/calvinchengx/entra-emulator/internal/tokens"
 )
 
-// Consent grants (docs/19-stateful-directory.md): oauth2PermissionGrants
+// Consent grants (docs/20-stateful-directory.md): oauth2PermissionGrants
 // (delegated) and appRoleAssignedTo/appRoleAssignments (application) on service
 // principals. Because an app registration is its own service principal here,
 // {id}, clientId, resourceId, and SP principalId are app ids.

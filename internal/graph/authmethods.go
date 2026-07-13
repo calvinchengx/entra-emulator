@@ -10,7 +10,7 @@ import (
 	"github.com/calvinchengx/entra-emulator/internal/tokens"
 )
 
-// Authentication methods (docs/19-stateful-directory.md): the Graph
+// Authentication methods (docs/20-stateful-directory.md): the Graph
 // authentication/methods surface over a user's stored credentials — the
 // password (from the user's hash) and any registered passkeys (from
 // webauthn_credentials). Read-and-delete; registration is via the WebAuthn

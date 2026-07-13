@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Consent grants (docs/19-stateful-directory.md): the stored state a user/admin
+// Consent grants (docs/20-stateful-directory.md): the stored state a user/admin
 // consent produces on a resource service principal. Delegated consent lives in
 // oauth2_permission_grants (→ the scp claim in user tokens); application
 // permissions live in app_role_assignments (→ the roles claim in app tokens).

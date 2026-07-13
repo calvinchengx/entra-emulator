@@ -7,7 +7,7 @@ import (
 	"fmt"
 )
 
-// Soft-delete / recycle bin (docs/19-stateful-directory.md). Deleting a user,
+// Soft-delete / recycle bin (docs/20-stateful-directory.md). Deleting a user,
 // group, or application moves it to the deleted_items graveyard with a JSON
 // snapshot of the object plus the relationships needed to restore it. The live
 // tables lose the row entirely, so no read path (sign-in, token issuance, Graph

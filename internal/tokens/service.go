@@ -300,7 +300,7 @@ func (s *Service) mintAccessDelegated(g DelegatedGrant, aud string, now int64) (
 			resourceApp = byID
 		}
 	}
-	// Delegated consent (docs/19-stateful-directory.md): when explicit
+	// Delegated consent (docs/20-stateful-directory.md): when explicit
 	// oauth2PermissionGrants exist for (client, resource), scp is the requested
 	// scopes intersected with what was consented for this user; otherwise the
 	// emulator auto-consents (all requested scopes land in scp).
@@ -395,7 +395,7 @@ func (s *Service) applyTokenConfig(claims map[string]any, app *store.App, user *
 
 	// wids: tenant-wide directory-role template GUIDs, emitted when the app opts
 	// into directory-role claims (groupMembershipClaims = DirectoryRole | All).
-	// See docs/19-stateful-directory.md.
+	// See docs/20-stateful-directory.md.
 	if gmc := app.GroupMembershipClaims; gmc == "DirectoryRole" || gmc == "All" {
 		if wids, err := s.Store.TenantWideRoleTemplateIDs(user.ID); err == nil && len(wids) > 0 {
 			claims["wids"] = wids

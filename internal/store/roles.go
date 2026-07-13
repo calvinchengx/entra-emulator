@@ -5,7 +5,7 @@ import (
 	"errors"
 )
 
-// Directory-role assignments (docs/19-stateful-directory.md): the unified-RBAC
+// Directory-role assignments (docs/20-stateful-directory.md): the unified-RBAC
 // roleManagement/directory/roleAssignments state. A tenant-wide assignment
 // (directory_scope_id = "/") puts the role's template GUID into the user's wids
 // claim. Built-in role definitions are static reference data (roles.go in the
