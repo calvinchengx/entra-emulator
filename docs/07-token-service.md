@@ -1,4 +1,4 @@
-# 04 — Token service
+# Token service
 
 All tokens are RS256-signed compact JWTs verifiable against the JWKS endpoint. The token
 service is pure Go over `crypto/rsa` + `crypto/sha256`; an injectable clock keeps tests

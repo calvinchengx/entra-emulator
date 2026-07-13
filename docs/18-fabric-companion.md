@@ -1,4 +1,4 @@
-# 18 — Companion: the Fabric control-plane emulator
+# Companion: the Fabric control-plane emulator
 
 > **Status: the companion exists.** What this page originally sketched is now a
 > real sibling project, **`fabric-emulator`** (`~/calvinchengx/fabric-emulator`,

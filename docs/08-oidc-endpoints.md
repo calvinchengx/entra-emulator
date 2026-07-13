@@ -1,4 +1,4 @@
-# 05 — OIDC / OAuth 2.0 endpoints
+# OIDC / OAuth 2.0 endpoints
 
 All under `/{tenant}/...` on the login surface. `{tenant}` is allowlisted to the
 configured GUID plus the aliases `common`, `organizations`, `consumers` — all resolve to

@@ -1,4 +1,4 @@
-# 06 — Minimal Microsoft Graph
+# Minimal Microsoft Graph
 
 Read-only, backed by the same store. Served on the **graph** surface as `/v1.0/...` and
 `/oidc/userinfo`; the compat origin also serves them prefixed: `/graph/v1.0/...`,

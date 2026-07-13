@@ -1,4 +1,4 @@
-# 01 — Architecture
+# Architecture
 
 > Entra Emulator is a local, MSAL-compatible emulator of Microsoft Entra ID in Go —
 > an independent, clean-room implementation of Microsoft's publicly documented

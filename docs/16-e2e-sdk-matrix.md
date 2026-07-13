@@ -1,4 +1,4 @@
-# 11 — E2E testing with real Entra SDKs
+# E2E testing with real Entra SDKs
 
 The e2e suites prove that **unmodified Microsoft client libraries** complete real flows
 against the emulator. Reference: `entra-docs/docs/identity-platform/`
