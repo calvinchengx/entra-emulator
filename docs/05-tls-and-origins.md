@@ -1,4 +1,4 @@
-# 08 — TLS, origins & host routing
+# TLS, origins & host routing
 
 ## Certificate
 

@@ -1,4 +1,4 @@
-# 09 — Testing strategy
+# Testing strategy
 
 The emulator's value is protocol fidelity, so tests assert HTTP contracts and token
 shapes, not internals.
