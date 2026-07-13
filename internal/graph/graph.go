@@ -39,6 +39,7 @@ func (g *Graph) Register(mux *http.ServeMux, prefix string) {
 	g.registerWrites(mux, prefix)
 	g.registerReads(mux, prefix)
 	g.registerDeleted(mux, prefix)
+	g.registerConsent(mux, prefix)
 }
 
 // allRows fetches every row for in-memory OData processing (emulator scale).

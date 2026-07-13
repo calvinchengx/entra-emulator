@@ -203,6 +203,27 @@ CREATE TABLE IF NOT EXISTS deleted_items (
   deleted_at   INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_deleted_items_type ON deleted_items(object_type);
+CREATE TABLE IF NOT EXISTS oauth2_permission_grants (
+  id           TEXT PRIMARY KEY,
+  client_id    TEXT NOT NULL,             -- client service principal (app) id
+  consent_type TEXT NOT NULL,             -- AllPrincipals | Principal
+  resource_id  TEXT NOT NULL,             -- resource/API service principal (app) id
+  principal_id TEXT,                       -- user id; NULL for AllPrincipals
+  scope        TEXT NOT NULL,             -- space-separated delegated scope values
+  created_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_o2pg_client ON oauth2_permission_grants(client_id);
+CREATE INDEX IF NOT EXISTS idx_o2pg_resource ON oauth2_permission_grants(resource_id);
+CREATE TABLE IF NOT EXISTS app_role_assignments (
+  id             TEXT PRIMARY KEY,
+  principal_id   TEXT NOT NULL,           -- grantee: client app (SP) or user
+  principal_type TEXT NOT NULL DEFAULT 'ServicePrincipal', -- ServicePrincipal | User
+  resource_id    TEXT NOT NULL,           -- resource service principal (app) id
+  app_role_id    TEXT NOT NULL,           -- app role GUID, or all-zero GUID for the default assignment
+  created_at     INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ara_resource ON app_role_assignments(resource_id);
+CREATE INDEX IF NOT EXISTS idx_ara_principal ON app_role_assignments(principal_id);
 `
 
 // Open opens (creating if needed) the SQLite store and applies migrations.
