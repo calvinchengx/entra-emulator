@@ -13,7 +13,11 @@ import * as msal from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
 
 // Local emulator uses a self-signed cert; trust it for this process only.
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+// Keep TLS validation enabled and provide the emulator CA/cert instead.
+if (!process.env.EMU_CERT) {
+  throw new Error('EMU_CERT must be set to a PEM file path for emulator TLS trust.');
+}
+process.env.NODE_EXTRA_CA_CERTS = process.env.EMU_CERT;
 
 const ORIGIN = process.env.EMU_ORIGIN;
 const TENANT = process.env.EMU_TENANT;
