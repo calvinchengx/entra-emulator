@@ -19,6 +19,42 @@ Exposed for trust workflows via `/admin/api/certificate` (+ `/pem`), and the
 `--apply` to execute; `hosts` writes an idempotent `# entra-emulator BEGIN/END` block
 mapping each subdomain to 127.0.0.1).
 
+## Trusted local HTTPS with `step`
+
+By default the emulator trusts nothing for you — the browser (portal) and any client
+see a self-signed cert. Two ways to get warning-free HTTPS:
+
+- **Built-in (zero tools):** `entra-emulator trust --apply` installs the emulator's own
+  **leaf** into the OS/browser trust stores. Simplest, but the trusted item is a specific
+  leaf — a regenerated cert (SAN drift) must be re-trusted.
+- **Local CA via [`step`](https://github.com/smallstep/cli)** (`smallstep/cli`): trust a
+  CA **once**, then re-issue leaves freely without re-trusting — closer to real PKI. Feed
+  the leaf through the `TLS_CERT`/`TLS_KEY` override:
+
+```sh
+brew install step   # or from smallstep/cli releases
+
+# Create a local dev CA once, and trust the ROOT (not the leaf):
+step certificate create "Entra Emulator Dev CA" ca.crt ca.key \
+  --profile root-ca --no-password --insecure
+step certificate install ca.crt          # OS + browser trust stores (sudo/admin)
+
+# Issue a leaf covering every name/IP the emulator serves:
+step certificate create entra.localhost entra.crt entra.key \
+  --profile leaf --ca ca.crt --ca-key ca.key \
+  --san 'entra.localhost' --san '*.entra.localhost' \
+  --san localhost --san 127.0.0.1 --san ::1 \
+  --not-after 8760h --no-password --insecure
+
+TLS_CERT=./entra.crt TLS_KEY=./entra.key entra-emulator
+```
+
+- The trusted anchor is the **CA**, so re-issuing the leaf (new SANs, later expiry) needs
+  **no** re-trust — just restart with the new pair.
+- Match the SANs to the host-routing set (apex + `*.<baseDomain>` wildcard + loopback, plus
+  any `LOCAL_DOMAINS`) or you trade cert warnings for SNI mismatches.
+- The pair is loaded **once at startup** (no hot-reload), so restart after re-issuing.
+
 ## Origins & host routing
 
 One TLS listener; the `Host` header selects the surface:
