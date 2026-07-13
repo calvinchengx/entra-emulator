@@ -54,7 +54,7 @@ jobs:
       - run: pnpm --filter entra-emulator-portal smoke
 
   sdk-e2e:
-    name: Real-SDK e2e (msal-node, MSAL Go/azidentity/.NET/Java, MSAL Python)
+    name: Real-SDK e2e (msal-node, Graph SDK, MSAL Go/azidentity/.NET/Java, MSAL Python)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -78,7 +78,7 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
-      - run: python3 e2e/run.py ts go python dotnet java
+      - run: python3 e2e/run.py ts graph go python dotnet java
 
   docker-smoke:
     name: Docker image smoke test
