@@ -40,6 +40,7 @@ func (g *Graph) Register(mux *http.ServeMux, prefix string) {
 	g.registerReads(mux, prefix)
 	g.registerDeleted(mux, prefix)
 	g.registerConsent(mux, prefix)
+	g.registerRoles(mux, prefix)
 }
 
 // allRows fetches every row for in-memory OData processing (emulator scale).

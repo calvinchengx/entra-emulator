@@ -392,6 +392,15 @@ func (s *Service) applyTokenConfig(claims map[string]any, app *store.App, user *
 		}
 		claims["groups"] = ids
 	}
+
+	// wids: tenant-wide directory-role template GUIDs, emitted when the app opts
+	// into directory-role claims (groupMembershipClaims = DirectoryRole | All).
+	// See docs/19-stateful-directory.md.
+	if gmc := app.GroupMembershipClaims; gmc == "DirectoryRole" || gmc == "All" {
+		if wids, err := s.Store.TenantWideRoleTemplateIDs(user.ID); err == nil && len(wids) > 0 {
+			claims["wids"] = wids
+		}
+	}
 }
 
 // ---- Authorization codes ----
