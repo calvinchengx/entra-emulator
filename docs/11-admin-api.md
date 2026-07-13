@@ -1,4 +1,4 @@
-# 07 — Admin REST API & portal
+# Admin REST API & portal
 
 Unauthenticated JSON API under `/admin/api` on the **portal** surface (and compat
 origin). Powers the Svelte portal and scripted CI seeding.
