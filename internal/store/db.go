@@ -194,6 +194,15 @@ CREATE TABLE IF NOT EXISTS workspace_identities (
   created_at     INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_workspace_identities_app ON workspace_identities(app_id);
+CREATE TABLE IF NOT EXISTS deleted_items (
+  id           TEXT PRIMARY KEY,          -- object id, preserved across soft-delete
+  object_type  TEXT NOT NULL,             -- user | group | application
+  tenant_id    TEXT NOT NULL,
+  display_name TEXT,                       -- denormalized for listing
+  payload      TEXT NOT NULL,             -- JSON snapshot (object + relationships) for restore
+  deleted_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_deleted_items_type ON deleted_items(object_type);
 `
 
 // Open opens (creating if needed) the SQLite store and applies migrations.

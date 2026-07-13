@@ -38,6 +38,7 @@ func (g *Graph) Register(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc("POST "+prefix+"/oidc/userinfo", g.requireDelegatedUserInfo(g.handleUserInfo))
 	g.registerWrites(mux, prefix)
 	g.registerReads(mux, prefix)
+	g.registerDeleted(mux, prefix)
 }
 
 // allRows fetches every row for in-memory OData processing (emulator scale).
