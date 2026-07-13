@@ -1,0 +1,9 @@
+{
+  "name": "entra-emulator-e2e-graph",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@azure/msal-node": "^5.4.0",
+    "@microsoft/microsoft-graph-client": "^3.0.7"
+  }
+}

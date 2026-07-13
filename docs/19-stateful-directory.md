@@ -325,12 +325,19 @@ than rejected, so real Graph SDK payloads succeed unmodified.
 
 ---
 
-## Verifying parity with the Microsoft Graph SDKs
+## Verifying parity with the Microsoft Graph SDK
 
-Every capability on this page is exercised end-to-end by the real **Microsoft Graph
-SDK** in `e2e/` (alongside the MSAL SDK suites in `docs/16-e2e-sdk-matrix.md`): the
-SDK acquires a token from the emulator, then creates / patches / soft-deletes /
-restores users, assigns a directory role and reads back `wids`, records a consent
-grant and observes `scp` / `roles`, and lists a user's authentication methods —
-proving the emulator's request/response shapes are what an unmodified Entra client
-expects.
+The stateful surface on this page is exercised end-to-end by the **real Microsoft
+Graph SDK** (`@microsoft/microsoft-graph-client`) in `e2e/graph/`, run by
+`e2e/run.py graph` and in CI alongside the MSAL SDK suites
+(`docs/16-e2e-sdk-matrix.md`). The SDK acquires a token from the emulator (via
+`@azure/msal-node`), then — through its own request pipeline — creates and patches a
+user, assigns a directory role, records `oauth2PermissionGrant` and
+`appRoleAssignedTo` consent, lists the user's authentication methods, soft-deletes
+the user, finds it in `directory/deletedItems`, restores it, and finally purges it,
+asserting each response is the shape an unmodified Graph client expects.
+
+The token-claim linkage the stored state drives — `wids` from directory roles, `scp`
+from delegated grants, `roles` from application grants — is proven by the Go
+integration tests (`internal/server/*_test.go`), which mint real tokens and decode
+the claims.

@@ -27,6 +27,7 @@ Two knobs make custom authorities work in every Microsoft SDK:
 | Language | SDK(s) | Flows covered | Interaction driver |
 |---|---|---|---|
 | TypeScript | `@azure/msal-node` | client credentials, auth code + PKCE, refresh, device code | cookie-jar HTTPS sequence against the sign-in/approval pages |
+| TypeScript (Graph) | `@microsoft/microsoft-graph-client` + `@azure/msal-node` | stateful directory: user create/patch, role assignment, consent grants, auth methods, soft-delete → recycle bin → restore → purge (docs/19) | Graph SDK request pipeline against `/graph` |
 | TypeScript (browser) | `@azure/msal-browser` | auth code + PKCE, silent renewal, logout | Playwright headless Chromium (opt-in, heavier) |
 | Go | `microsoft-authentication-library-for-go` + `azidentity` | client credentials (both layers), device code | HTTP approval sequence |
 | Python | `msal` (+ optional `azure-identity`) | client credentials, device code | HTTP approval sequence in a thread |
