@@ -80,6 +80,7 @@ export default defineConfig({
             { slug: '15-externalized-authorization' },
             { slug: '16-e2e-sdk-matrix' },
             { slug: '19-golden-reference-parity' },
+            { slug: '20-stateful-directory' },
           ],
         },
         {

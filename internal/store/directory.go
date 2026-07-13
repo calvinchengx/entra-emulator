@@ -279,6 +279,16 @@ func (s *Store) DeleteGroup(id string) error {
 }
 
 // AddGroupMember is idempotent; ErrNotFound for a missing group or user.
+// IsGroupMember reports whether the (group, user) edge already exists.
+func (s *Store) IsGroupMember(groupID, userID string) (bool, error) {
+	var one int
+	err := s.db.QueryRow(`SELECT 1 FROM group_members WHERE group_id=? AND user_id=?`, groupID, userID).Scan(&one)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
 func (s *Store) AddGroupMember(groupID, userID string) error {
 	if _, err := s.GetGroup(groupID); err != nil {
 		return err

@@ -279,6 +279,7 @@ func (s *Service) mintIDToken(g DelegatedGrant, now int64) (string, error) {
 
 func (s *Service) mintAccessDelegated(g DelegatedGrant, aud string, now int64) (string, error) {
 	tid := s.resolveTenant(g.TenantID)
+	scpNames := scopeNamesOnly(g.Scopes)
 	claims := map[string]any{
 		"iss": s.issuerForTenant(tid),
 		"sub": s.PairwiseSub(g.User.ID, g.App.ID, tid),
@@ -286,7 +287,7 @@ func (s *Service) mintAccessDelegated(g DelegatedGrant, aud string, now int64) (
 		"iat": now, "nbf": now, "exp": now + int64(s.Cfg.Lifetimes.AccessToken),
 		"tid": tid, "oid": g.User.ID,
 		"azp": g.App.ID, "appid": g.App.ID,
-		"scp": strings.Join(scopeNamesOnly(g.Scopes), " "),
+		"scp": strings.Join(scpNames, " "),
 		"ver": "2.0",
 	}
 	// Access-token optional claims come from the RESOURCE app's config; the
@@ -298,6 +299,19 @@ func (s *Service) mintAccessDelegated(g DelegatedGrant, aud string, now int64) (
 		} else if byID, err := s.Store.GetApp(aud); err == nil {
 			resourceApp = byID
 		}
+	}
+	// Delegated consent (docs/20-stateful-directory.md): when explicit
+	// oauth2PermissionGrants exist for (client, resource), scp is the requested
+	// scopes intersected with what was consented for this user; otherwise the
+	// emulator auto-consents (all requested scopes land in scp).
+	if consented, has, err := s.Store.ConsentedScopes(g.App.ID, resourceApp.ID, g.User.ID); err == nil && has {
+		kept := make([]string, 0, len(scpNames))
+		for _, sc := range scpNames {
+			if consented[sc] {
+				kept = append(kept, sc)
+			}
+		}
+		claims["scp"] = strings.Join(kept, " ")
 	}
 	s.applyTokenConfig(claims, resourceApp, g.User, "accessToken")
 	s.enrich(claims, g.App, g.User, "accessToken")
@@ -377,6 +391,15 @@ func (s *Service) applyTokenConfig(claims map[string]any, app *store.App, user *
 			ids = append(ids, g.ID)
 		}
 		claims["groups"] = ids
+	}
+
+	// wids: tenant-wide directory-role template GUIDs, emitted when the app opts
+	// into directory-role claims (groupMembershipClaims = DirectoryRole | All).
+	// See docs/20-stateful-directory.md.
+	if gmc := app.GroupMembershipClaims; gmc == "DirectoryRole" || gmc == "All" {
+		if wids, err := s.Store.TenantWideRoleTemplateIDs(user.ID); err == nil && len(wids) > 0 {
+			claims["wids"] = wids
+		}
 	}
 }
 

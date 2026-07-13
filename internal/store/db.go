@@ -194,6 +194,44 @@ CREATE TABLE IF NOT EXISTS workspace_identities (
   created_at     INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_workspace_identities_app ON workspace_identities(app_id);
+CREATE TABLE IF NOT EXISTS deleted_items (
+  id           TEXT PRIMARY KEY,          -- object id, preserved across soft-delete
+  object_type  TEXT NOT NULL,             -- user | group | application
+  tenant_id    TEXT NOT NULL,
+  display_name TEXT,                       -- denormalized for listing
+  payload      TEXT NOT NULL,             -- JSON snapshot (object + relationships) for restore
+  deleted_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_deleted_items_type ON deleted_items(object_type);
+CREATE TABLE IF NOT EXISTS oauth2_permission_grants (
+  id           TEXT PRIMARY KEY,
+  client_id    TEXT NOT NULL,             -- client service principal (app) id
+  consent_type TEXT NOT NULL,             -- AllPrincipals | Principal
+  resource_id  TEXT NOT NULL,             -- resource/API service principal (app) id
+  principal_id TEXT,                       -- user id; NULL for AllPrincipals
+  scope        TEXT NOT NULL,             -- space-separated delegated scope values
+  created_at   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_o2pg_client ON oauth2_permission_grants(client_id);
+CREATE INDEX IF NOT EXISTS idx_o2pg_resource ON oauth2_permission_grants(resource_id);
+CREATE TABLE IF NOT EXISTS app_role_assignments (
+  id             TEXT PRIMARY KEY,
+  principal_id   TEXT NOT NULL,           -- grantee: client app (SP) or user
+  principal_type TEXT NOT NULL DEFAULT 'ServicePrincipal', -- ServicePrincipal | User
+  resource_id    TEXT NOT NULL,           -- resource service principal (app) id
+  app_role_id    TEXT NOT NULL,           -- app role GUID, or all-zero GUID for the default assignment
+  created_at     INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ara_resource ON app_role_assignments(resource_id);
+CREATE INDEX IF NOT EXISTS idx_ara_principal ON app_role_assignments(principal_id);
+CREATE TABLE IF NOT EXISTS directory_role_assignments (
+  id                 TEXT PRIMARY KEY,
+  role_definition_id TEXT NOT NULL,       -- built-in role template GUID
+  principal_id       TEXT NOT NULL,       -- user id
+  directory_scope_id TEXT NOT NULL DEFAULT '/', -- "/" = tenant-wide (drives wids)
+  created_at         INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_dra_principal ON directory_role_assignments(principal_id);
 `
 
 // Open opens (creating if needed) the SQLite store and applies migrations.
