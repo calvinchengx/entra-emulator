@@ -245,12 +245,26 @@ func (g *Graph) addGroupMember(w http.ResponseWriter, r *http.Request, _ *tokens
 	if !decodeGraph(w, r, &b) {
 		return
 	}
-	userID := refTailID(b.ODataID)
-	if userID == "" {
+	userRef := refTailID(b.ODataID)
+	if userRef == "" {
 		httpx.WriteGraphError(w, http.StatusBadRequest, "Request_BadRequest", "@odata.id is required.")
 		return
 	}
-	if err := g.Store.AddGroupMember(r.PathValue("id"), userID); err != nil {
+	// The @odata.id may reference a user by GUID or by UPN (both valid in Graph).
+	userID := userRef
+	if _, err := g.Store.GetUser(userRef); err != nil {
+		if u, err := g.Store.GetUserByUPN(userRef); err == nil {
+			userID = u.ID
+		}
+	}
+	groupID := r.PathValue("id")
+	// Adding an already-present member is a 400 in Graph, not a silent no-op.
+	if already, err := g.Store.IsGroupMember(groupID, userID); err == nil && already {
+		httpx.WriteGraphError(w, http.StatusBadRequest, "Request_BadRequest",
+			"One or more added object references already exist for the following modified properties: 'members'.")
+		return
+	}
+	if err := g.Store.AddGroupMember(groupID, userID); err != nil {
 		writeStoreErrGraph(w, err)
 		return
 	}
