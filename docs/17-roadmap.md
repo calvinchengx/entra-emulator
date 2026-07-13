@@ -1,4 +1,4 @@
-# 10 — Roadmap (post-parity)
+# Roadmap (post-parity)
 
 Phase 0 is the core protocol surface (docs 02–08). Everything
 below is sequenced *after* parity ships, ordered by value-for-effort.

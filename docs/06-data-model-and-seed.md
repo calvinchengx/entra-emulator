@@ -1,4 +1,4 @@
-# 03 — Data model & seed
+# Data model & seed
 
 SQLite via `modernc.org/sqlite` (pure Go). One connection pool per process; pragmas
 `journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout=5000`. Forward-only migrations

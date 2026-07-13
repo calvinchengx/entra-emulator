@@ -1,4 +1,4 @@
-# 02 — Configuration
+# Configuration
 
 Configuration is loaded with precedence **environment variables → config file → built-in
 defaults** (highest first). The config file is `entra-emulator.config.json` in the working
