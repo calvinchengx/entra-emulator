@@ -67,6 +67,13 @@ def suite_python(env):
     return run([str(py), "suite.py"], d, env)
 
 
+def suite_graph(env):
+    d = ROOT / "e2e" / "graph"
+    if not (d / "node_modules").exists():
+        subprocess.run(["npm", "install", "--silent"], cwd=d, check=True)
+    return run(["node", "suite.mjs"], d, env)
+
+
 def suite_dotnet(env):
     return run(["dotnet", "run", "-c", "Release"], ROOT / "e2e" / "dotnet", env)
 
@@ -77,7 +84,7 @@ def suite_java(env):
 
 SUITES = {
     "ts": suite_ts, "go": suite_go, "python": suite_python,
-    "dotnet": suite_dotnet, "java": suite_java,
+    "graph": suite_graph, "dotnet": suite_dotnet, "java": suite_java,
 }
 
 
