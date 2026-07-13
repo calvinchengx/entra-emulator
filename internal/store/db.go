@@ -224,6 +224,14 @@ CREATE TABLE IF NOT EXISTS app_role_assignments (
 );
 CREATE INDEX IF NOT EXISTS idx_ara_resource ON app_role_assignments(resource_id);
 CREATE INDEX IF NOT EXISTS idx_ara_principal ON app_role_assignments(principal_id);
+CREATE TABLE IF NOT EXISTS directory_role_assignments (
+  id                 TEXT PRIMARY KEY,
+  role_definition_id TEXT NOT NULL,       -- built-in role template GUID
+  principal_id       TEXT NOT NULL,       -- user id
+  directory_scope_id TEXT NOT NULL DEFAULT '/', -- "/" = tenant-wide (drives wids)
+  created_at         INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_dra_principal ON directory_role_assignments(principal_id);
 `
 
 // Open opens (creating if needed) the SQLite store and applies migrations.
