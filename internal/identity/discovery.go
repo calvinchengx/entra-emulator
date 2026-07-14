@@ -2,10 +2,40 @@ package identity
 
 import (
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/calvinchengx/entra-emulator/internal/httpx"
 	"github.com/calvinchengx/entra-emulator/internal/tokens"
 )
+
+// handleInstanceDiscovery answers MSAL's authority-validation probe
+// (GET /common/discovery/instance?api-version=1.1&authorization_endpoint=…).
+// MSAL calls this before every token request; a 404 fails the whole login. The
+// reply names this emulator as the preferred network for the authority so MSAL
+// keeps talking to us, and points tenant discovery at our OIDC document.
+func (i *Identity) handleInstanceDiscovery(w http.ResponseWriter, r *http.Request) {
+	host := i.Cfg.Origins.Login
+	if u, err := url.Parse(i.Cfg.Origins.Login); err == nil && u.Host != "" {
+		host = u.Host
+	}
+	// Derive the tenant discovery endpoint from the requested authorization
+	// endpoint (…/{tenant}/oauth2/v2.0/authorize → …/{tenant}/v2.0/.well-known/
+	// openid-configuration); fall back to our own login origin + tenant.
+	tenantDiscovery := i.Cfg.Origins.Login + "/" + i.Cfg.TenantID + "/v2.0/.well-known/openid-configuration"
+	if authz := r.URL.Query().Get("authorization_endpoint"); authz != "" {
+		tenantDiscovery = strings.Replace(authz, "/oauth2/v2.0/authorize", "/v2.0/.well-known/openid-configuration", 1)
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"tenant_discovery_endpoint": tenantDiscovery,
+		"api-version":               "1.1",
+		"metadata": []map[string]any{{
+			"preferred_network": host,
+			"preferred_cache":   host,
+			"aliases":           []string{host},
+		}},
+	})
+}
 
 // handleDiscovery serves the MSAL-tuned OIDC discovery document. The issuer
 // and endpoints are always GUID-form regardless of the alias requested.
