@@ -22,6 +22,28 @@ func TestDiscoveryDocFields(t *testing.T) {
 }
 
 // TestOBOErrorPaths covers grantOnBehalfOf's rejection branches.
+// TestInstanceDiscovery covers the MSAL authority-validation probe that real
+// Fabric clients (fab CLI, azcopy) call before acquiring a token.
+func TestInstanceDiscovery(t *testing.T) {
+	hts, _, _ := newTestServer(t)
+	authz := hts.URL + "/" + tenant + "/oauth2/v2.0/authorize"
+	code, doc := getJSON(t, hts.URL+"/common/discovery/instance?api-version=1.1&authorization_endpoint="+url.QueryEscape(authz))
+	if code != 200 {
+		t.Fatalf("instance discovery: %d", code)
+	}
+	// The tenant discovery endpoint is derived from the requested authorize URL.
+	if tde, _ := doc["tenant_discovery_endpoint"].(string); !strings.HasSuffix(tde, "/v2.0/.well-known/openid-configuration") {
+		t.Fatalf("tenant_discovery_endpoint = %v", doc["tenant_discovery_endpoint"])
+	}
+	md, ok := doc["metadata"].([]any)
+	if !ok || len(md) == 0 {
+		t.Fatalf("metadata missing: %v", doc)
+	}
+	if pn, _ := md[0].(map[string]any)["preferred_network"].(string); pn == "" {
+		t.Fatalf("preferred_network missing: %v", md[0])
+	}
+}
+
 func TestOBOErrorPaths(t *testing.T) {
 	hts, _, _ := newTestServer(t)
 	tokenURL := hts.URL + "/" + tenant + "/oauth2/v2.0/token"
