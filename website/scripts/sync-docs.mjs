@@ -8,14 +8,26 @@
 import { readdirSync, readFileSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { collectParity, writeParityHistory, parityManifest } from './parity-versions.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const DOCS_SRC = join(here, '..', '..', 'docs');
+const REPO = join(here, '..', '..');
+const DOCS_SRC = join(REPO, 'docs');
 const OUT = join(here, '..', 'src', 'content', 'docs');
 export const BASE = '/entra-emulator/';
 
+// Parity version data (release tags + the live map), collected once. `version`
+// is e.g. "v0.2.2" on a tag, otherwise "latest-<short sha>".
+const PARITY = collectParity(REPO);
+const IS_RELEASE = /^v\d+\.\d+\.\d+$/.test(PARITY.version);
+// The parity map is the one doc without a reading-order number: it is a living
+// reference rather than a chapter, and its URL is just /parity/.
+const PARITY_RE = /(^|[/-])parity\.md$/;
+// Docs are `NN-name.md` chapters, plus the un-numbered parity map.
+const DOC_RE = /^(\d{2}-.*|parity)\.md$/;
+
 // Rewrite `](./|docs/ NN-slug.md#anchor)` → `](/entra-emulator/NN-slug/#anchor)`.
-const LINK_RE = /\]\((?:\.\/|docs\/)?(\d{2}-[a-z0-9-]+)\.md(#[^)]*)?\)/g;
+const LINK_RE = /\]\((?:\.\/|docs\/)?(\d{2}-[a-z0-9-]+|parity)\.md(#[^)]*)?\)/g;
 function rewriteLinks(md) {
   return md.replace(LINK_RE, (_m, slug, anchor) => `](${BASE}${slug}/${anchor ?? ''})`);
 }
@@ -31,16 +43,37 @@ function yamlEscape(s) {
   return '"' + s.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 }
 
-function convert(name) {
-  const raw = readFileSync(join(DOCS_SRC, name), 'utf8');
+// Strip the leading H1 (Starlight renders the frontmatter title) and rewrite
+// intra-doc links. Shared with the parity snapshot generator so historical
+// snapshots convert identically.
+function convertBody(raw) {
   const lines = raw.split('\n');
   const h1Index = lines.findIndex((l) => /^#\s+/.test(l));
-  const title = h1Index >= 0 ? cleanTitle(lines[h1Index].replace(/^#\s+/, '')) : name.replace(/\.md$/, '');
-  // Drop the H1 (Starlight renders the frontmatter title) and a trailing blank.
   if (h1Index >= 0) {
     lines.splice(h1Index, lines[h1Index + 1]?.trim() === '' ? 2 : 1);
   }
-  const body = rewriteLinks(lines.join('\n').replace(/^\n+/, ''));
+  return rewriteLinks(lines.join('\n').replace(/^\n+/, ''));
+}
+
+// The context line at the top of the live parity map. Switching versions is the
+// top-nav picker's job (src/components/ParityVersionPicker.astro) — this just
+// says which version you're reading.
+function parityStamp() {
+  const what = IS_RELEASE
+    ? `release **${PARITY.version}**`
+    : `**${PARITY.version}** (the live tip of \`main\`)`;
+  return (
+    `_Parity map as of ${what} — tracked by git release tags. ` +
+    `See the [version history](${BASE}parity-history/) and [parity changelog](${BASE}parity-history/changelog/)._\n\n`
+  );
+}
+
+function convert(name) {
+  const raw = readFileSync(join(DOCS_SRC, name), 'utf8');
+  const h1 = raw.split('\n').find((l) => /^#\s+/.test(l));
+  const title = h1 ? cleanTitle(h1.replace(/^#\s+/, '')) : name.replace(/\.md$/, '');
+  let body = convertBody(raw);
+  if (PARITY_RE.test(name)) body = parityStamp() + body;
   // Point "Edit this page" at the real source in /docs (the generated copy
   // under src/content/docs/ is git-ignored), not Starlight's default path.
   const editUrl = `https://github.com/calvinchengx/entra-emulator/edit/main/docs/${name}`;
@@ -72,9 +105,18 @@ function writeIndex() {
 
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
-const names = readdirSync(DOCS_SRC).filter((n) => /^\d{2}-.*\.md$/.test(n)).sort();
+const names = readdirSync(DOCS_SRC).filter((n) => DOC_RE.test(n)).sort();
 for (const name of names) {
   writeFileSync(join(OUT, name), convert(name));
 }
 writeIndex();
-console.log(`sync-docs: wrote ${names.length} docs + index to src/content/docs/`);
+const info = writeParityHistory(OUT, PARITY, { convertBody });
+// The top-nav picker is an Astro component and can't shell out to git, so hand
+// it the same points as a build-time manifest.
+const DATA = join(here, '..', 'src', 'data');
+mkdirSync(DATA, { recursive: true });
+writeFileSync(join(DATA, 'parity-versions.json'), JSON.stringify(parityManifest(PARITY), null, 2) + '\n');
+console.log(
+  `sync-docs: wrote ${names.length} docs + index to src/content/docs/ ` +
+    `(parity ${info.version}; ${info.snapshots.length} tagged snapshot(s))`,
+);
