@@ -10,6 +10,17 @@ on:
       - 'pnpm-workspace.yaml'
       - 'package.json'
       - '.github/workflows/docs-site.yml'
+  # Pull requests build the site as a check — the docs generator shells out to
+  # git for the parity versions, so a PR that breaks it should fail here rather
+  # than after merge. Build only: the deploy job is skipped below.
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'website/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - '.github/workflows/docs-site.yml'
   workflow_dispatch:
 
 # Allow the deploy job to publish to GitHub Pages.
@@ -28,7 +39,12 @@ jobs:
     name: Build Starlight site
     runs-on: ubuntu-latest
     steps:
+      # Full history + tags: the parity-version generator reads the map at each
+      # `v*` tag (git show) and stamps the live map from `git describe`.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
@@ -37,12 +53,16 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter entra-emulator-docs build
       - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request'
         with:
           path: website/dist
 
   deploy:
     name: Deploy to GitHub Pages
     needs: build
+    # PRs get the build as a check only. Deploying from a PR ref would be
+    # rejected by the github-pages environment regardless.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
