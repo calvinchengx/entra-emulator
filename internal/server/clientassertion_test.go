@@ -65,7 +65,7 @@ func TestClientAssertionHappyPath(t *testing.T) {
 	resp, body := postForm(t, http.DefaultClient, tokenEndpoint(hts.URL), url.Values{
 		"grant_type":            {"client_credentials"},
 		"client_id":             {daemonID},
-		"client_assertion_type": {"urn:ietf:params:oauth:grant-type:jwt-bearer"},
+		"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
 		"client_assertion":      {assertion},
 		"scope":                 {"https://graph.microsoft.com/.default"},
 	})
@@ -90,7 +90,7 @@ func TestClientAssertionWrongKey(t *testing.T) {
 	resp, body := postForm(t, http.DefaultClient, tokenEndpoint(hts.URL), url.Values{
 		"grant_type":            {"client_credentials"},
 		"client_id":             {daemonID},
-		"client_assertion_type": {"urn:ietf:params:oauth:grant-type:jwt-bearer"},
+		"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
 		"client_assertion":      {assertion},
 		"scope":                 {"https://graph.microsoft.com/.default"},
 	})
@@ -108,7 +108,7 @@ func TestClientAssertionExpired(t *testing.T) {
 	resp, body := postForm(t, http.DefaultClient, tokenEndpoint(hts.URL), url.Values{
 		"grant_type":            {"client_credentials"},
 		"client_id":             {daemonID},
-		"client_assertion_type": {"urn:ietf:params:oauth:grant-type:jwt-bearer"},
+		"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
 		"client_assertion":      {assertion},
 		"scope":                 {"https://graph.microsoft.com/.default"},
 	})
@@ -125,7 +125,7 @@ func TestClientAssertionWrongAudience(t *testing.T) {
 	resp, body := postForm(t, http.DefaultClient, tokenEndpoint(hts.URL), url.Values{
 		"grant_type":            {"client_credentials"},
 		"client_id":             {daemonID},
-		"client_assertion_type": {"urn:ietf:params:oauth:grant-type:jwt-bearer"},
+		"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
 		"client_assertion":      {assertion},
 		"scope":                 {"https://graph.microsoft.com/.default"},
 	})
@@ -144,11 +144,36 @@ func TestClientAssertionNoRegisteredKey(t *testing.T) {
 	resp, body := postForm(t, http.DefaultClient, tokenEndpoint(hts.URL), url.Values{
 		"grant_type":            {"client_credentials"},
 		"client_id":             {spaID},
-		"client_assertion_type": {"urn:ietf:params:oauth:grant-type:jwt-bearer"},
+		"client_assertion_type": {"urn:ietf:params:oauth:client-assertion-type:jwt-bearer"},
 		"client_assertion":      {assertion},
 		"scope":                 {"https://graph.microsoft.com/.default"},
 	})
 	if resp.StatusCode != 401 || body["error"] != "invalid_client" {
 		t.Fatalf("no registered key: want 401 invalid_client, got %d %v", resp.StatusCode, body)
+	}
+}
+
+// The jwt-bearer GRANT URN (RFC 7523 §2.1) must be rejected as a client
+// authentication type — real Entra answers AADSTS900144. Pins the parity fix
+// so the two URNs are never conflated again.
+func TestClientAssertionWrongType(t *testing.T) {
+	hts, cfg, _ := newTestServer(t)
+	priv := registerKey(t, hts.URL, daemonID)
+
+	aud := cfg.Origins.Login + "/" + tenant + "/oauth2/v2.0/token"
+	assertion := signAssertion(t, priv, "k1", daemonID, aud, 0)
+
+	resp, body := postForm(t, http.DefaultClient, tokenEndpoint(hts.URL), url.Values{
+		"grant_type":            {"client_credentials"},
+		"client_id":             {daemonID},
+		"client_assertion_type": {"urn:ietf:params:oauth:grant-type:jwt-bearer"},
+		"client_assertion":      {assertion},
+		"scope":                 {"https://graph.microsoft.com/.default"},
+	})
+	if resp.StatusCode != 400 {
+		t.Fatalf("grant URN as client auth: want 400, got %d %v", resp.StatusCode, body)
+	}
+	if e, _ := body["error"].(string); e != "invalid_request" {
+		t.Fatalf("want invalid_request, got %v", body["error"])
 	}
 }
