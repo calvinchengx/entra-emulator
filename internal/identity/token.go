@@ -93,7 +93,10 @@ func (i *Identity) authenticateClient(r *http.Request) (*store.App, *httpx.OAuth
 			ErrorDescription: "AADSTS700016: Application not found in the directory."}
 	}
 	if assertion != "" {
-		if assertionType != "urn:ietf:params:oauth:grant-type:jwt-bearer" {
+		// Client AUTHENTICATION uses RFC 7523 §2.2's URN. This is distinct from
+		// the jwt-bearer GRANT type (§2.1) handled in grantOnBehalfOf — real
+		// Entra rejects the grant URN here with AADSTS900144.
+		if assertionType != "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" {
 			return nil, &httpx.OAuthError{Error: "invalid_request",
 				ErrorDescription: "AADSTS900144: unsupported client_assertion_type."}
 		}
