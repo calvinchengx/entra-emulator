@@ -10,7 +10,7 @@
     "smoke": "playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.62.0",
     "@sveltejs/vite-plugin-svelte": "^7.2.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/svelte": "^5.4.2",
