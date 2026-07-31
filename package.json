@@ -6,6 +6,11 @@
     "node": ">=22",
     "pnpm": ">=10"
   },
+  "pnpm": {
+    "overrides": {
+      "dompurify@<3.4.12": "3.4.12"
+    }
+  },
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "portal:build": "pnpm --filter entra-emulator-portal build",
