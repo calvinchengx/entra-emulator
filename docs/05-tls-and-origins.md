@@ -50,10 +50,24 @@ TLS_CERT=./entra.crt TLS_KEY=./entra.key entra-emulator
 ```
 
 - The trusted anchor is the **CA**, so re-issuing the leaf (new SANs, later expiry) needs
-  **no** re-trust — just restart with the new pair.
+  **no** re-trust.
 - Match the SANs to the host-routing set (apex + `*.<baseDomain>` wildcard + loopback, plus
   any `LOCAL_DOMAINS`) or you trade cert warnings for SNI mismatches.
-- The pair is loaded **once at startup** (no hot-reload), so restart after re-issuing.
+
+### Certificate hot-reload
+
+The TLS pair is served via a per-handshake `GetCertificate` hook, so a **re-issued or
+renewed** cert is picked up **without a restart** — the new pair takes effect on the next
+connection. Two triggers, both automatic:
+
+- **File change** — the emulator polls the `TLS_CERT` file mtime (every 5s) and reloads when
+  it advances, so `step ca renew` or a re-issued leaf just works.
+- **`SIGHUP`** — send `kill -HUP <pid>` for an explicit reload (e.g.
+  `step ca renew --exec 'kill -HUP <pid>'`).
+
+A failed reload (missing or invalid new pair) is logged and the **current certificate keeps
+serving** — a bad rotation never drops the listener. Reload applies to any on-disk pair
+(the persisted self-signed cert or a `TLS_CERT`/`TLS_KEY` override).
 
 ## Origins & host routing
 
