@@ -75,7 +75,9 @@ status: ## Report whether the emulator is serving (non-zero exit if not)
 	@sh scripts/status.sh
 
 ps: ## Container state
-	@docker ps -a --filter "name=$(ENTRA_NAME)" --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+	@# Anchored: docker's name filter is a substring match, so an unanchored
+	@# `entra-emulator` also lists fabric-emulator-entra-emulator-1.
+	@docker ps -a --filter "name=^$(ENTRA_NAME)$$" --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
 
 logs: ## Tail container logs
 	docker logs -f --tail 100 $(ENTRA_NAME)
