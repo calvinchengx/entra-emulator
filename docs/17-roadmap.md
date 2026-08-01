@@ -215,6 +215,21 @@ Deeper Microsoft identity platform coverage:
     responses carrying the verbatim RFC schema URNs. Runs in the standard test job,
     so drift fails CI.
 
+## Phase 7 — TLS lifecycle & local HTTPS
+
+23. ✅ **Certificate hot-reload & trusted local HTTPS**
+    ([TLS docs](05-tls-and-origins.md)). The TLS pair is served through a
+    per-handshake `GetCertificate` hook backed by an atomic `tlscert.Reloader`, so a
+    **renewed or re-issued cert is picked up without a restart** — triggered by the
+    cert-file mtime (5s poll, so `step ca renew` just works) or `SIGHUP`; a failed
+    reload logs and keeps the current pair, so a bad rotation never drops the
+    listener. Works with the persisted self-signed cert or a `TLS_CERT`/`TLS_KEY`
+    override, and pairs with a **[smallstep `step`](https://github.com/smallstep/cli)
+    local CA** (trust the root once, rotate leaves freely) or the built-in
+    `entra-emulator trust`. Covered by `tlscert.Reloader` unit tests **and** an
+    end-to-end test that swaps the on-disk pair against a live TLS listener and
+    asserts the new leaf is served without a restart.
+
 ## Explicit non-goals
 
 SAML/WS-Fed, B2C user flows, MFA/Conditional Access emulation, production hardening.
