@@ -57,7 +57,12 @@ check_http() { # label expected curl-args...
 # The container is optional: `make run` serves natively with no container at
 # all, so its absence is reported as information, never as a failure.
 say 'container (optional — "make run" serves natively with none)'
-line=$(docker ps -a --filter "name=$ENTRA_NAME" --format '{{.Names}}	{{.State}}	{{.Status}}' 2>/dev/null || printf '')
+# Anchored: docker's `name` filter is a SUBSTRING (really a regex) match, not an
+# equality test. Unanchored, `entra-emulator` also matches
+# `fabric-emulator-entra-emulator-1` — the entra container belonging to the
+# fabric stack — so this reported a sibling project's container as its own and
+# said "ok" while nothing of this repo's was running.
+line=$(docker ps -a --filter "name=^${ENTRA_NAME}$" --format '{{.Names}}	{{.State}}	{{.Status}}' 2>/dev/null || printf '')
 if [ -z "$line" ]; then
   say "  none  no container named '$ENTRA_NAME' (fine if running natively)"
 else
