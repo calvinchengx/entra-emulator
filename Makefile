@@ -86,7 +86,10 @@ test: ## Go build, vet and unit tests
 	go build ./... && go vet ./... && go test ./...
 
 smoke: ## Build the image and assert it serves (scripts/docker-smoke.sh)
-	@sh scripts/docker-smoke.sh
+	@# bash, not sh: that script declares `#!/usr/bin/env bash` and uses
+	@# `set -o pipefail`, which dash does not have. Invoking it as `sh` worked
+	@# on Windows and macOS, where sh IS bash, and failed only on Linux.
+	@bash scripts/docker-smoke.sh
 
 e2e: ## Real-SDK e2e matrix (MSAL Node/Python/Go/.NET/Java, Graph SDK)
 	@test -n "$(PY)" || { echo "no working python found (tried python3, python, py); set PY=" >&2; exit 1; }

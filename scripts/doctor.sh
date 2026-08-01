@@ -29,7 +29,9 @@ bad()  { printf '  FAIL  %-22s %s\n' "$1" "$2"; RC=1; }
 
 printf 'shell tools\n'
 printf '  (recipes and scripts/*.sh are POSIX shell; on Windows these come from Git for Windows)\n'
-for t in sh grep awk cut curl; do
+# bash as well as sh: scripts/docker-smoke.sh (behind `make smoke`) declares
+# bash and uses `set -o pipefail`, which dash does not implement.
+for t in sh bash grep awk cut curl; do
   p=$(command -v "$t" 2>/dev/null || true)
   if [ -n "$p" ]; then ok "$t" "$p"; else bad "$t" "not on PATH"; fi
 done
