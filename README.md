@@ -20,6 +20,17 @@ reference, also browsable as Markdown in [`docs/`](docs/).
 
 ## Quick start
 
+With [GNU Make](docs/21-platform-setup.md) — same three verbs on Linux, macOS
+and Windows, and `run` needs no container runtime at all:
+
+```bash
+make doctor   # toolchain check — run this first
+make run      # build and serve natively at https://localhost:8443
+make status   # is it actually serving? (probes discovery, JWKS, a real token mint)
+```
+
+Or directly:
+
 ```bash
 go build ./cmd/entra-emulator
 ./entra-emulator

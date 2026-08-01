@@ -8,6 +8,17 @@ NAME="entra-emulator-smoke"
 PORT="${SMOKE_PORT:-8459}"
 TENANT="11111111-1111-1111-1111-111111111111"
 
+# The null device is not spelled the same everywhere. Under Git for Windows the
+# SHELL understands /dev/null, but curl.exe is a native Windows binary that does
+# not: `-o /dev/null` fails to open its output file and curl exits 23 AFTER
+# already printing the status code. With `set -e` and a command substitution
+# that aborted the whole script on the first check. NUL is the Windows spelling
+# and creates no file.
+NULDEV=/dev/null
+case "$(uname -s 2>/dev/null || echo unknown)" in
+  MINGW*|MSYS*|CYGWIN*) NULDEV=NUL ;;
+esac
+
 cleanup() { docker rm -f "$NAME" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
@@ -28,7 +39,9 @@ fail=0
 check() { # name  expected-code  curl-args...
   local name="$1" want="$2"; shift 2
   local code
-  code=$(curl -s -o /dev/null -w '%{http_code}' "$@")
+  # `|| true`: curl can exit non-zero having already printed a perfectly good
+  # status code, and `set -e` would abort the run instead of reporting it.
+  code=$(curl -s -o "$NULDEV" -w '%{http_code}' "$@" || true)
   if [ "$code" = "$want" ]; then echo "  ok  $name ($code)"; else echo "  FAIL $name: want $want got $code"; fail=1; fi
 }
 

@@ -2,6 +2,12 @@
 data/
 *.log
 
+# Locally built binary (`make build`, or the README's `go build ./cmd/...`),
+# which lands in the repo root. Both spellings: Windows appends .exe, and only
+# ignoring the bare name leaves a 25 MB file for `git add -A` to pick up there.
+/entra-emulator
+/entra-emulator.exe
+
 # Node
 node_modules/
 
