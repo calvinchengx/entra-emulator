@@ -1,0 +1,234 @@
+{
+  "rs256-signed-access-id-tokens": {
+    "section": "Token service (`07-token-service`)",
+    "claim": "RS256-signed access / ID tokens",
+    "witnesses": [
+      "ci:sdk-e2e",
+      "go:TestJWKSAndTokenVerify"
+    ]
+  },
+  "kid-jwks": {
+    "section": "Token service (`07-token-service`)",
+    "claim": "`kid` / JWKS",
+    "witnesses": [
+      "ci:sdk-e2e",
+      "go:TestJWKSAndVerificationKeyRoundTrip"
+    ]
+  },
+  "signing-key-rotation": {
+    "section": "Token service (`07-token-service`)",
+    "claim": "Signing-key rotation",
+    "witnesses": [
+      "go:TestJWKSAndVerificationKeyRoundTrip"
+    ]
+  },
+  "entra-v2-0-claim-shapes-tid-oid-azp-appid-scp-roles-ver-idtyp-pairwise-sub": {
+    "section": "Token service (`07-token-service`)",
+    "claim": "Entra v2.0 claim shapes (`tid`/`oid`/`azp`/`appid`/`scp`/`roles`/`ver`/`idtyp`, pairwise `sub`)",
+    "witnesses": [
+      "ci:sdk-e2e",
+      "go:TestAppRoleAssignmentDrivesRolesClaim"
+    ]
+  },
+  "amr-pwd-fido": {
+    "section": "Token service (`07-token-service`)",
+    "claim": "`amr` (`pwd` / `fido`)",
+    "witnesses": [
+      "go:TestPasskeyRegisterAssertAndAMR"
+    ]
+  },
+  "wids-directory-role-template-guids": {
+    "section": "Token service (`07-token-service`)",
+    "claim": "`wids` (directory-role template GUIDs)",
+    "witnesses": [
+      "go:TestDirectoryRoleAssignmentDrivesWids",
+      "go:TestDirectoryRoleScopedAssignmentNoWids"
+    ]
+  },
+  "optional-claims-group-overage-claimnames-claimsources": {
+    "section": "Token service (`07-token-service`)",
+    "claim": "Optional claims + **group overage** (`_claim_names` / `_claim_sources`)",
+    "witnesses": [
+      "go:TestApplyTokenConfigGroupOverage",
+      "go:TestApplyTokenConfigGroupsViaOptionalClaim"
+    ]
+  },
+  "oidc-discovery-jwks": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "OIDC discovery + JWKS",
+    "witnesses": [
+      "ci:sdk-e2e",
+      "go:TestDiscoveryDocFields",
+      "go:TestGoldenParityOIDCDiscovery"
+    ]
+  },
+  "instance-discovery-common-discovery-instance": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "**Instance discovery** (`/common/discovery/instance`)",
+    "witnesses": [
+      "go:TestInstanceDiscovery"
+    ]
+  },
+  "authorizationcode-pkce-s256-plain": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "`authorization_code` + **PKCE** (S256/plain)",
+    "witnesses": [
+      "ci:sdk-e2e",
+      "go:TestAuthCodePKCEFlow",
+      "go:TestPKCEMismatchAndReplay"
+    ]
+  },
+  "refreshtoken": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "`refresh_token`",
+    "witnesses": [
+      "ci:sdk-e2e",
+      "go:TestRefreshRotationAndFamilyRevocation"
+    ]
+  },
+  "clientcredentials": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "`client_credentials`",
+    "witnesses": [
+      "ci:sdk-e2e",
+      "go:TestClientCredentials"
+    ]
+  },
+  "password-ropc": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "`password` (ROPC)",
+    "witnesses": [
+      "go:TestROPCHappyPath",
+      "go:TestROPCWrongPassword"
+    ]
+  },
+  "urn-ietf-params-oauth-grant-type-jwt-bearer-on-behalf-of": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "`urn:ietf:params:oauth:grant-type:jwt-bearer` (on-behalf-of)",
+    "witnesses": [
+      "go:TestOnBehalfOfHappyPath",
+      "go:TestOnBehalfOfRejectsWrongAudience"
+    ]
+  },
+  "device-code-spec-form-and-the-bare-devicecode-msal-node-sends": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "Device code (spec form **and** the bare `device_code` msal-node sends)",
+    "witnesses": [
+      "ci:sdk-e2e",
+      "go:TestDeviceCodeFlow",
+      "go:TestDeviceCodeDenied"
+    ]
+  },
+  "directory-reads-me-users-groups-members-memberof-userinfo": {
+    "section": "Microsoft Graph (`09-graph-api`)",
+    "claim": "Directory reads (`/me`, users, groups, members, `memberOf`, `userinfo`)",
+    "witnesses": [
+      "ci:sdk-e2e",
+      "go:TestAdminUserCRUD",
+      "go:TestAdminGroupCRUDAndMembers"
+    ]
+  },
+  "directory-writes-users-groups-applications-group-membership-ref": {
+    "section": "Microsoft Graph (`09-graph-api`)",
+    "claim": "Directory **writes** (users, groups, applications; group membership `$ref`)",
+    "witnesses": [
+      "go:TestAdminUserCRUD",
+      "go:TestAdminGroupCRUDAndMembers"
+    ]
+  },
+  "oauth2-permission-grants-consent": {
+    "section": "Microsoft Graph (`09-graph-api`)",
+    "claim": "OAuth2 permission grants (consent)",
+    "witnesses": [
+      "go:TestConsentApprove",
+      "go:TestConsentDeny"
+    ]
+  },
+  "directory-roles-rolemanagement-directory": {
+    "section": "Microsoft Graph (`09-graph-api`)",
+    "claim": "Directory roles (`roleManagement/directory`)",
+    "witnesses": [
+      "go:TestDirectoryRoleAssignmentDrivesWids"
+    ]
+  },
+  "odata-select-filter-top-skiptoken-count": {
+    "section": "Microsoft Graph (`09-graph-api`)",
+    "claim": "OData `$select` / `$filter` / `$top` / `$skiptoken` / `$count`",
+    "witnesses": [
+      "go:TestGraphODataSelectFilterCount",
+      "go:TestGraphODataBoolAndNullFilter"
+    ]
+  },
+  "scim-service-provider-inbound-serviceproviderconfig-resourcetypes-schemas-users-groups-crud-patchop": {
+    "section": "SCIM 2.0 (`10-scim-provisioning`)",
+    "claim": "SCIM **service provider** (inbound): `ServiceProviderConfig`, `ResourceTypes`, `Schemas`; Users + Groups CRUD, PatchOp",
+    "witnesses": [
+      "go:TestSCIMDiscoveryAndUserOps",
+      "go:TestSCIMGroupMembership",
+      "go:TestGoldenParitySCIM"
+    ]
+  },
+  "scim-provisioning-client-outbound-filter-probe-create-update-active-false-deprovision-member-correlated-groups-incremental-watermark": {
+    "section": "SCIM 2.0 (`10-scim-provisioning`)",
+    "claim": "SCIM **provisioning client** (outbound): filter-probe → create / update / `active:false` deprovision, member-correlated groups, incremental watermark",
+    "witnesses": [
+      "go:TestSCIMAuthAndDiscovery",
+      "go:TestSCIMErrorPaths"
+    ]
+  },
+  "passkey-webauthn-sign-in": {
+    "section": "Sign-in experience",
+    "claim": "Passkey / WebAuthn sign-in",
+    "witnesses": [
+      "go:TestPasskeyRegisterAssertAndAMR",
+      "go:TestWebAuthnCredentials"
+    ]
+  },
+  "managed-identity-msi-token-app-service-protocol": {
+    "section": "Workload & platform identity",
+    "claim": "**Managed identity** (`/msi/token`, App Service protocol)",
+    "witnesses": [
+      "go:TestMSISystemAssigned",
+      "go:TestMSIUserAssignedByClientID"
+    ]
+  },
+  "fabric-audience-tokens-workspace-identity-app-reg-sp-managed-credential-state-machine-cascade-delete": {
+    "section": "Workload & platform identity",
+    "claim": "Fabric-audience tokens + workspace identity (app reg + SP + managed credential, state machine, cascade delete)",
+    "witnesses": [
+      "go:TestFabricClientCredentialsAudience",
+      "go:TestWorkspaceIdentities"
+    ]
+  },
+  "persisted-directory": {
+    "section": "Directory, storage & transport",
+    "claim": "Persisted directory",
+    "witnesses": [
+      "go:TestDirectoryRoundTripRestoresState"
+    ]
+  },
+  "credential-hashing": {
+    "section": "Directory, storage & transport",
+    "claim": "Credential hashing",
+    "witnesses": [
+      "go:TestHashingHelpers",
+      "go:TestVerifyPassword"
+    ]
+  },
+  "concurrency-contracts-single-use-codes-refresh-reuse-detection-device-code-approve-mint": {
+    "section": "Directory, storage & transport",
+    "claim": "Concurrency contracts (single-use codes, refresh-reuse detection, device-code approve→mint)",
+    "witnesses": [
+      "go:TestRefreshTokenRotationAndReuse",
+      "go:TestPKCEMismatchAndReplay"
+    ]
+  },
+  "tls-with-a-wildcard-cert-over-the-emulator-s-origins": {
+    "section": "Directory, storage & transport",
+    "claim": "TLS with a wildcard cert over the emulator's origins",
+    "witnesses": [
+      "go:TestBootTLSEnabled",
+      "go:TestCertReloadEndToEnd"
+    ]
+  }
+}

@@ -141,3 +141,21 @@ jobs:
         env:
           CGO_ENABLED: '0'
         run: go test -tags=pdp_integration -run '${{ matrix.test }}' -v ./...
+
+  witnesses:
+    name: Every 🟢 parity claim names its witness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # Strict: every claim is mapped, so a new 🟢 row without a witness — or a
+      # witness that no longer exists — fails the build. That second case is the
+      # valuable one: it catches a test being renamed or deleted out from under
+      # the claim that depended on it.
+      #
+      # --no-project because this repo has no Python project; the checker is
+      # stdlib-only. uv still supplies the interpreter, so the version is pinned
+      # rather than whatever the runner happens to ship.
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.32"
+      - run: uv run --no-project --python 3.12 python scripts/check_witnesses.py --strict
