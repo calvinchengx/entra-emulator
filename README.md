@@ -29,6 +29,21 @@ make run      # build and serve natively at https://localhost:8443
 make status   # is it actually serving? (probes discovery, JWKS, a real token mint)
 ```
 
+The rest:
+
+```bash
+make help     # every target with a one-line description
+make build    # compile the binary without running it
+make up       # containerised instead of native
+make ps       # container states
+make logs     # tail logs (SVC=<service> to narrow to one)
+make down     # stop and remove containers — volumes SURVIVE
+make clean    # stop and remove containers AND delete the data volumes
+make test     # go build, vet and unit tests
+make smoke    # quick end-to-end sanity check
+make e2e      # the full external-client suite
+```
+
 Or directly:
 
 ```bash
@@ -80,6 +95,18 @@ Available once a release's manifest PR merges into `microsoft/winget-pkgs`
 `go install`. Every install method — Homebrew, winget, Docker, pre-built
 binaries, `go install`, source — is in
 [docs/02-installation.md](docs/02-installation.md).
+
+## Parity at a glance
+
+| | Rows | Meaning |
+|---|---|---|
+| 🟢 **Real** | 38 | Genuine work — real RS256 signatures, real ceremonies, real directory state |
+| 🟡 **Emulated** | 9 | Faithful API contract and persisted state, but no engine behind it |
+| 🟠 **Partial** | 5 | The common path works; the edges are not there yet |
+| 🔴 **Not implemented** | 29 | Mostly the policy engine (Conditional Access, MFA, Identity Protection) — what would turn a dev-loop emulator into an IdP |
+
+Real MSAL in five languages, the Graph SDK and a SCIM connector drive it as
+borrowed oracles. Full detail: [parity map](docs/parity.md).
 
 ## What works
 
