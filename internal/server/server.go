@@ -5,10 +5,15 @@ package server
 import (
 	"crypto/tls"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/calvinchengx/entra-emulator/internal/admin"
 	"github.com/calvinchengx/entra-emulator/internal/audit"
@@ -188,14 +193,64 @@ func (s *Server) Listen() error {
 	if !s.Cfg.TLSEnabled {
 		return srv.ListenAndServe()
 	}
-	pair, err := s.cert.Certificate()
+	reloader, err := tlscert.NewReloader(s.cert)
 	if err != nil {
 		return err
 	}
-	srv.TLSConfig = &tls.Config{Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS12}
+	// GetCertificate is consulted per handshake, so a swapped-in pair takes
+	// effect on the next connection without restarting the listener.
+	srv.TLSConfig = &tls.Config{GetCertificate: reloader.GetCertificate, MinVersion: tls.VersionTLS12}
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
+	s.watchCert(reloader)
 	return srv.ServeTLS(ln, "", "")
+}
+
+// watchCert reloads the TLS certificate on SIGHUP and when the cert file's
+// mtime advances on disk (e.g. after `step ca renew` or a re-issued leaf), so
+// renewals take effect without a restart. A failed reload keeps the current
+// pair. No-op when the certificate has no on-disk paths (in-memory material).
+func (s *Server) watchCert(r *tlscert.Reloader) {
+	if !r.CanReload() {
+		return
+	}
+	reload := func(trigger string) {
+		switch changed, err := r.Reload(); {
+		case err != nil:
+			log.Printf("tls: cert reload (%s) failed, keeping current pair: %v", trigger, err)
+		case changed:
+			log.Printf("tls: certificate reloaded (%s)", trigger)
+		}
+	}
+
+	// SIGHUP → explicit reload (e.g. `step ca renew --exec 'kill -HUP <pid>'`).
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGHUP)
+	go func() {
+		for range sig {
+			reload("SIGHUP")
+		}
+	}()
+
+	// Poll the cert file mtime → pick up renewals automatically, no signal.
+	go func() {
+		var last time.Time
+		if fi, err := os.Stat(s.cert.CertPath); err == nil {
+			last = fi.ModTime()
+		}
+		t := time.NewTicker(5 * time.Second)
+		defer t.Stop()
+		for range t.C {
+			fi, err := os.Stat(s.cert.CertPath)
+			if err != nil {
+				continue
+			}
+			if fi.ModTime().After(last) {
+				last = fi.ModTime()
+				reload("file change")
+			}
+		}
+	}()
 }
