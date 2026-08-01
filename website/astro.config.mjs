@@ -59,6 +59,7 @@ export default defineConfig({
             { slug: 'index' },
             { slug: '01-quickstart' },
             { slug: '02-installation' },
+            { slug: '21-platform-setup' },
             { slug: '03-architecture' },
             { slug: '04-configuration' },
             { slug: '05-tls-and-origins' },
