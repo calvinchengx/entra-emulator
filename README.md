@@ -34,11 +34,11 @@ The rest:
 ```bash
 make help     # every target with a one-line description
 make build    # compile the binary without running it
-make up       # containerised instead of native
-make ps       # container states
-make logs     # tail logs (SVC=<service> to narrow to one)
-make down     # stop and remove containers — volumes SURVIVE
-make clean    # stop and remove containers AND delete the data volumes
+make up       # containerised instead of native (ENTRA_PORT=8443 by default)
+make ps       # container state
+make logs     # tail the container's logs
+make down     # stop and remove that container
+make clean    # remove the built binary and the local ./data store
 make test     # go build, vet and unit tests
 make smoke    # quick end-to-end sanity check
 make e2e      # the full external-client suite
