@@ -1,0 +1,146 @@
+name: Make targets
+
+# The Makefile is the documented entry point — the README and
+# docs/21-platform-setup.md both tell users to run `make doctor` / `make run` /
+# `make status` — so it needs the same cross-OS guarantee the Go tests have.
+# Nothing else in CI ran a single `make` command before this workflow existed.
+#
+# The failures this catches are platform-specific and invisible on Linux, which
+# is exactly why they survive:
+#   * a shell script checked out with CRLF fails at the shebang — `sh` reads the
+#     trailing \r as part of the interpreter path (.gitattributes pins eol=lf;
+#     `sh -n` below is what proves it stayed pinned).
+#   * on Windows `python3` is a Microsoft Store alias stub: on PATH, so every
+#     `command -v python3` check passes, and it exits 49 when actually run.
+#   * GNU Make falls back to cmd.exe when it cannot find a shell on PATH, and
+#     every recipe here is POSIX shell.
+#   * an unquoted or wrongly-named variable expands to nothing, or to whatever
+#     the caller happened to export. That is not hypothetical here: `NAME` and
+#     `PORT` were generic enough that an exported NAME renamed the container,
+#     which `make -n` below would have caught.
+#
+# This emulator is a single static binary, so unlike its siblings the whole
+# native path — build, run, status — works on every platform with no container
+# runtime at all. Only the `up`/`smoke` targets need Docker, and those run on
+# Linux: GitHub's macOS runners have no Docker daemon, and the Windows runners
+# support only Windows containers.
+
+on:
+  workflow_call: # called by release.yml as a release gate
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  make-targets:
+    name: make targets (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.25'
+
+      # macOS ships GNU Make 3.81 with the Xcode CLT and Linux ships it as
+      # standard; only Windows needs one installed. Same story
+      # docs/21-platform-setup.md tells users, via the package manager already
+      # present on the runner.
+      - name: Install GNU Make (Windows only)
+        if: runner.os == 'Windows'
+        run: choco install make --no-progress -y
+
+      # Deliberately the runner's DEFAULT shell — PowerShell on Windows. This is
+      # the one step that reproduces how a Windows user actually invokes make,
+      # and it fails if Make cannot find sh.exe or the grep/awk the recipe uses.
+      # One command per step so its exit code is the step's exit code: under
+      # pwsh only the LAST command's status is checked.
+      - name: make help (from the platform's native shell)
+        run: make help
+
+      - name: Makefile and scripts are POSIX-clean
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Syntax-only, with the interpreter each script's shebang actually
+          # declares: `sh -n` on a #!/usr/bin/env bash script would reject
+          # legitimate bashisms, and `bash -n` on a #!/bin/sh script would let
+          # real ones through. This is what catches a CRLF checkout — dash and
+          # bash both reject a brace followed by a carriage return — and any bashism creeping into an sh script.
+          for f in scripts/*.sh; do
+            case "$(head -1 "$f")" in
+              *bash) echo "bash -n $f"; bash -n "$f" ;;
+              *)     echo "sh -n   $f"; sh -n "$f" ;;
+            esac
+          done
+
+      - name: Every target expands
+        shell: bash
+        run: |
+          set -euo pipefail
+          # -n prints the recipe without running it, so this exercises variable
+          # expansion, quoting and the shell selection on every platform —
+          # including the docker targets that cannot execute off Linux.
+          for t in help doctor build run up down status ps logs test smoke e2e clean; do
+            echo "=== make -n $t ==="
+            make -n "$t"
+          done
+          # The documented override must expand too.
+          make -n up ENTRA_PORT=8460
+
+      # The native path needs no container runtime, so it is the same on all
+      # three platforms — which is the point of this emulator being one binary.
+      - name: make build
+        shell: bash
+        run: make build
+
+      - name: make test
+        shell: bash
+        run: make test
+
+      # `make run` serves in the foreground, so drive it the way a user would
+      # and then ask status the same question they would.
+      - name: make run + make status (native, no container)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIGIN_MODE=compat ./entra-emulator${{ runner.os == 'Windows' && '.exe' || '' }} &
+          pid=$!
+          trap 'kill $pid 2>/dev/null || true' EXIT
+          for _ in $(seq 1 60); do
+            curl -sk -o /dev/null "https://localhost:8443/health" && break
+            sleep 1
+          done
+          make status
+
+      # Docker-only targets, where a Linux container runtime exists.
+      - name: make doctor
+        if: runner.os == 'Linux'
+        run: make doctor
+
+      - name: make up / status / down (containerised)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          make up
+          for _ in $(seq 1 60); do
+            curl -sk -o /dev/null "https://localhost:8443/health" && break
+            sleep 1
+          done
+          make status
+          make down
+
+      - name: make smoke
+        if: runner.os == 'Linux'
+        run: make smoke
+
+      - name: Container logs on failure
+        if: failure() && runner.os == 'Linux'
+        run: docker logs --tail 200 entra-emulator || true
