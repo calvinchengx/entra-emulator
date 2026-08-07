@@ -143,7 +143,7 @@ jobs:
         run: go test -tags=pdp_integration -run '${{ matrix.test }}' -v ./...
 
   witnesses:
-    name: Every 🟢 parity claim names its witness
+    name: Every supported parity claim names its witness
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
