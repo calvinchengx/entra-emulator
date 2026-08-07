@@ -5,7 +5,7 @@ go 1.25.11
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.22.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0
-	github.com/AzureAD/microsoft-authentication-library-for-go v1.7.2
+	github.com/AzureAD/microsoft-authentication-library-for-go v1.8.0
 )
 
 require (
@@ -22,6 +22,7 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	golang.org/x/sync v0.22.0 // indirect
 	modernc.org/libc v1.74.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
