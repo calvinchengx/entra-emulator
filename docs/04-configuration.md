@@ -25,6 +25,7 @@ key(s)** — no partial boot.
 | `TLS_CERT_DIR` | `tls.certDir` | path | `./data/tls` | Where the auto-generated cert/key persist. |
 | `REQUIRE_PASSWORD` | `requirePassword` | bool | `false` | Password form instead of the account picker. |
 | `REQUIRE_CONSENT` | `requireConsent` | bool | `false` | Show a consent screen during authorize before issuing the code. |
+| `GRAPH_PERMISSIONS` | `graphPermissions` | bool | `false` | Gate Graph operations on the caller's permissions the way real Entra does: delegated calls need the scope in `scp`, app-only calls the role in `roles`, `Directory.*` is the superset, denials are `403 Authorization_RequestDenied`. Off by default because any valid Graph-audience token has always been accepted — turn it on to prove your app requests the permissions it needs. |
 | `SEED_ON_START` | `seedOnStart` | bool | `true` | Apply the deterministic seed when the DB has no tenant row. |
 | `TOKEN_LIFETIME_AUTH_CODE_SECONDS` | `tokenLifetimes.authCode` | int | `300` | Auth code TTL (single-use). |
 | `TOKEN_LIFETIME_ID_SECONDS` | `tokenLifetimes.idToken` | int | `3600` | ID token TTL. |

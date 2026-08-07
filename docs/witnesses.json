@@ -246,5 +246,13 @@
       "go:TestDiscoveryCloudInstanceMetadata",
       "go:TestGoldenParityOIDCDiscovery"
     ]
+  },
+  "graph-permission-enforcement-scopes-roles-gating-operations": {
+    "section": "Microsoft Graph (`09-graph-api`)",
+    "claim": "Graph permission enforcement (scopes/roles gating operations)",
+    "witnesses": [
+      "go:TestGraphPermissionsEnforced",
+      "go:TestGraphPermissionsOffByDefault"
+    ]
   }
 }

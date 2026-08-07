@@ -77,7 +77,7 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | Directory roles (`roleManagement/directory`) | Full CRUD, and assignments really drive `wids` in tokens | 🟢 Real |
 | Authentication methods inventory (password / FIDO2) | Read + delete | 🟡 Emulated |
 | OData `$select` / `$filter` / `$top` / `$skiptoken` / `$count` | Supported (single `$filter` clause) | 🟢 Real |
-| **Graph permission enforcement** (scopes/roles gating operations) | **Any valid Graph-audience token authorizes any operation** — documented, deliberate | 🔴 Not implemented |
+| Graph permission enforcement (scopes/roles gating operations) | Real gate behind `GRAPH_PERMISSIONS`: delegated calls need the scope in `scp`, app-only calls the role in `roles`, `Directory.*` acts as the superset, denials are `403 Authorization_RequestDenied`. **Off by default** — the emulator has always accepted any valid Graph-audience token, so enabling it is opt-in | 🟢 Real |
 | Separate servicePrincipal store | An app registration **is** its own SP; object `id` and `appId` are conflated | 🟡 Emulated |
 | **Custom role definitions** | Only the seeded built-ins exist | 🔴 Not implemented |
 | **Administrative units**, **custom security attributes** | — | 🔴 Not implemented |
