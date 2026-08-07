@@ -231,5 +231,20 @@
       "go:TestBootTLSEnabled",
       "go:TestCertReloadEndToEnd"
     ]
+  },
+  "put-groups-id": {
+    "section": "SCIM 2.0 (`10-scim-provisioning`)",
+    "claim": "`PUT /Groups/{id}`",
+    "witnesses": [
+      "go:TestSCIMReplaceGroup"
+    ]
+  },
+  "cloud-instance-metadata-tenantregionscope-cloudinstancename-cloudgraphhostname-msgraphhost-rbacurl": {
+    "section": "Directory, storage & transport",
+    "claim": "Cloud-instance metadata (`tenant_region_scope`, `cloud_instance_name`, `cloud_graph_host_name`, `msgraph_host`, `rbac_url`)",
+    "witnesses": [
+      "go:TestDiscoveryCloudInstanceMetadata",
+      "go:TestGoldenParityOIDCDiscovery"
+    ]
   }
 }

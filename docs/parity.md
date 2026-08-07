@@ -91,7 +91,7 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | SCIM **service provider** (inbound): `ServiceProviderConfig`, `ResourceTypes`, `Schemas`; Users + Groups CRUD, PatchOp | Real RFC 7643/7644 shapes over real HTTP, bearer static-secret auth as Entra does | 🟢 Real |
 | SCIM **provisioning client** (outbound): filter-probe → create / update / `active:false` deprovision, member-correlated groups, incremental watermark | Real — the emulator pushes the directory out using Entra's actual sequence | 🟢 Real |
 | Provisioning **scheduler** (the ~40-minute cycle) | Admin-triggered instead of timed — deliberate, so tests are deterministic | 🟡 Emulated |
-| `PUT /Groups/{id}` | Users have PUT; Groups do not (GET/POST/PATCH/DELETE only) | 🔴 Not implemented |
+| `PUT /Groups/{id}` | Real RFC 7644 §3.5.1 wholesale replace — `displayName` overwritten and membership reconciled to exactly the submitted set (absent members removed) | 🟢 Real |
 
 ## Sign-in experience
 
@@ -136,7 +136,8 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | Concurrency contracts (single-use codes, refresh-reuse detection, device-code approve→mint) | Real atomic SQL — not best-effort | 🟢 Real |
 | Multi-tenant | Multiple tenants exist and are isolated | 🟡 Emulated |
 | TLS with a wildcard cert over the emulator's origins | Real self-signed X.509, regenerated on SAN drift, stable fingerprint otherwise | 🟢 Real |
-| **Cloud-instance metadata** (`tenant_region_scope`, `cloud_instance_name`, sovereign clouds) | — | 🔴 Not implemented |
+| Cloud-instance metadata (`tenant_region_scope`, `cloud_instance_name`, `cloud_graph_host_name`, `msgraph_host`, `rbac_url`) | Advertised in discovery, pointing at the emulator's **own** origins — a client that reads them is never sent to the real cloud | 🟢 Real |
+| **Sovereign clouds** (US Gov / China / Germany instance routing) | Single local instance only | 🔴 Not implemented |
 
 ## Emulator-only (no Entra equivalent — these exist for testing)
 

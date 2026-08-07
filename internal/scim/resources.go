@@ -187,6 +187,54 @@ func (s *Service) getGroup(w http.ResponseWriter, r *http.Request) {
 	writeSCIM(w, http.StatusOK, groupResource(g, members, base(r)))
 }
 
+// replaceGroup implements PUT /Groups/{id} (RFC 7644 §3.5.1): the resource is
+// replaced wholesale — displayName is overwritten and membership becomes exactly
+// the submitted set, so members absent from the body are removed.
+func (s *Service) replaceGroup(w http.ResponseWriter, r *http.Request) {
+	g, err := s.Store.GetGroup(r.PathValue("id"))
+	if err != nil {
+		writeStoreErr(w, err)
+		return
+	}
+	var body groupBody
+	if !decode(w, r, &body) {
+		return
+	}
+	if body.DisplayName == "" {
+		scimErr(w, http.StatusBadRequest, "displayName is required.")
+		return
+	}
+	g.DisplayName = body.DisplayName
+	if err := s.Store.UpdateGroup(g); err != nil {
+		writeStoreErr(w, err)
+		return
+	}
+
+	// Reconcile membership to exactly what the body carries.
+	want := make(map[string]bool, len(body.Members))
+	for _, m := range body.Members {
+		if m.Value != "" {
+			want[m.Value] = true
+		}
+	}
+	current, _ := s.Store.ListGroupMembers(g.ID)
+	have := make(map[string]bool, len(current))
+	for _, u := range current {
+		have[u.ID] = true
+		if !want[u.ID] {
+			_ = s.Store.RemoveGroupMember(g.ID, u.ID)
+		}
+	}
+	for _, m := range body.Members {
+		if m.Value != "" && !have[m.Value] {
+			_ = s.Store.AddGroupMember(g.ID, m.Value)
+		}
+	}
+
+	members, _ := s.Store.ListGroupMembers(g.ID)
+	writeSCIM(w, http.StatusOK, groupResource(g, members, base(r)))
+}
+
 func (s *Service) patchGroup(w http.ResponseWriter, r *http.Request) {
 	g, err := s.Store.GetGroup(r.PathValue("id"))
 	if err != nil {

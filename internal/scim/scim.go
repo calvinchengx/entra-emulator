@@ -47,6 +47,7 @@ func (s *Service) Register(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc("GET "+p+"/Groups", s.auth(s.listGroups))
 	mux.HandleFunc("POST "+p+"/Groups", s.auth(s.createGroup))
 	mux.HandleFunc("GET "+p+"/Groups/{id}", s.auth(s.getGroup))
+	mux.HandleFunc("PUT "+p+"/Groups/{id}", s.auth(s.replaceGroup))
 	mux.HandleFunc("PATCH "+p+"/Groups/{id}", s.auth(s.patchGroup))
 	mux.HandleFunc("DELETE "+p+"/Groups/{id}", s.auth(s.deleteGroup))
 }

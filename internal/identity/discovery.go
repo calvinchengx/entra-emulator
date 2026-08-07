@@ -72,6 +72,15 @@ func (i *Identity) handleDiscovery(w http.ResponseWriter, r *http.Request) {
 			"sub", "iss", "aud", "exp", "iat", "nbf", "tid", "oid",
 			"name", "preferred_username", "email", "nonce", "ver",
 		},
+		// Cloud-instance metadata. Real Entra advertises the sovereign-cloud
+		// coordinates here (microsoftonline.com / graph.microsoft.com / pas.windows.net);
+		// the emulator advertises its own local origins so a client that reads
+		// these fields is pointed back at the emulator rather than the real cloud.
+		"tenant_region_scope":   "LOC",
+		"cloud_instance_name":   i.cloudInstanceName(),
+		"cloud_graph_host_name": hostOf(i.Cfg.Origins.Graph),
+		"msgraph_host":          hostOf(i.Cfg.Origins.Graph),
+		"rbac_url":              i.Cfg.Origins.Graph,
 	}
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	httpx.WriteJSON(w, http.StatusOK, doc)
@@ -93,6 +102,21 @@ func (i *Identity) userinfoEndpoint() string {
 		return i.Cfg.Origins.Graph + "/graph/oidc/userinfo"
 	}
 	return i.Cfg.Origins.Graph + "/oidc/userinfo"
+}
+
+// hostOf reduces an origin to its host[:port], the shape Entra uses for the
+// *_host_name discovery fields. Falls back to the raw value if unparseable.
+func hostOf(origin string) string {
+	if u, err := url.Parse(origin); err == nil && u.Host != "" {
+		return u.Host
+	}
+	return origin
+}
+
+// cloudInstanceName is Entra's `microsoftonline.com` slot — the emulator names
+// its own login host so clients resolve back here, never to the real cloud.
+func (i *Identity) cloudInstanceName() string {
+	return hostOf(i.Cfg.Origins.Login)
 }
 
 func (i *Identity) handleJWKS(w http.ResponseWriter, r *http.Request) {
