@@ -19,9 +19,15 @@ on:
   schedule:
     - cron: '31 7 * * 1' # weekly, Monday 07:31 UTC (parity with Default setup)
 
+# Superseding a PR run is free money. Superseding a main run is not: a cancelled
+# CodeQL job still uploads its SARIF, flagged `unsuccessful execution` with zero
+# results, and that errored analysis becomes the newest one for its category —
+# which is exactly what the code-scanning tool status page reports. Landing a
+# burst of commits cancelled 11 of our first 43 main runs this way. So main runs
+# to completion; only PR pushes cancel.
 concurrency:
   group: codeql-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   analyze:
