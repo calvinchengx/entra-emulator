@@ -166,6 +166,18 @@ discovery disabled per-SDK, and TLS trust injected per-SDK.
 | Flutter (`http`, `flutter_appauth`) | Device code on real Android/iOS | 🟡 Nightly, not a PR gate; the auth-code leg is a manual screen |
 | **`@azure/msal-browser`** | — | 🔴 Not wired |
 
+### Contract conformance: golden references as witnesses
+
+Real clients prove the emulator *works*; **golden references** prove its wire
+contracts haven't **drifted**. Three canonical references — the real Entra OIDC
+discovery document, the official Microsoft Graph OpenAPI, and the SCIM 2.0 RFCs
+— are committed under `e2e/golden/` and diffed against the live emulator on
+every push. Several 🟢 rows above name those tests as their witness
+(`TestGoldenParityOIDCDiscovery`, `TestGoldenParityGraph`,
+`TestGoldenParitySCIM`). See
+[golden-reference parity](19-golden-reference-parity.md) for what each asserts
+and the documented divergences it reports.
+
 ## Scope boundary: a dev-loop emulator, not an IdP
 
 The stated non-goals — SAML/WS-Fed, B2C user flows, MFA/Conditional Access,

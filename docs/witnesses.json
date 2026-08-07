@@ -125,7 +125,8 @@
     "witnesses": [
       "ci:sdk-e2e",
       "go:TestAdminUserCRUD",
-      "go:TestAdminGroupCRUDAndMembers"
+      "go:TestAdminGroupCRUDAndMembers",
+      "go:TestGoldenParityGraph"
     ]
   },
   "directory-writes-users-groups-applications-group-membership-ref": {
