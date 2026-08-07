@@ -69,6 +69,12 @@ func (g *Graph) requireBearer(next handler) http.HandlerFunc {
 			httpx.WriteGraphError(w, http.StatusUnauthorized, "InvalidAuthenticationToken", msg)
 			return
 		}
+		// Permission gate (GRAPH_PERMISSIONS): scp for delegated, roles for
+		// app-only, exactly as real Entra gates each operation.
+		if denied := g.permissionDenied(r, tok); denied != "" {
+			httpx.WriteGraphError(w, http.StatusForbidden, "Authorization_RequestDenied", denied)
+			return
+		}
 		next(w, r, tok)
 	}
 }

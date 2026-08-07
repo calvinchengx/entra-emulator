@@ -52,11 +52,15 @@ type Config struct {
 	TLSCertDir      string
 	RequirePassword bool
 	RequireConsent  bool
-	SeedOnStart     bool
-	Lifetimes       TokenLifetimes
-	DeviceInterval  int
-	GraphResourceID string
-	LogLevel        string
+	// GraphPermissions gates Graph operations on the caller's scp/roles the way
+	// real Entra does. Off by default: the emulator has always accepted any
+	// valid Graph-audience token, so enabling it is opt-in.
+	GraphPermissions bool
+	SeedOnStart      bool
+	Lifetimes        TokenLifetimes
+	DeviceInterval   int
+	GraphResourceID  string
+	LogLevel         string
 
 	// Managed-identity emulation (App Service protocol; roadmap #3).
 	ManagedIdentitySecret   string // matched against the X-IDENTITY-HEADER
@@ -65,26 +69,27 @@ type Config struct {
 
 // fileConfig mirrors the JSON config file shape.
 type fileConfig struct {
-	Host            *string         `json:"host"`
-	Port            *int            `json:"port"`
-	TenantID        *string         `json:"tenantId"`
-	OriginMode      *string         `json:"originMode"`
-	BaseDomain      *string         `json:"baseDomain"`
-	LocalDomains    *string         `json:"localDomains"`
-	PublicOrigin    *string         `json:"publicOrigin"`
-	LoginOrigin     *string         `json:"loginOrigin"`
-	PortalOrigin    *string         `json:"portalOrigin"`
-	GraphOrigin     *string         `json:"graphOrigin"`
-	Issuer          *string         `json:"issuer"`
-	DBPath          *string         `json:"dbPath"`
-	RequirePassword *bool           `json:"requirePassword"`
-	RequireConsent  *bool           `json:"requireConsent"`
-	SeedOnStart     *bool           `json:"seedOnStart"`
-	DeviceInterval  *int            `json:"deviceCodeInterval"`
-	GraphResourceID *string         `json:"graphResourceId"`
-	LogLevel        *string         `json:"logLevel"`
-	TLS             *fileTLS        `json:"tls"`
-	TokenLifetimes  *fileTLifetimes `json:"tokenLifetimes"`
+	Host             *string         `json:"host"`
+	Port             *int            `json:"port"`
+	TenantID         *string         `json:"tenantId"`
+	OriginMode       *string         `json:"originMode"`
+	BaseDomain       *string         `json:"baseDomain"`
+	LocalDomains     *string         `json:"localDomains"`
+	PublicOrigin     *string         `json:"publicOrigin"`
+	LoginOrigin      *string         `json:"loginOrigin"`
+	PortalOrigin     *string         `json:"portalOrigin"`
+	GraphOrigin      *string         `json:"graphOrigin"`
+	Issuer           *string         `json:"issuer"`
+	DBPath           *string         `json:"dbPath"`
+	RequirePassword  *bool           `json:"requirePassword"`
+	RequireConsent   *bool           `json:"requireConsent"`
+	GraphPermissions *bool           `json:"graphPermissions"`
+	SeedOnStart      *bool           `json:"seedOnStart"`
+	DeviceInterval   *int            `json:"deviceCodeInterval"`
+	GraphResourceID  *string         `json:"graphResourceId"`
+	LogLevel         *string         `json:"logLevel"`
+	TLS              *fileTLS        `json:"tls"`
+	TokenLifetimes   *fileTLifetimes `json:"tokenLifetimes"`
 
 	ManagedIdentitySecret   *string `json:"managedIdentitySecret"`
 	ManagedIdentityClientID *string `json:"managedIdentityClientId"`
@@ -137,6 +142,7 @@ func Load(getenv func(string) string) (*Config, error) {
 	c.TLSEnabled = resolveBool(getenv("TLS_ENABLED"), boolFrom(file.TLS, func(t *fileTLS) *bool { return t.Enabled }), true, "TLS_ENABLED", fail)
 	c.RequirePassword = resolveBool(getenv("REQUIRE_PASSWORD"), file.RequirePassword, false, "REQUIRE_PASSWORD", fail)
 	c.RequireConsent = resolveBool(getenv("REQUIRE_CONSENT"), file.RequireConsent, false, "REQUIRE_CONSENT", fail)
+	c.GraphPermissions = resolveBool(getenv("GRAPH_PERMISSIONS"), file.GraphPermissions, false, "GRAPH_PERMISSIONS", fail)
 	c.SeedOnStart = resolveBool(getenv("SEED_ON_START"), file.SeedOnStart, true, "SEED_ON_START", fail)
 
 	if file.TLS != nil {
