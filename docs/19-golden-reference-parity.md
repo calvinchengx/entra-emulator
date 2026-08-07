@@ -8,6 +8,14 @@ and the parity tests in
 boot the emulator in-process and assert its live responses conform. They run in
 the normal `go test ./...` job, so **drift fails CI**.
 
+:::note[Scope]
+This page covers the **mechanical contract checks** only. For the full
+feature-by-feature comparison with real Entra — what's genuinely *real* versus
+API-shape-only, and what's deliberately absent — see the canonical
+[feature parity table](parity.md), which names these tests as witnesses for its
+discovery, Graph, and SCIM claims.
+:::
+
 ## The three references
 
 | Reference | Surface | Source of truth |
