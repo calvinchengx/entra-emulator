@@ -16,7 +16,12 @@
     "scopes_supported",
     "id_token_signing_alg_values_supported",
     "token_endpoint_auth_methods_supported",
-    "claims_supported"
+    "claims_supported",
+    "tenant_region_scope",
+    "cloud_instance_name",
+    "cloud_graph_host_name",
+    "msgraph_host",
+    "rbac_url"
   ],
   "protocol_values": {
     "subject_types_supported_equals": ["pairwise"],
@@ -60,11 +65,6 @@
     "frontchannel_logout_supported",
     "kerberos_endpoint",
     "mtls_endpoint_aliases",
-    "tls_client_certificate_bound_access_tokens",
-    "tenant_region_scope",
-    "cloud_instance_name",
-    "cloud_graph_host_name",
-    "msgraph_host",
-    "rbac_url"
+    "tls_client_certificate_bound_access_tokens"
   ]
 }
