@@ -92,6 +92,11 @@ func graphRequirement(method, res string) perms {
 			return appWrite
 		}
 		return appRead
+	case "invitations":
+		return perms{
+			delegated: []string{"User.Invite.All", "User.ReadWrite.All", "Directory.ReadWrite.All"},
+			app:       []string{"User.Invite.All", "User.ReadWrite.All", "Directory.ReadWrite.All"},
+		}
 	case "roleManagement":
 		if write {
 			return roleWrite

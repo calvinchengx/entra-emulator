@@ -35,6 +35,8 @@ type User struct {
 	Mail              string
 	PasswordHash      string
 	AccountEnabled    bool
+	UserType          string // Member | Guest (B2B)
+	ExternalUserState string // guests: PendingAcceptance | Accepted
 	CreatedAt         int64
 	UpdatedAt         int64 // last mutation; drives incremental SCIM sync
 }

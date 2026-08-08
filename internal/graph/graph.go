@@ -43,6 +43,7 @@ func (g *Graph) Register(mux *http.ServeMux, prefix string) {
 	g.registerRoles(mux, prefix)
 	g.registerCustomRoles(mux, prefix)
 	g.registerAdminUnits(mux, prefix)
+	g.registerInvitations(mux, prefix)
 	g.registerAuthMethods(mux, prefix)
 }
 
@@ -132,6 +133,9 @@ func userShape(u *store.User) map[string]any {
 		"givenName":         nullable(u.GivenName),
 		"surname":           nullable(u.Surname),
 		"accountEnabled":    u.AccountEnabled,
+		"userType":          u.UserType,
+		// null for members, as in real Graph; set for invited guests.
+		"externalUserState": nullable(u.ExternalUserState),
 	}
 }
 

@@ -1,5 +1,5 @@
 {
-  "_comment": "Golden reference for Microsoft Graph v1.0 resource shapes. Every property below is a canonical microsoft.graph property (verified against msgraph-metadata openapi/v1.0). The parity test asserts the emulator emits EXACTLY these property sets per resource — additions/renames/removals fail until the golden is reconciled.",
+  "_comment": "Golden reference for Microsoft Graph v1.0 resource shapes. Every property below is a canonical microsoft.graph property (verified against msgraph-metadata openapi/v1.0). The parity test asserts the emulator emits EXACTLY these property sets per resource \u2014 additions/renames/removals fail until the golden is reconciled.",
   "source": "microsoftgraph/msgraph-metadata openapi/v1.0/openapi.yaml",
   "captured": "2026-07-13",
   "resources": {
@@ -11,7 +11,9 @@
         "mail",
         "givenName",
         "surname",
-        "accountEnabled"
+        "accountEnabled",
+        "userType",
+        "externalUserState"
       ]
     },
     "group": {

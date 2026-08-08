@@ -308,5 +308,13 @@
     "witnesses": [
       "go:TestAdministrativeUnits"
     ]
+  },
+  "b2b-guest-invitations": {
+    "section": "Sign-in experience",
+    "claim": "B2B guest invitations",
+    "witnesses": [
+      "go:TestB2BGuestInvitations",
+      "go:TestGoldenParityGraph"
+    ]
   }
 }

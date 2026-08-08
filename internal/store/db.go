@@ -45,6 +45,8 @@ CREATE TABLE IF NOT EXISTS users (
   mail                TEXT,
   password_hash       TEXT,
   account_enabled     INTEGER NOT NULL DEFAULT 1,
+  user_type           TEXT NOT NULL DEFAULT 'Member',   -- Member | Guest
+  external_user_state TEXT,                             -- guests: PendingAcceptance | Accepted
   created_at          INTEGER NOT NULL,
   updated_at          INTEGER
 );
@@ -317,6 +319,8 @@ func (s *Store) migrate() error {
 		`ALTER TABLE sessions ADD COLUMN auth_method TEXT NOT NULL DEFAULT 'pwd'`,
 		`ALTER TABLE tenants ADD COLUMN initial_domain TEXT`,
 		`ALTER TABLE users ADD COLUMN updated_at INTEGER`,
+		`ALTER TABLE users ADD COLUMN user_type TEXT NOT NULL DEFAULT 'Member'`,
+		`ALTER TABLE users ADD COLUMN external_user_state TEXT`,
 	} {
 		if _, err := s.db.Exec(alter); err != nil &&
 			!strings.Contains(err.Error(), "duplicate column name") {
