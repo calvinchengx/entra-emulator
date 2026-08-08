@@ -28,11 +28,17 @@
 # Versions are overridable so consumers can pin a known-good release:
 #   ENTRA_EMULATOR_VERSION=0.2.2 docker compose -f docker-compose.family.yml up -d
 #
-# STATE IS IN-MEMORY HERE. Every image bakes <PREFIX>_DATA_DIR=/data for
-# callers who mount a volume; this file mounts none, so each is reset to ""
-# or SQLite fails to open its file and the container exits before serving.
-# To persist, drop the override and add a volume, e.g.:
+# NO STATE SURVIVES HERE. Nothing mounts a volume, so nothing outlives
+# `docker compose down`. Every image bakes <PREFIX>_DATA_DIR=/data for callers
+# who DO mount one; the services below pin it back to "" so they run fully
+# in-memory instead of accumulating a SQLite file in a container layer that is
+# about to be thrown away. (entra is the exception: it keeps its baked DB_PATH
+# and writes to that throwaway layer.) To persist, drop the override and add a
+# volume, e.g.:
 #   volumes: ["kv-data:/data"]   (plus a top-level `volumes: kv-data:`)
+# NOTE: keyvault's image cannot yet do this — its /data is root-owned while the
+# binary runs as uid 65532, so a mounted volume fails with "unable to open
+# database file" until that image chowns /data as arm's and fabric's do.
 
 x-entra-tenant: &tenant "11111111-1111-1111-1111-111111111111"
 
@@ -85,11 +91,7 @@ services:
       ARM_ENTRA_JWKS_URL: "https://entra-emulator:8443/11111111-1111-1111-1111-111111111111/discovery/v2.0/keys"
       ARM_ENTRA_TLS_INSECURE: "true"
       ARM_TENANT_ID: *tenant
-      # Explicit even though arm-emulator currently defaults DataDir to empty:
-      # its Dockerfile bakes KV_DATA_DIR (a copy-paste of keyvault's) rather
-      # than ARM_DATA_DIR, so the bake is inert today. Setting it here keeps
-      # this file correct if that is ever fixed to bake ARM_DATA_DIR=/data.
-      ARM_DATA_DIR: ""
+      ARM_DATA_DIR: "" # see STATE note above
     healthcheck:
       test: ["CMD", "/usr/local/bin/arm-emulator", "healthcheck"]
       interval: 10s
