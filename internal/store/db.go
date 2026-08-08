@@ -165,6 +165,18 @@ CREATE TABLE IF NOT EXISTS device_codes (
   expires_at  INTEGER NOT NULL,
   created_at  INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS app_federated_credentials (
+  id           TEXT PRIMARY KEY,
+  app_id       TEXT NOT NULL REFERENCES app_registrations(app_id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  issuer       TEXT NOT NULL,             -- external OIDC issuer (iss)
+  subject      TEXT NOT NULL,             -- external workload identity (sub)
+  audiences    TEXT NOT NULL,             -- comma-separated accepted aud values
+  description  TEXT,
+  created_at   INTEGER NOT NULL,
+  UNIQUE (app_id, name)
+);
+
 CREATE TABLE IF NOT EXISTS app_key_credentials (
   id           TEXT PRIMARY KEY,
   app_id       TEXT NOT NULL REFERENCES app_registrations(app_id) ON DELETE CASCADE,

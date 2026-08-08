@@ -84,6 +84,7 @@ func (a *Admin) Register(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /admin/api/apps/{id}/redirectUris/{uriId}", a.deleteRedirectURI)
 	mux.HandleFunc("POST /admin/api/apps/{id}/secrets", a.addSecret)
 	mux.HandleFunc("DELETE /admin/api/apps/{id}/secrets/{secretId}", a.deleteSecret)
+	a.registerFederatedCredentials(mux)
 	mux.HandleFunc("POST /admin/api/apps/{id}/scopes", a.addScope)
 	mux.HandleFunc("PATCH /admin/api/apps/{id}/scopes/{scopeId}", a.patchScope)
 	mux.HandleFunc("DELETE /admin/api/apps/{id}/scopes/{scopeId}", a.deleteScope)

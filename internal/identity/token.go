@@ -100,6 +100,22 @@ func (i *Identity) authenticateClient(r *http.Request) (*store.App, *httpx.OAuth
 			return nil, &httpx.OAuthError{Error: "invalid_request",
 				ErrorDescription: "AADSTS900144: unsupported client_assertion_type."}
 		}
+		// Two things arrive on this parameter. A self-issued assertion
+		// (iss == sub == client_id) is private_key_jwt, verified against the
+		// app's own registered keys. Anything else is an EXTERNAL workload's
+		// token — workload identity federation — verified against a registered
+		// federated credential and that issuer's published JWKS.
+		claims, decErr := tokens.DecodeUnverified(assertion)
+		if decErr != nil {
+			return nil, &httpx.OAuthError{Error: "invalid_client",
+				ErrorDescription: "AADSTS700027: Client assertion is malformed."}
+		}
+		if isFederatedAssertion(claims, app.ID) {
+			if authErr := i.verifyFederatedAssertion(app, assertion, claims); authErr != nil {
+				return nil, authErr
+			}
+			return app, nil
+		}
 		if authErr := i.verifyClientAssertion(app.ID, assertion); authErr != nil {
 			return nil, authErr
 		}

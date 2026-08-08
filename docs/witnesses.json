@@ -286,5 +286,12 @@
       "go:TestLogoutWithSession",
       "go:TestLogoutAdvertisement"
     ]
+  },
+  "workload-identity-federation-federatedidentitycredential": {
+    "section": "Workload & platform identity",
+    "claim": "**Workload identity federation** (`federatedIdentityCredential`)",
+    "witnesses": [
+      "go:TestWorkloadIdentityFederation"
+    ]
   }
 }

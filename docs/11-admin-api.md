@@ -103,10 +103,31 @@ sub-collections use:
 | POST / DELETE | `.../secrets[/{id}]` | **show-once** below |
 | POST / PATCH / DELETE | `.../scopes[/{id}]` | duplicate value → 409 |
 | POST / PATCH / DELETE | `.../roles[/{id}]` | duplicate value → 409 |
+| GET / POST / DELETE | `.../federated-credentials[/{id}]` | workload identity federation, below |
 
 **Secret show-once:** `POST .../secrets {displayName?, expiresInDays?}` → 201
 `{ id, displayName, hint, secretText, expiresAt, createdAt }`. `secretText` (high-entropy
 generated plaintext) appears **only here**; only scrypt hash + hint persist.
+
+**Federated identity credentials (workload identity federation):**
+`POST .../federated-credentials {name, issuer, subject, audiences?, description?}` → 201.
+Registers a trust so an **external** workload authenticates with **no secret**: it presents
+its own OIDC token from `issuer` as the `client_assertion` at the token endpoint, and the
+emulator verifies that signature against keys fetched from that issuer's published JWKS
+before minting an app-only token. `audiences` defaults to `api://AzureADTokenExchange`.
+
+```bash
+# Trust a CI job's identity, then let it exchange its own token for an Entra one.
+curl -sk -X POST https://localhost:8443/admin/api/apps/$APP/federated-credentials \
+  -H 'Content-Type: application/json' -d '{
+    "name":    "github-main",
+    "issuer":  "https://token.actions.githubusercontent.com",
+    "subject": "repo:acme/widgets:ref:refs/heads/main"
+  }'
+```
+
+A mismatched subject or audience, an expired assertion, a signature the issuer's keys do
+not verify, or a deleted credential each fail with `invalid_client` (AADSTS700213).
 
 Token configuration (optional claims / group claims) is managed via app PATCH fields
 `optionalClaims`, `groupMembershipClaims`, `groupOverageLimit` (see 04).
