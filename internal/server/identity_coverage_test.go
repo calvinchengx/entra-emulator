@@ -92,7 +92,7 @@ func TestFabricTokenErrors(t *testing.T) {
 	}
 
 	// Unknown identity → not 200.
-	if fabTok("00000000-0000-0000-0000-0000000000ff") == 200 {
+	if fabTok("f73eb7b3-0790-40a3-b964-db34fd88e1c4") == 200 {
 		t.Fatal("unknown workspace identity should not mint a token")
 	}
 

@@ -8,10 +8,10 @@ import crypto from 'node:crypto';
 const ORIGIN = process.env.EMU_ORIGIN;
 const TENANT = process.env.EMU_TENANT;
 const AUTHORITY = `${ORIGIN}/${TENANT}`;
-const SPA_ID = 'cccccccc-0000-0000-0000-000000000001';
-const DAEMON_ID = 'cccccccc-0000-0000-0000-000000000002';
+const SPA_ID = '189c7070-78a3-4c13-aa18-20a2ca5755ca';
+const DAEMON_ID = '00d88624-f0d7-46f6-a641-6232c2608928';
 const DAEMON_SECRET = 'daemon-app-secret';
-const ALICE_ID = 'aaaaaaaa-0000-0000-0000-000000000001';
+const ALICE_ID = 'df8ec5dd-1599-45ef-908b-4ae020cd1dbe';
 const REDIRECT = 'https://localhost:3000';
 
 const ca = readFileSync(process.env.EMU_CERT);

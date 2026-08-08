@@ -8,8 +8,8 @@
 import * as msal from '@azure/msal-node';
 
 const ORIGIN = process.env.EMU_ORIGIN ?? 'https://localhost:8443';
-const TENANT = process.env.EMU_TENANT ?? '11111111-1111-1111-1111-111111111111';
-const CLIENT_ID = process.env.EMU_CLIENT_ID ?? 'cccccccc-0000-0000-0000-000000000002';
+const TENANT = process.env.EMU_TENANT ?? '6f89cf12-978b-4d23-ac18-9ef0c127cf87';
+const CLIENT_ID = process.env.EMU_CLIENT_ID ?? '00d88624-f0d7-46f6-a641-6232c2608928';
 const CLIENT_SECRET = process.env.EMU_CLIENT_SECRET ?? 'daemon-app-secret';
 
 const authority = `${ORIGIN}/${TENANT}`;

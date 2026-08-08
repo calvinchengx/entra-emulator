@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	testTenantID = "11111111-1111-1111-1111-111111111111"
-	testIssuer   = "https://issuer/11111111-1111-1111-1111-111111111111/v2.0"
+	testTenantID = "6f89cf12-978b-4d23-ac18-9ef0c127cf87"
+	testIssuer   = "https://issuer/6f89cf12-978b-4d23-ac18-9ef0c127cf87/v2.0"
 )
 
 // newTestStore opens a fresh store with the test tenant ensured.
@@ -156,7 +156,7 @@ func TestTenantLifecycle(t *testing.T) {
 	}
 
 	// CreateTenant success + duplicate conflict.
-	t2 := &Tenant{ID: "22222222-2222-2222-2222-222222222222", DisplayName: "Two",
+	t2 := &Tenant{ID: "e3e29cf2-136c-4e1d-90a0-bcc014db0edc", DisplayName: "Two",
 		Issuer: "https://issuer/two", InitialDomain: "two.onmicrosoft.com", CreatedAt: st.Now() + 1}
 	if err := st.CreateTenant(t2); err != nil {
 		t.Fatalf("CreateTenant: %v", err)

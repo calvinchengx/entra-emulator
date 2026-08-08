@@ -30,5 +30,5 @@ func TestWebAuthnErrorPaths(t *testing.T) {
 
 	// Unknown tenant on any ceremony endpoint → 404.
 	expect(t, "unknown tenant", postRaw(t, "POST",
-		hts.URL+"/22222222-2222-2222-2222-222222222222/webauthn/register/begin", `{"upn":"x"}`), 404)
+		hts.URL+"/e3e29cf2-136c-4e1d-90a0-bcc014db0edc/webauthn/register/begin", `{"upn":"x"}`), 404)
 }

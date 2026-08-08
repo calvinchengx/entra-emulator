@@ -52,7 +52,7 @@ func TestAdminExtras(t *testing.T) {
 
 	// createWorkspaceIdentity with an explicit workspace name/id.
 	if code, wi := postJSON(t, base+"/workspace-identities", map[string]any{
-		"workspaceName": "Named WS", "workspaceId": "00000000-0000-0000-0000-00000000ab01",
+		"workspaceName": "Named WS", "workspaceId": "dfd6e98c-db5d-4d0b-a685-0b5222352c95",
 	}); code != 201 || wi["workspaceName"] != "Named WS" {
 		t.Fatalf("create WI explicit: %d %v", code, wi)
 	}

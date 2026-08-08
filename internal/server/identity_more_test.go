@@ -117,7 +117,7 @@ func TestDeviceAuthErrors(t *testing.T) {
 	}
 	// Unknown client_id → error.
 	if resp, body := postForm(t, http.DefaultClient, dc, url.Values{
-		"client_id": {"00000000-0000-0000-0000-0000000000ff"}, "scope": {"openid"},
+		"client_id": {"f73eb7b3-0790-40a3-b964-db34fd88e1c4"}, "scope": {"openid"},
 	}); resp.StatusCode == 200 || body["error"] == nil {
 		t.Fatalf("device auth unknown client: want error, got %d %v", resp.StatusCode, body)
 	}

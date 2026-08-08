@@ -42,7 +42,7 @@ Sanity check:
 
 ```sh
 curl --cacert ./data/tls/cert.pem \
-  https://localhost:8443/11111111-1111-1111-1111-111111111111/v2.0/.well-known/openid-configuration
+  https://localhost:8443/6f89cf12-978b-4d23-ac18-9ef0c127cf87/v2.0/.well-known/openid-configuration
 ```
 
 ## 2. Your first token (one command)
@@ -52,9 +52,9 @@ token with client credentials:
 
 ```sh
 curl --cacert ./data/tls/cert.pem \
-  https://localhost:8443/11111111-1111-1111-1111-111111111111/oauth2/v2.0/token \
+  https://localhost:8443/6f89cf12-978b-4d23-ac18-9ef0c127cf87/oauth2/v2.0/token \
   -d grant_type=client_credentials \
-  -d client_id=cccccccc-0000-0000-0000-000000000002 \
+  -d client_id=00d88624-f0d7-46f6-a641-6232c2608928 \
   -d client_secret=daemon-app-secret \
   -d 'scope=https://graph.microsoft.com/.default'
 ```
@@ -71,7 +71,7 @@ non-Microsoft hosts, mark it known and skip instance discovery).
 
 :::caution[Two knobs every SDK needs]
 1. **Authority** = `{origin}/{tenantId}` — here
-   `https://localhost:8443/11111111-1111-1111-1111-111111111111`.
+   `https://localhost:8443/6f89cf12-978b-4d23-ac18-9ef0c127cf87`.
 2. **Trust the host** (skip instance discovery): `knownAuthorities` (MSAL.js/Node),
    `instance_discovery=False` (MSAL Python), `.WithInstanceDiscovery(false)`
    (MSAL Go / .NET), `.instanceDiscovery(false)` (MSAL4J), or a cloud-config
@@ -87,9 +87,9 @@ import * as msal from '@azure/msal-node';
 
 const cca = new msal.ConfidentialClientApplication({
   auth: {
-    clientId: 'cccccccc-0000-0000-0000-000000000002',
+    clientId: '00d88624-f0d7-46f6-a641-6232c2608928',
     clientSecret: 'daemon-app-secret',
-    authority: 'https://localhost:8443/11111111-1111-1111-1111-111111111111',
+    authority: 'https://localhost:8443/6f89cf12-978b-4d23-ac18-9ef0c127cf87',
     knownAuthorities: ['localhost:8443'],
   },
 });
@@ -106,9 +106,9 @@ console.log(res.accessToken);
 import msal
 
 app = msal.ConfidentialClientApplication(
-    "cccccccc-0000-0000-0000-000000000002",       # client id
+    "00d88624-f0d7-46f6-a641-6232c2608928",       # client id
     client_credential="daemon-app-secret",
-    authority="https://localhost:8443/11111111-1111-1111-1111-111111111111",
+    authority="https://localhost:8443/6f89cf12-978b-4d23-ac18-9ef0c127cf87",
     instance_discovery=False,                     # don't probe the real AAD metadata
     verify="./data/tls/cert.pem",                 # trust the emulator cert
 )
@@ -123,8 +123,8 @@ print(result["access_token"])   # or result["error_description"] on failure
 ```go
 cred, _ := confidential.NewCredFromSecret("daemon-app-secret")
 client, _ := confidential.New(
-    "https://localhost:8443/11111111-1111-1111-1111-111111111111",
-    "cccccccc-0000-0000-0000-000000000002", cred,
+    "https://localhost:8443/6f89cf12-978b-4d23-ac18-9ef0c127cf87",
+    "00d88624-f0d7-46f6-a641-6232c2608928", cred,
     confidential.WithInstanceDiscovery(false), // don't call the real AAD metadata endpoint
     // confidential.WithHTTPClient(certTrustingClient), // or trust the cert system-wide
 )
@@ -137,8 +137,8 @@ fmt.Println(res.AccessToken)
 
 ```go
 cred, _ := azidentity.NewClientSecretCredential(
-    "11111111-1111-1111-1111-111111111111",           // tenant
-    "cccccccc-0000-0000-0000-000000000002",           // client id
+    "6f89cf12-978b-4d23-ac18-9ef0c127cf87",           // tenant
+    "00d88624-f0d7-46f6-a641-6232c2608928",           // client id
     "daemon-app-secret",
     &azidentity.ClientSecretCredentialOptions{
         ClientOptions: azcore.ClientOptions{
@@ -153,9 +153,9 @@ tok, _ := cred.GetToken(ctx, policy.TokenRequestOptions{
 
 ```csharp
 var app = ConfidentialClientApplicationBuilder
-    .Create("cccccccc-0000-0000-0000-000000000002")          // client id
+    .Create("00d88624-f0d7-46f6-a641-6232c2608928")          // client id
     .WithClientSecret("daemon-app-secret")
-    .WithAuthority(new Uri("https://localhost:8443/11111111-1111-1111-1111-111111111111"),
+    .WithAuthority(new Uri("https://localhost:8443/6f89cf12-978b-4d23-ac18-9ef0c127cf87"),
                    validateAuthority: false)
     .WithInstanceDiscovery(false)                             // don't probe AAD metadata
     // Dev-only: trust the emulator's self-signed cert.
@@ -170,9 +170,9 @@ var result = await app.AcquireTokenForClient(
 
 ```java
 var app = ConfidentialClientApplication.builder(
-        "cccccccc-0000-0000-0000-000000000002",              // client id
+        "00d88624-f0d7-46f6-a641-6232c2608928",              // client id
         ClientCredentialFactory.createFromSecret("daemon-app-secret"))
-    .authority("https://localhost:8443/11111111-1111-1111-1111-111111111111/")
+    .authority("https://localhost:8443/6f89cf12-978b-4d23-ac18-9ef0c127cf87/")
     .validateAuthority(false)
     .instanceDiscovery(false)                                // don't probe AAD metadata
     .build();                                                // trust the cert via the JVM trust store
@@ -230,9 +230,9 @@ exported, so tests need no hard-coded fixtures.
 
 | Thing | Value |
 |---|---|
-| Tenant | `11111111-1111-1111-1111-111111111111` |
-| SPA (public, PKCE) | `cccccccc-0000-0000-0000-000000000001`, redirect `https://localhost:3000` |
-| Daemon (confidential) | `cccccccc-0000-0000-0000-000000000002`, secret `daemon-app-secret` |
+| Tenant | `6f89cf12-978b-4d23-ac18-9ef0c127cf87` |
+| SPA (public, PKCE) | `189c7070-78a3-4c13-aa18-20a2ca5755ca`, redirect `https://localhost:3000` |
+| Daemon (confidential) | `00d88624-f0d7-46f6-a641-6232c2608928`, secret `daemon-app-secret` |
 | User: Alice | `alice@entraemulator.dev` / `Password1!` |
 | User: Bob | `bob@entraemulator.dev` / `Password1!` |
 | Group | `Engineering` (Alice + Bob) |
@@ -243,7 +243,7 @@ Full details, plus how to add your own, are in
 ## User sign-in (interactive)
 
 To exercise a **user** flow (authorization code + PKCE, device code, ROPC,
-passkeys), use the seeded SPA (`cccccccc-0000-0000-0000-000000000001`) as a
+passkeys), use the seeded SPA (`189c7070-78a3-4c13-aa18-20a2ca5755ca`) as a
 public client and sign in as Alice at the emulator's sign-in page. The exact
 request/response shapes are in [OIDC endpoints](08-oidc-endpoints.md).
 
@@ -263,7 +263,7 @@ at the emulator's endpoints — it's just OIDC authorization code + PKCE:
 ```dart
 final result = await const FlutterAppAuth().authorizeAndExchangeCode(
   AuthorizationTokenRequest(
-    'cccccccc-0000-0000-0000-000000000001',      // seeded SPA client id
+    '189c7070-78a3-4c13-aa18-20a2ca5755ca',      // seeded SPA client id
     'com.example.app://auth',                     // your registered redirect
     serviceConfiguration: AuthorizationServiceConfiguration(
       authorizationEndpoint: '$authority/oauth2/v2.0/authorize',

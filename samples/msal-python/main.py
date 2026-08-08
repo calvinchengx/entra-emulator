@@ -16,8 +16,8 @@ import urllib.request
 import msal
 
 ORIGIN = os.environ.get("EMU_ORIGIN", "https://localhost:8443")
-TENANT = os.environ.get("EMU_TENANT", "11111111-1111-1111-1111-111111111111")
-CLIENT_ID = os.environ.get("EMU_CLIENT_ID", "cccccccc-0000-0000-0000-000000000002")
+TENANT = os.environ.get("EMU_TENANT", "6f89cf12-978b-4d23-ac18-9ef0c127cf87")
+CLIENT_ID = os.environ.get("EMU_CLIENT_ID", "00d88624-f0d7-46f6-a641-6232c2608928")
 CLIENT_SECRET = os.environ.get("EMU_CLIENT_SECRET", "daemon-app-secret")
 # Path to the emulator's self-signed cert (entra-emulator cert-path).
 CERT = os.environ.get("EMU_CERT", "../../data/tls/cert.pem")

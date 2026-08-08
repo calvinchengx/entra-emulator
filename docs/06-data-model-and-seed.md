@@ -58,12 +58,35 @@ One struct per entity in `internal/store`, methods taking `*sql.Tx`-or-DB via a 
 
 | Entity | GUID | Values |
 |---|---|---|
-| Tenant | `11111111-1111-1111-1111-111111111111` | `Entra Emulator` (display), issuer derived |
-| User Alice | `aaaaaaaa-0000-0000-0000-000000000001` | `alice@entraemulator.dev`, "Alice Example", mail set, password `Password1!` (scrypt) |
-| User Bob | `aaaaaaaa-0000-0000-0000-000000000002` | `bob@entraemulator.dev`, password `Password1!` |
-| Group | `bbbbbbbb-0000-0000-0000-000000000001` | `Engineering`; members Alice + Bob |
-| App: Sample SPA | `cccccccc-0000-0000-0000-000000000001` | public (`is_confidential=0`), redirect `https://localhost:3000`, `app_id_uri=api://cccccccc-…-0001`, scope `access_as_user` |
-| App: Sample Daemon | `cccccccc-0000-0000-0000-000000000002` | confidential, secret `daemon-app-secret` (hashed, hint stored), `app_id_uri=api://cccccccc-…-0002`, app role `Tasks.Read.All` (Application) |
+| Tenant | `6f89cf12-978b-4d23-ac18-9ef0c127cf87` | `Entra Emulator` (display), issuer derived |
+| User Alice | `df8ec5dd-1599-45ef-908b-4ae020cd1dbe` | `alice@entraemulator.dev`, "Alice Example", mail set, password `Password1!` (scrypt) |
+| User Bob | `0d4ba1f9-cab1-4200-b516-d4cb8b340930` | `bob@entraemulator.dev`, password `Password1!` |
+| Group | `54a9d08c-889d-489e-b534-336fe19dbfce` | `Engineering`; members Alice + Bob |
+| App: Sample SPA | `189c7070-78a3-4c13-aa18-20a2ca5755ca` | public (`is_confidential=0`), redirect `https://localhost:3000`, `app_id_uri=api://<the GUID at left>`, scope `access_as_user` |
+| App: Sample Daemon | `00d88624-f0d7-46f6-a641-6232c2608928` | confidential, secret `daemon-app-secret` (hashed, hint stored), `app_id_uri=api://<the GUID at left>`, app role `Tasks.Read.All` (Application) |
 
 The signing key is **generated**, not seeded (real RSA material, persisted for a stable
 `kid`); tests may insert a fixed key for byte-reproducible output.
+
+### Seed GUIDs changed in v0.4.0 (breaking)
+
+These IDs were previously patterned placeholders (`aaaaaaaa-…`, `cccccccc-…`). They are
+still **fixed and deterministic** — only the values changed. Real Entra never issues
+GUIDs with repeating nibbles, and a uniform GUID is a weak test oracle: it survives
+segment transposition and most mis-slicing, so a parsing bug can pass unnoticed.
+
+| Entity | Old | New |
+|---|---|---|
+| Tenant | `11111111-1111-1111-1111-111111111111` | `6f89cf12-978b-4d23-ac18-9ef0c127cf87` |
+| User Alice | `aaaaaaaa-0000-0000-0000-000000000001` | `df8ec5dd-1599-45ef-908b-4ae020cd1dbe` |
+| User Bob | `aaaaaaaa-0000-0000-0000-000000000002` | `0d4ba1f9-cab1-4200-b516-d4cb8b340930` |
+| Group Engineering | `bbbbbbbb-0000-0000-0000-000000000001` | `54a9d08c-889d-489e-b534-336fe19dbfce` |
+| App: Sample SPA | `cccccccc-0000-0000-0000-000000000001` | `189c7070-78a3-4c13-aa18-20a2ca5755ca` |
+| App: Sample Daemon | `cccccccc-0000-0000-0000-000000000002` | `00d88624-f0d7-46f6-a641-6232c2608928` |
+
+The daemon app doubles as the default managed-identity client ID, so
+`ENTRA_MANAGED_IDENTITY_CLIENT_ID` moves with it. `arm-emulator` v0.2.0 adopts the same
+tenant and daemon IDs — the two must agree for its quickstart token exchange.
+
+Prefer the exported constants (`store.SeedUserAliceID`, `config.DefaultTenantID`) over
+literals; Go code that used them needed no change across this rename.

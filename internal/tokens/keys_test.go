@@ -21,7 +21,7 @@ import (
 func bigOne() *big.Int          { return big.NewInt(1) }
 func nameCN(cn string) pkix.Name { return pkix.Name{CommonName: cn} }
 
-const testTenant = "11111111-1111-1111-1111-111111111111"
+const testTenant = "6f89cf12-978b-4d23-ac18-9ef0c127cf87"
 
 func newStore(t *testing.T) *store.Store {
 	t.Helper()

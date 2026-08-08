@@ -160,7 +160,7 @@ func TestSCIMGroupOps(t *testing.T) {
 func TestSCIMErrorPaths(t *testing.T) {
 	hts, _, _ := newTestServer(t)
 	base := hts.URL + "/scim/v2"
-	missing := "00000000-0000-0000-0000-0000000000ff"
+	missing := "f73eb7b3-0790-40a3-b964-db34fd88e1c4"
 	patchOp := map[string]any{"Operations": []any{}}
 
 	code := func(method, u string, body any) int { c, _ := scimReq(t, method, u, body); return c }

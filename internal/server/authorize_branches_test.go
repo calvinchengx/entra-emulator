@@ -45,7 +45,7 @@ func TestSignInSubmitErrors(t *testing.T) {
 	state := authPickerState(t, client, authURL)
 
 	// Unknown user id → re-renders the picker with an error (200).
-	resp, err := client.PostForm(authorize, url.Values{"__ee_state": {state}, "__ee_user": {"00000000-0000-0000-0000-0000000000ff"}})
+	resp, err := client.PostForm(authorize, url.Values{"__ee_state": {state}, "__ee_user": {"f73eb7b3-0790-40a3-b964-db34fd88e1c4"}})
 	if err != nil {
 		t.Fatal(err)
 	}

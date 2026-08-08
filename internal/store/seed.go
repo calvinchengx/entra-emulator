@@ -5,11 +5,11 @@ import "database/sql"
 // Fixed seed identifiers — deterministic GUIDs so CI fixtures and
 // documentation stay stable (docs/06-data-model-and-seed.md).
 const (
-	SeedUserAliceID  = "aaaaaaaa-0000-0000-0000-000000000001"
-	SeedUserBobID    = "aaaaaaaa-0000-0000-0000-000000000002"
-	SeedGroupEngID   = "bbbbbbbb-0000-0000-0000-000000000001"
-	SeedAppSPAID     = "cccccccc-0000-0000-0000-000000000001"
-	SeedAppDaemonID  = "cccccccc-0000-0000-0000-000000000002"
+	SeedUserAliceID  = "df8ec5dd-1599-45ef-908b-4ae020cd1dbe"
+	SeedUserBobID    = "0d4ba1f9-cab1-4200-b516-d4cb8b340930"
+	SeedGroupEngID   = "54a9d08c-889d-489e-b534-336fe19dbfce"
+	SeedAppSPAID     = "189c7070-78a3-4c13-aa18-20a2ca5755ca"
+	SeedAppDaemonID  = "00d88624-f0d7-46f6-a641-6232c2608928"
 	SeedPassword     = "Password1!"        // intentionally public dev value
 	SeedDaemonSecret = "daemon-app-secret" // intentionally public dev value
 )
@@ -103,7 +103,7 @@ func (s *Store) Seed(tenantID, issuer string) (bool, error) {
 		}
 		if err := exec(`INSERT OR IGNORE INTO app_scopes (id, app_id, value, admin_consent_display_name, is_enabled)
 			VALUES (?,?,?,?,1)`,
-			"dddddddd-0000-0000-0000-000000000001", SeedAppSPAID, "access_as_user",
+			"a8f36f17-b5e6-4c4d-a387-47e75c4de4b4", SeedAppSPAID, "access_as_user",
 			"Access Sample SPA as the signed-in user"); err != nil {
 			return err
 		}
@@ -117,13 +117,13 @@ func (s *Store) Seed(tenantID, issuer string) (bool, error) {
 		}
 		if err := exec(`INSERT OR IGNORE INTO app_secrets (id, app_id, display_name, secret_hash, hint, created_at)
 			VALUES (?,?,?,?,?,?)`,
-			"eeeeeeee-0000-0000-0000-000000000001", SeedAppDaemonID, "Seeded dev secret",
+			"a9b8116b-018c-4b45-b64f-e93d4b9e4f24", SeedAppDaemonID, "Seeded dev secret",
 			daemonHash, secretHint(SeedDaemonSecret), now); err != nil {
 			return err
 		}
 		return exec(`INSERT OR IGNORE INTO app_roles (id, app_id, value, display_name, allowed_member_types, is_enabled)
 			VALUES (?,?,?,?,'Application',1)`,
-			"ffffffff-0000-0000-0000-000000000001", SeedAppDaemonID, "Tasks.Read.All", "Read all tasks")
+			"df36982d-c8b3-4239-a1fb-4d8d72b7de2e", SeedAppDaemonID, "Tasks.Read.All", "Read all tasks")
 	})
 	if err != nil {
 		return false, err

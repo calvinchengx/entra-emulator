@@ -41,7 +41,7 @@ refused with `AADSTS70011`.
 plane resolves membership from the token. entra-emulator emits the `groups`
 claim when an app's `groupMembershipClaims` asks for it, with Entra's overage
 behaviour when the list is too long. The seeded *Engineering* group
-(`bbbbbbbb-0000-0000-0000-000000000001`) has Alice and Bob in it, which is what
+(`54a9d08c-889d-489e-b534-336fe19dbfce`) has Alice and Bob in it, which is what
 the family's CI uses to prove a member reaches an assignment they are not
 named in.
 

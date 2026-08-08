@@ -6,7 +6,7 @@ using Microsoft.Identity.Client;
 string origin = Environment.GetEnvironmentVariable("EMU_ORIGIN")!;
 string tenant = Environment.GetEnvironmentVariable("EMU_TENANT")!;
 string authority = $"{origin}/{tenant}";
-const string DaemonId = "cccccccc-0000-0000-0000-000000000002";
+const string DaemonId = "00d88624-f0d7-46f6-a641-6232c2608928";
 const string DaemonSecret = "daemon-app-secret";
 
 int failures = 0;

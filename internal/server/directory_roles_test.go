@@ -87,7 +87,7 @@ func TestDirectoryRoleScopedAssignmentNoWids(t *testing.T) {
 
 	st, _ := graphSend(t, "POST", hts.URL, "/graph/v1.0/roleManagement/directory/roleAssignments", app, map[string]any{
 		"roleDefinitionId": globalAdminTemplateID, "principalId": aliceID,
-		"directoryScopeId": "/administrativeUnits/00000000-0000-0000-0000-0000000000aa",
+		"directoryScopeId": "/administrativeUnits/61b9f3d6-d326-4192-ac5a-8214c9209a50",
 	})
 	if st != 201 {
 		t.Fatalf("scoped assign: %d", st)

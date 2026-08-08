@@ -50,7 +50,7 @@ Or directly:
 go build ./cmd/entra-emulator
 ./entra-emulator
 # Health:    https://portal.entra.localhost:8443/health   (compat: https://localhost:8443/health)
-# Discovery: https://login.entra.localhost:8443/11111111-1111-1111-1111-111111111111/v2.0/.well-known/openid-configuration
+# Discovery: https://login.entra.localhost:8443/6f89cf12-978b-4d23-ac18-9ef0c127cf87/v2.0/.well-known/openid-configuration
 ```
 
 First run creates `./data/` with the SQLite store, a persisted self-signed wildcard TLS
@@ -142,8 +142,8 @@ borrowed oracles. Full detail: [parity map](docs/parity.md).
 ```jsonc
 {
   "auth": {
-    "clientId": "cccccccc-0000-0000-0000-000000000001",
-    "authority": "https://login.entra.localhost:8443/11111111-1111-1111-1111-111111111111",
+    "clientId": "189c7070-78a3-4c13-aa18-20a2ca5755ca",
+    "authority": "https://login.entra.localhost:8443/6f89cf12-978b-4d23-ac18-9ef0c127cf87",
     "knownAuthorities": ["login.entra.localhost:8443"],
     "redirectUri": "https://localhost:3000"
   }
@@ -157,10 +157,10 @@ Trust the self-signed cert (`./entra-emulator trust` prints the platform command
 
 | What | Value |
 |---|---|
-| Tenant | `11111111-1111-1111-1111-111111111111` |
+| Tenant | `6f89cf12-978b-4d23-ac18-9ef0c127cf87` |
 | Users | `alice@entraemulator.dev`, `bob@entraemulator.dev` (password `Password1!`), group `Engineering` |
-| Public SPA app | `cccccccc-…-0001`, redirect `https://localhost:3000`, scope `access_as_user` |
-| Confidential daemon | `cccccccc-…-0002`, secret `daemon-app-secret`, app role `Tasks.Read.All` |
+| Public SPA app | `189c7070-…-55ca`, redirect `https://localhost:3000`, scope `access_as_user` |
+| Confidential daemon | `00d88624-…-8928`, secret `daemon-app-secret`, app role `Tasks.Read.All` |
 
 ## Configuration
 

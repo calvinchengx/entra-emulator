@@ -21,8 +21,8 @@ import (
 )
 
 func main() {
-	jwksURL := env("EMULATOR_JWKS_URL", "http://localhost:8080/"+env("TENANT_ID", "11111111-1111-1111-1111-111111111111")+"/discovery/v2.0/keys")
-	issuer := env("EMULATOR_ISSUER", "http://localhost:8080/"+env("TENANT_ID", "11111111-1111-1111-1111-111111111111")+"/v2.0")
+	jwksURL := env("EMULATOR_JWKS_URL", "http://localhost:8080/"+env("TENANT_ID", "6f89cf12-978b-4d23-ac18-9ef0c127cf87")+"/discovery/v2.0/keys")
+	issuer := env("EMULATOR_ISSUER", "http://localhost:8080/"+env("TENANT_ID", "6f89cf12-978b-4d23-ac18-9ef0c127cf87")+"/v2.0")
 	audience := env("RESOURCE_AUDIENCE", "api://docs-api")
 	addr := env("LISTEN_ADDR", ":9090")
 

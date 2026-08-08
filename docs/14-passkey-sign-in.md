@@ -38,7 +38,7 @@ does the crypto, so the whole flow runs in a Go program or test:
 import vwa "github.com/descope/virtualwebauthn"
 
 origin := "https://localhost:8443" // compat mode
-tenant := "11111111-1111-1111-1111-111111111111"
+tenant := "6f89cf12-978b-4d23-ac18-9ef0c127cf87"
 base := origin + "/" + tenant + "/webauthn"
 
 jar, _ := cookiejar.New(nil) // carries the ee_webauthn ceremony cookie
@@ -60,7 +60,7 @@ authr.AddCredential(cred)
 opts = postJSON(client, base+"/assert/begin", map[string]string{"upn": "alice@entraemulator.dev"})
 asr, _ := vwa.ParseAssertionOptions(opts)
 out := postJSON(client, base+"/assert/finish", vwa.CreateAssertionResponse(rp, authr, cred, *asr))
-// out → {"amr":"fido","userId":"aaaaaaaa-0000-0000-0000-000000000001"}
+// out → {"amr":"fido","userId":"df8ec5dd-1599-45ef-908b-4ae020cd1dbe"}
 // client's jar now holds an ee_session cookie tagged fido.
 ```
 
@@ -77,7 +77,7 @@ the account picker (SSO) and issues a code whose ID token carries the passkey
 
 ```go
 authorize := origin + "/" + tenant + "/oauth2/v2.0/authorize?" + url.Values{
-    "client_id":             {"cccccccc-0000-0000-0000-000000000001"}, // seeded SPA
+    "client_id":             {"189c7070-78a3-4c13-aa18-20a2ca5755ca"}, // seeded SPA
     "response_type":         {"code"},
     "redirect_uri":          {"https://localhost:3000"},
     "scope":                 {"openid profile"},

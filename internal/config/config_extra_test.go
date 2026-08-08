@@ -214,7 +214,7 @@ func TestReadFileGenericError(t *testing.T) {
 func TestManagedIdentityOverrides(t *testing.T) {
 	cfg, err := Load(envFunc(map[string]string{
 		"MANAGED_IDENTITY_SECRET":    "custom-secret",
-		"MANAGED_IDENTITY_CLIENT_ID": "AAAAAAAA-0000-0000-0000-000000000009",
+		"MANAGED_IDENTITY_CLIENT_ID": "9E0EC08A-E3EC-4C19-A32D-3994C6E61CAA",
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -223,7 +223,7 @@ func TestManagedIdentityOverrides(t *testing.T) {
 		t.Fatalf("managed identity secret override: %q", cfg.ManagedIdentitySecret)
 	}
 	// Client id is lowercased.
-	if cfg.ManagedIdentityClientID != "aaaaaaaa-0000-0000-0000-000000000009" {
+	if cfg.ManagedIdentityClientID != "9e0ec08a-e3ec-4c19-a32d-3994c6e61caa" {
 		t.Fatalf("managed identity client id not lowercased: %q", cfg.ManagedIdentityClientID)
 	}
 }

@@ -13,12 +13,12 @@ import (
 )
 
 const (
-	DefaultTenantID   = "11111111-1111-1111-1111-111111111111"
+	DefaultTenantID   = "6f89cf12-978b-4d23-ac18-9ef0c127cf87"
 	DefaultBaseDomain = "entra.localhost"
 	DefaultConfigFile = "./entra-emulator.config.json"
 	// DefaultManagedIdentityClientID is the seeded daemon app — the default
 	// system-assigned managed identity (matches store.SeedAppDaemonID).
-	DefaultManagedIdentityClientID = "cccccccc-0000-0000-0000-000000000002"
+	DefaultManagedIdentityClientID = "00d88624-f0d7-46f6-a641-6232c2608928"
 )
 
 type TokenLifetimes struct {

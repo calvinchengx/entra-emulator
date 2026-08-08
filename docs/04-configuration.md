@@ -12,7 +12,7 @@ key(s)** — no partial boot.
 |---|---|---|---|---|
 | `HOST` | `host` | string | `localhost` | Bind host (bind-only; does not affect advertised origins). Docker uses `0.0.0.0`. |
 | `PORT` | `port` | int 1–65535 | `8443` | Listen port. |
-| `TENANT_ID` | `tenantId` | GUID | `11111111-1111-1111-1111-111111111111` | The single fixed tenant; also the allowlisted `{tenant}` path value. |
+| `TENANT_ID` | `tenantId` | GUID | `6f89cf12-978b-4d23-ac18-9ef0c127cf87` | The single fixed tenant; also the allowlisted `{tenant}` path value. |
 | `ORIGIN_MODE` | `originMode` | `subdomains` \| `compat` | `subdomains` | `subdomains` advertises `login./portal./graph.<baseDomain>`; `compat` collapses every advertised origin to `https://localhost:<port>`. |
 | `BASE_DOMAIN` | `baseDomain` | hostname | `entra.localhost` | Apex for the three subdomains and the wildcard cert. |
 | `LOCAL_DOMAINS` | `localDomains` | CSV → []string | empty | Extra apex domains; each adds cert SANs (apex + wildcard) and hosts-file entries. |

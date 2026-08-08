@@ -8,7 +8,7 @@ import (
 )
 
 func TestValidTenant(t *testing.T) {
-	tid := "11111111-1111-1111-1111-111111111111"
+	tid := "6f89cf12-978b-4d23-ac18-9ef0c127cf87"
 	cases := []struct {
 		segment string
 		want    bool

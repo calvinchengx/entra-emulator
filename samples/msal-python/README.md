@@ -18,7 +18,7 @@ python main.py
 Expected output:
 
 ```
-✓ token acquired — aud=https://graph.microsoft.com appid=cccccccc-… exp=…
+✓ token acquired — aud=https://graph.microsoft.com appid=00d88624-… exp=…
 ✓ GET /graph/v1.0/users → 2 users:
     - Alice Example <alice@entraemulator.dev>
     - Bob Example <bob@entraemulator.dev>
