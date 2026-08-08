@@ -72,6 +72,7 @@ func (i *Identity) grantOnBehalfOf(w http.ResponseWriter, r *http.Request) {
 
 	// Mint a new delegated token for the same user, now issued to the
 	// middle-tier (azp/appid = app), audience = the downstream resource.
+	noteAuditSubject(r, user.ID, user.UserPrincipalName)
 	resp, err := i.Tokens.BuildDelegatedResponse(tokens.DelegatedGrant{
 		App: app, User: user, Scopes: resolved.Granted, Resource: resolved.Resource,
 	})

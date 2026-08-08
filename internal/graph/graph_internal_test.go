@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/calvinchengx/entra-emulator/internal/audit"
 	"github.com/calvinchengx/entra-emulator/internal/config"
 	"github.com/calvinchengx/entra-emulator/internal/store"
 	"github.com/calvinchengx/entra-emulator/internal/tokens"
@@ -57,7 +58,7 @@ func newTestGraph(t *testing.T) *Graph {
 		t.Fatal(err)
 	}
 	ts := &tokens.Service{Store: st, Signer: signer, Cfg: cfg}
-	return New(cfg, st, ts)
+	return New(cfg, st, ts, audit.New(0))
 }
 
 func req(method, target string) *http.Request {

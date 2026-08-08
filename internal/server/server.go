@@ -63,7 +63,7 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service, cert *tlscert.
 	}
 
 	id := identity.New(cfg, st, ts, fs, au)
-	gr := graph.New(cfg, st, ts)
+	gr := graph.New(cfg, st, ts, au)
 	sc := scim.New(cfg, st)
 	pv := scim.NewProvisioner(st)
 	ad := admin.New(cfg, st, ts, fs, au, ce, pv, cert, version)

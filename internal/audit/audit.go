@@ -4,21 +4,31 @@
 package audit
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"sync"
 	"time"
 )
 
 // Event is one recorded flow exchange.
 type Event struct {
+	// ID is assigned once when the event is recorded, so a log consumer can
+	// correlate and de-duplicate across polls.
+	EventID   string `json:"id"`
 	Time      int64  `json:"time"`
 	TimeISO   string `json:"timeISO"`
 	Flow      string `json:"flow"`                // "token" | "authorize"
 	GrantType string `json:"grantType,omitempty"` // for token exchanges
 	ClientID  string `json:"clientId,omitempty"`
-	Status    int    `json:"status"`
-	OK        bool   `json:"ok"`
-	Error     string `json:"error,omitempty"`  // OAuth error code, if any
-	Reason    string `json:"reason,omitempty"` // error_description / concrete reason
+	// The signing-in user, when the exchange resolved one. Empty for app-only
+	// flows (client_credentials), which genuinely have no user — that emptiness
+	// is meaningful, not missing data.
+	UserID            string `json:"userId,omitempty"`
+	UserPrincipalName string `json:"userPrincipalName,omitempty"`
+	Status            int    `json:"status"`
+	OK                bool   `json:"ok"`
+	Error             string `json:"error,omitempty"`  // OAuth error code, if any
+	Reason            string `json:"reason,omitempty"` // error_description / concrete reason
 }
 
 // Recorder is a thread-safe fixed-capacity ring buffer of events.
@@ -39,7 +49,16 @@ func New(capacity int) *Recorder {
 }
 
 // Record stores an event, stamping ISO time from its epoch.
+// ID returns the event's stable identifier.
+func (e Event) ID() string { return e.EventID }
+
 func (r *Recorder) Record(e Event) {
+	if e.EventID == "" {
+		var b [16]byte
+		if _, err := rand.Read(b[:]); err == nil {
+			e.EventID = hex.EncodeToString(b[:])
+		}
+	}
 	e.TimeISO = time.Unix(e.Time, 0).UTC().Format(time.RFC3339)
 	r.mu.Lock()
 	defer r.mu.Unlock()
