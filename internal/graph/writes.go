@@ -71,7 +71,10 @@ type userWriteBody struct {
 	Surname           *string `json:"surname"`
 	Mail              *string `json:"mail"`
 	UserPrincipalName *string `json:"userPrincipalName"`
-	PasswordProfile   *struct {
+
+	CustomSecurityAttributes map[string]map[string]any `json:"customSecurityAttributes"`
+
+	PasswordProfile *struct {
 		Password string `json:"password"`
 	} `json:"passwordProfile"`
 }
@@ -147,6 +150,17 @@ func (g *Graph) updateUser(w http.ResponseWriter, r *http.Request, _ *tokens.Val
 	}
 	if b.AccountEnabled != nil {
 		u.AccountEnabled = *b.AccountEnabled
+	}
+	// Custom security attributes are typed: the store rejects a value whose
+	// type contradicts its definition, so a bad assignment is a 400 here
+	// rather than silently-stored garbage.
+	for setName, attrs := range b.CustomSecurityAttributes {
+		for attrName, value := range attrs {
+			if err := g.Store.SetUserCustomSecurityAttribute(u.ID, setName, attrName, value); err != nil {
+				httpx.WriteGraphError(w, http.StatusBadRequest, "Request_BadRequest", err.Error())
+				return
+			}
+		}
 	}
 	if b.PasswordProfile != nil && b.PasswordProfile.Password != "" {
 		hash, err := store.HashSecret(b.PasswordProfile.Password)
@@ -362,4 +376,3 @@ func (g *Graph) deleteApplication(w http.ResponseWriter, r *http.Request, _ *tok
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
-

@@ -48,6 +48,7 @@ func (g *Graph) Register(mux *http.ServeMux, prefix string) {
 	g.registerInvitations(mux, prefix)
 	g.registerAuditLogs(mux, prefix)
 	g.registerPasswordReset(mux, prefix)
+	g.registerCustomSecurityAttributes(mux, prefix)
 	g.registerAuthMethods(mux, prefix)
 }
 
@@ -203,6 +204,15 @@ func (g *Graph) handleMe(w http.ResponseWriter, r *http.Request, tok *tokens.Val
 // selectEntity applies $select to a single entity, always keeping id.
 func (g *Graph) selectEntity(r *http.Request, shape map[string]any) map[string]any {
 	sel := r.URL.Query().Get("$select")
+	// Graph returns customSecurityAttributes ONLY when explicitly selected, so
+	// it is materialised here rather than in the default user shape.
+	if strings.Contains(sel, "customSecurityAttributes") {
+		if id, _ := shape["id"].(string); id != "" {
+			if attrs, err := g.Store.UserCustomSecurityAttributes(id); err == nil {
+				shape["customSecurityAttributes"] = attrs
+			}
+		}
+	}
 	if sel == "" {
 		return shape
 	}
