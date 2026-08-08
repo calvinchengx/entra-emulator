@@ -323,5 +323,12 @@
     "witnesses": [
       "go:TestGraphSignInLogs"
     ]
+  },
+  "password-reset-graph-authentication-passwordmethods-id-resetpassword": {
+    "section": "Sign-in experience",
+    "claim": "Password reset (Graph `authentication/passwordMethods/{id}/resetPassword`)",
+    "witnesses": [
+      "go:TestPasswordReset"
+    ]
   }
 }
