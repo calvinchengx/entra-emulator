@@ -108,7 +108,8 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | **SSPR / password reset** | — | 🔴 Not implemented |
 | **SAML / WS-Federation** | — stated non-goal | 🔴 Not implemented |
 | **B2C user flows / External ID / CIAM** | — stated non-goal | 🔴 Not implemented |
-| **B2B guest invitations / cross-tenant access** | — | 🔴 Not implemented |
+| B2B guest invitations | Real: `POST /invitations` creates an actual directory user with Entra's external shape — `#EXT#` UPN, `userType: Guest`, `externalUserState: PendingAcceptance` — and the returned redeem link flips that state to `Accepted` and redirects to the inviting app. Members keep `userType: Member` with a null external state | 🟢 Real |
+| **Cross-tenant access policies** (partner settings, inbound/outbound trust) | — | 🔴 Not implemented |
 
 ## Workload & platform identity
 
