@@ -31,10 +31,10 @@ func TestAdvertisedAuthMethodsAreUsable(t *testing.T) {
 	// without an implementation behind it.
 }
 
-// TestLogoutAdvertisement pins the honest split: RP-initiated logout really
-// works (so http_logout_supported is advertised), but the emulator does not
-// call each RP's frontchannel_logout_uri, so frontchannel_logout_supported must
-// stay unadvertised rather than promise a notification that never arrives.
+// TestLogoutAdvertisement pins both logout capabilities to what is actually
+// implemented. Front-channel logout was previously unadvertised BECAUSE it was
+// unimplemented; it now notifies the relying parties a session signed into (see
+// TestFrontchannelLogout), so advertising it is honest.
 func TestLogoutAdvertisement(t *testing.T) {
 	hts, _, _ := newTestServer(t)
 	code, doc := getJSON(t, hts.URL+"/"+tenant+"/v2.0/.well-known/openid-configuration")
@@ -44,9 +44,9 @@ func TestLogoutAdvertisement(t *testing.T) {
 	if doc["http_logout_supported"] != true {
 		t.Errorf("http_logout_supported should be advertised: RP-initiated logout works")
 	}
-	if _, present := doc["frontchannel_logout_supported"]; present {
-		t.Errorf("frontchannel_logout_supported must NOT be advertised — the emulator " +
-			"does not call RPs' frontchannel_logout_uri")
+	if doc["frontchannel_logout_supported"] != true {
+		t.Errorf("frontchannel_logout_supported should be advertised: the emulator " +
+			"now notifies each signed-into RP's frontchannel_logout_uri")
 	}
 	if doc["end_session_endpoint"] == nil {
 		t.Errorf("end_session_endpoint must be advertised alongside http_logout_supported")
