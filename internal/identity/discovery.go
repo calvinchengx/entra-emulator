@@ -75,6 +75,10 @@ func (i *Identity) handleDiscovery(w http.ResponseWriter, r *http.Request) {
 		"http_logout_supported":            true,
 		"frontchannel_logout_supported":    true,
 		"code_challenge_methods_supported": []string{"S256", "plain"},
+		// JAR by reference (RFC 9101). Inline `request` is not accepted, and
+		// request_parameter_supported is therefore left absent — which is also
+		// what real Entra advertises.
+		"request_uri_parameter_supported": true,
 		"claims_supported": []string{
 			"sub", "iss", "aud", "exp", "iat", "nbf", "tid", "oid",
 			"name", "preferred_username", "email", "nonce", "ver",
