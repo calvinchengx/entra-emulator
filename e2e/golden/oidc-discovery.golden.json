@@ -22,7 +22,8 @@
     "cloud_graph_host_name",
     "msgraph_host",
     "rbac_url",
-    "http_logout_supported"
+    "http_logout_supported",
+    "frontchannel_logout_supported"
   ],
   "protocol_values": {
     "subject_types_supported_equals": [
@@ -75,7 +76,6 @@
   },
   "entra_only_fields_out_of_scope": [
     "request_uri_parameter_supported",
-    "frontchannel_logout_supported",
     "kerberos_endpoint",
     "mtls_endpoint_aliases",
     "tls_client_certificate_bound_access_tokens"

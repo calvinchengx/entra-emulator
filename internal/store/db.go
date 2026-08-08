@@ -73,7 +73,8 @@ CREATE TABLE IF NOT EXISTS app_registrations (
   optional_claims         TEXT,
   group_membership_claims TEXT NOT NULL DEFAULT 'None',
   group_overage_limit     INTEGER,
-  created_at              INTEGER NOT NULL
+  created_at              INTEGER NOT NULL,
+  frontchannel_logout_uri TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_apps_tenant ON app_registrations(tenant_id);
 CREATE TABLE IF NOT EXISTS app_redirect_uris (
@@ -167,6 +168,12 @@ CREATE TABLE IF NOT EXISTS device_codes (
   expires_at  INTEGER NOT NULL,
   created_at  INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS session_apps (
+  session_id TEXT NOT NULL,
+  app_id     TEXT NOT NULL,
+  PRIMARY KEY (session_id, app_id)
+);
+
 CREATE TABLE IF NOT EXISTS administrative_units (
   id           TEXT PRIMARY KEY,
   display_name TEXT NOT NULL,
@@ -321,6 +328,7 @@ func (s *Store) migrate() error {
 		`ALTER TABLE users ADD COLUMN updated_at INTEGER`,
 		`ALTER TABLE users ADD COLUMN user_type TEXT NOT NULL DEFAULT 'Member'`,
 		`ALTER TABLE users ADD COLUMN external_user_state TEXT`,
+		`ALTER TABLE app_registrations ADD COLUMN frontchannel_logout_uri TEXT`,
 	} {
 		if _, err := s.db.Exec(alter); err != nil &&
 			!strings.Contains(err.Error(), "duplicate column name") {

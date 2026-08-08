@@ -338,5 +338,13 @@
       "go:TestImplicitAndHybridFlows",
       "go:TestGoldenParityOIDCDiscovery"
     ]
+  },
+  "front-channel-logout-op-calls-each-rp-s-frontchannellogouturi": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "Front-channel logout (OP calls each RP's `frontchannel_logout_uri`)",
+    "witnesses": [
+      "go:TestFrontchannelLogout",
+      "go:TestLogoutAdvertisement"
+    ]
   }
 }

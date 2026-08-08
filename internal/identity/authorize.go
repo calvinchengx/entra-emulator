@@ -153,6 +153,9 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 			i.renderConsent(w, st, app)
 			return
 		}
+		if sess != nil {
+			_ = i.Store.RecordSessionApp(sess.ID, app.ID)
+		}
 		i.issueCodeAndDeliver(w, st, app, user, amr)
 		return
 	}
@@ -181,6 +184,7 @@ func (i *Identity) handleConsentDecision(w http.ResponseWriter, r *http.Request)
 		i.deliverAuthorizeError(w, st, "access_denied", "The user declined consent.")
 		return
 	}
+	_ = i.Store.RecordSessionApp(sess.ID, app.ID)
 	i.issueCodeAndDeliver(w, st, app, user, sess.AuthMethod)
 }
 
@@ -244,7 +248,10 @@ func (i *Identity) handleSignInSubmit(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	i.createSession(w, user.ID, "pwd")
+	newSess := i.createSession(w, user.ID, "pwd")
+	if newSess != nil {
+		_ = i.Store.RecordSessionApp(newSess.ID, app.ID)
+	}
 	if i.Cfg.RequireConsent {
 		i.renderConsent(w, st, app)
 		return

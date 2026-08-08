@@ -224,6 +224,7 @@ type appBody struct {
 	GroupMembershipClaims *string `json:"groupMembershipClaims"`
 	GroupOverageLimit     *int    `json:"groupOverageLimit"`
 	OptionalClaims        any     `json:"optionalClaims"`
+	FrontchannelLogoutURI *string `json:"frontchannelLogoutUri"`
 	RedirectUris          []struct {
 		URI  string `json:"uri"`
 		Type string `json:"type"`
@@ -314,6 +315,14 @@ func (a *Admin) patchApp(w http.ResponseWriter, r *http.Request) {
 	if err := a.Store.UpdateApp(app); err != nil {
 		writeStoreErr(w, err)
 		return
+	}
+	// Front-channel logout URI lives in its own column, so it is applied
+	// separately from the generic app body.
+	if b.FrontchannelLogoutURI != nil {
+		if err := a.Store.SetFrontchannelLogoutURI(app.ID, *b.FrontchannelLogoutURI); err != nil {
+			writeStoreErr(w, err)
+			return
+		}
 	}
 	httpx.WriteJSON(w, http.StatusOK, a.appDTO(app))
 }
