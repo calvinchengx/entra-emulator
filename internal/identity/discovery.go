@@ -66,8 +66,15 @@ func (i *Identity) handleDiscovery(w http.ResponseWriter, r *http.Request) {
 		"subject_types_supported":               []string{"pairwise"},
 		"scopes_supported":                      []string{"openid", "profile", "email", "offline_access"},
 		"id_token_signing_alg_values_supported": []string{"RS256"},
-		"token_endpoint_auth_methods_supported": []string{"client_secret_post", "client_secret_basic"},
-		"code_challenge_methods_supported":      []string{"S256", "plain"},
+		// private_key_jwt is implemented (see verifyClientAssertion in token.go);
+		// advertise it or a spec-driven client never tries certificate auth.
+		"token_endpoint_auth_methods_supported": []string{"client_secret_post", "client_secret_basic", "private_key_jwt"},
+		// RP-initiated logout at end_session_endpoint (post_logout_redirect_uri +
+		// state) really works, so http_logout_supported is honest. We do NOT
+		// advertise frontchannel_logout_supported: that promises the OP calls each
+		// RP's frontchannel_logout_uri, which this emulator does not do.
+		"http_logout_supported":            true,
+		"code_challenge_methods_supported": []string{"S256", "plain"},
 		"claims_supported": []string{
 			"sub", "iss", "aud", "exp", "iat", "nbf", "tid", "oid",
 			"name", "preferred_username", "email", "nonce", "ver",

@@ -21,18 +21,27 @@
     "cloud_instance_name",
     "cloud_graph_host_name",
     "msgraph_host",
-    "rbac_url"
+    "rbac_url",
+    "http_logout_supported"
   ],
   "protocol_values": {
-    "subject_types_supported_equals": ["pairwise"],
-    "id_token_signing_alg_values_must_include": ["RS256"],
+    "subject_types_supported_equals": [
+      "pairwise"
+    ],
+    "id_token_signing_alg_values_must_include": [
+      "RS256"
+    ],
     "response_types_supported_subset_of": [
       "code",
       "id_token",
       "code id_token",
       "id_token token"
     ],
-    "response_modes_supported_subset_of": ["query", "fragment", "form_post"],
+    "response_modes_supported_subset_of": [
+      "query",
+      "fragment",
+      "form_post"
+    ],
     "scopes_supported_must_include": [
       "openid",
       "profile",
@@ -57,11 +66,15 @@
       "email",
       "nonce",
       "ver"
+    ],
+    "token_endpoint_auth_methods_must_include": [
+      "client_secret_post",
+      "client_secret_basic",
+      "private_key_jwt"
     ]
   },
   "entra_only_fields_out_of_scope": [
     "request_uri_parameter_supported",
-    "http_logout_supported",
     "frontchannel_logout_supported",
     "kerberos_endpoint",
     "mtls_endpoint_aliases",
