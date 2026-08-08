@@ -254,5 +254,13 @@
       "go:TestGraphPermissionsEnforced",
       "go:TestGraphPermissionsOffByDefault"
     ]
+  },
+  "token-signing-algorithm": {
+    "section": "Token service (`07-token-service`)",
+    "claim": "Token signing algorithm",
+    "witnesses": [
+      "go:TestGoldenParityOIDCDiscovery",
+      "go:TestJWKSAndTokenVerify"
+    ]
   }
 }

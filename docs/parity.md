@@ -44,7 +44,7 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | `amr` (`pwd` / `fido`) | Threaded from the actual grant used | 🟢 Real |
 | `wids` (directory-role template GUIDs) | Emitted, gated on `groupMembershipClaims` | 🟢 Real |
 | Optional claims + **group overage** (`_claim_names` / `_claim_sources`) | Real Entra overage payload above the limit; protocol claims non-overridable | 🟢 Real |
-| Signing algorithms **other than RS256** (ES256 / PS256) | RS256 only — a deliberate, documented choice | 🔴 Not implemented |
+| Token signing algorithm | RS256 only — which is **exactly what real Entra v2.0 advertises** (`id_token_signing_alg_values_supported: ["RS256"]`, captured in `e2e/golden/`). ES256/PS256 are absent from Entra too, so there is no gap to close: adding them would *diverge*, not converge | 🟢 Real |
 
 ## OIDC / OAuth2 endpoints (`08-oidc-endpoints`)
 
