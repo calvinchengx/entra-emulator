@@ -301,5 +301,12 @@
       "go:TestCustomRoleDefinitions",
       "go:TestDirectoryRoleAssignmentDrivesWids"
     ]
+  },
+  "administrative-units": {
+    "section": "Microsoft Graph (`09-graph-api`)",
+    "claim": "Administrative units",
+    "witnesses": [
+      "go:TestAdministrativeUnits"
+    ]
   }
 }

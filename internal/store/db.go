@@ -165,6 +165,21 @@ CREATE TABLE IF NOT EXISTS device_codes (
   expires_at  INTEGER NOT NULL,
   created_at  INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS administrative_units (
+  id           TEXT PRIMARY KEY,
+  display_name TEXT NOT NULL,
+  description  TEXT,
+  visibility   TEXT NOT NULL DEFAULT 'Public',   -- Public | HiddenMembership
+  created_at   INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS administrative_unit_members (
+  au_id       TEXT NOT NULL REFERENCES administrative_units(id) ON DELETE CASCADE,
+  member_id   TEXT NOT NULL,
+  member_type TEXT NOT NULL,                     -- user | group
+  PRIMARY KEY (au_id, member_id)
+);
+
 CREATE TABLE IF NOT EXISTS custom_role_definitions (
   id               TEXT PRIMARY KEY,
   display_name     TEXT NOT NULL,

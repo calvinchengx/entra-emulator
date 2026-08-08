@@ -82,7 +82,8 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | Graph permission enforcement (scopes/roles gating operations) | Real gate behind `GRAPH_PERMISSIONS`: delegated calls need the scope in `scp`, app-only calls the role in `roles`, `Directory.*` acts as the superset, denials are `403 Authorization_RequestDenied`. **Off by default** — the emulator has always accepted any valid Graph-audience token, so enabling it is opt-in | 🟢 Real |
 | Separate servicePrincipal store | An app registration **is** its own SP; object `id` and `appId` are conflated | 🟡 Emulated |
 | Custom role definitions | Real CRUD over `roleManagement/directory/roleDefinitions`: tenant-authored roles list beside the built-ins, are assignable, and deleting one cascades to its assignments. Built-ins are protected from modification, and custom roles are **excluded from `wids`** — real Entra emits built-in role *template* GUIDs there only | 🟢 Real |
-| **Administrative units**, **custom security attributes** | — | 🔴 Not implemented |
+| Administrative units | Real CRUD over `directory/administrativeUnits` plus membership of both users and groups (each returned with its own `@odata.type`), `Public`/`HiddenMembership` visibility, a dangling member refused, and FK-cascade so deleting a unit takes its memberships with it | 🟢 Real |
+| **Custom security attributes** | — | 🔴 Not implemented |
 | **Graph `beta` endpoint** | v1.0 only | 🔴 Not implemented |
 | **Sign-in / audit logs** (Graph `auditLogs`, `signIns`) | — (the emulator's own `/admin/api/audit` is a different, test-only thing) | 🔴 Not implemented |
 
