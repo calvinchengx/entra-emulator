@@ -293,5 +293,13 @@
     "witnesses": [
       "go:TestWorkloadIdentityFederation"
     ]
+  },
+  "custom-role-definitions": {
+    "section": "Microsoft Graph (`09-graph-api`)",
+    "claim": "Custom role definitions",
+    "witnesses": [
+      "go:TestCustomRoleDefinitions",
+      "go:TestDirectoryRoleAssignmentDrivesWids"
+    ]
   }
 }

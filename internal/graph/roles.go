@@ -65,12 +65,24 @@ func (g *Graph) listRoleDefinitions(w http.ResponseWriter, r *http.Request, _ *t
 	for _, d := range builtInRoleDefinitions {
 		shapes = append(shapes, roleDefShape(d))
 	}
+	// Tenant-authored roles list alongside the built-ins, as in real Entra.
+	if custom, err := g.Store.ListCustomRoleDefinitions(); err == nil {
+		for _, d := range custom {
+			shapes = append(shapes, customRoleShape(d))
+		}
+	}
 	g.writeSimpleCollection(w, "roleManagement/directory/roleDefinitions", shapes)
 }
 
 func (g *Graph) getRoleDefinition(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
 	d, ok := roleDefByID[r.PathValue("id")]
 	if !ok {
+		if custom, err := g.Store.GetCustomRoleDefinition(r.PathValue("id")); err == nil {
+			shape := customRoleShape(custom)
+			shape["@odata.context"] = g.contextURL("roleManagement/directory/roleDefinitions/$entity")
+			httpx.WriteJSON(w, http.StatusOK, shape)
+			return
+		}
 		httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound", "Role definition does not exist.")
 		return
 	}
@@ -137,9 +149,12 @@ func (g *Graph) createRoleAssignment(w http.ResponseWriter, r *http.Request, _ *
 		return
 	}
 	if _, ok := roleDefByID[b.RoleDefinitionID]; !ok {
-		httpx.WriteGraphError(w, http.StatusBadRequest, "Request_BadRequest",
-			"Unknown roleDefinitionId (only built-in roles are supported).")
-		return
+		// Not built-in — a tenant-authored custom role is equally assignable.
+		if _, err := g.Store.GetCustomRoleDefinition(b.RoleDefinitionID); err != nil {
+			httpx.WriteGraphError(w, http.StatusBadRequest, "Request_BadRequest",
+				"Unknown roleDefinitionId.")
+			return
+		}
 	}
 	if b.DirectoryScopeID == "" {
 		b.DirectoryScopeID = "/"

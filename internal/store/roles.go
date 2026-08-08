@@ -76,8 +76,12 @@ func (s *Store) DeleteDirectoryRoleAssignment(id string) error {
 // wids claim.
 func (s *Store) TenantWideRoleTemplateIDs(principalID string) ([]string, error) {
 	rows, err := s.db.Query(
+		// wids carries BUILT-IN directory-role template GUIDs only — real Entra
+		// never puts a custom role definition there, so exclude them explicitly.
 		`SELECT DISTINCT role_definition_id FROM directory_role_assignments
-		 WHERE principal_id=? AND directory_scope_id='/' ORDER BY role_definition_id`, principalID)
+		 WHERE principal_id=? AND directory_scope_id='/'
+		   AND role_definition_id NOT IN (SELECT id FROM custom_role_definitions)
+		 ORDER BY role_definition_id`, principalID)
 	if err != nil {
 		return nil, err
 	}
