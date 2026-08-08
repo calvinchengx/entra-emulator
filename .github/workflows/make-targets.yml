@@ -130,7 +130,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          make up
+          # Build the image under test. `make up` defaults to the published
+          # :latest, which is the PREVIOUS release — so this step used to check
+          # this tree's scripts against whatever last shipped, and passed only
+          # while the two happened to agree. The seeded-GUID change broke that:
+          # scripts/status.sh asks for a tenant and a daemon app that a released
+          # image cannot serve, and the daemon's id is a compile-time constant,
+          # so no env override can bridge it. Humans still get the published
+          # image from a bare `make up`; CI tests the tree it was handed.
+          docker build -q -t entra-emulator:ci --build-arg VERSION=ci .
+          make up ENTRA_IMAGE=entra-emulator:ci
           for _ in $(seq 1 60); do
             curl -sk -o /dev/null "https://localhost:8443/health" && break
             sleep 1
