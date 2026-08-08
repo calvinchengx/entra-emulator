@@ -61,7 +61,7 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | `private_key_jwt` client assertion | Real: assertion verified against the app's registered certificate, **and now advertised in `token_endpoint_auth_methods_supported`** so a spec-driven client actually attempts it | 🟢 Real |
 | RP-initiated logout (`end_session_endpoint`) | Real: clears the SSO session and honours a **validated** `post_logout_redirect_uri` + `state`; advertised via `http_logout_supported` | 🟢 Real |
 | **Front-channel logout** (OP calls each RP's `frontchannel_logout_uri`) | Not implemented, and deliberately **not advertised** — claiming it would promise RPs a logout notification that never arrives | 🔴 Not implemented |
-| **Implicit / hybrid flow** | `response_types_supported: ["code"]` only | 🔴 Not implemented |
+| Implicit / hybrid flow | Real: `response_type=id_token` and `code id_token` mint a genuine signed ID token at the authorize endpoint, delivered by fragment or form_post with the nonce echoed. OIDC's rules are enforced — a nonce is required, `response_mode=query` is refused for an id_token, and PKCE is demanded only when a code is actually issued. `id_token token` is not implemented and so is not advertised | 🟢 Real |
 | **mTLS / PoP / certificate-bound tokens** | — | 🔴 Not implemented |
 | **JAR** (`request_uri` — Entra advertises `request_uri_parameter_supported`) | — | 🔴 Not implemented |
 | PAR (pushed authorization requests) | Not implemented — and **not an Entra feature either**: the real discovery document advertises no `pushed_authorization_request_endpoint`, so this is parity, not a gap | 🟢 Real |

@@ -252,6 +252,13 @@ func (s *Service) BuildAppOnlyResponse(app *store.App, aud string, roles []strin
 	}, nil
 }
 
+// MintIDToken issues a standalone ID token for the implicit and hybrid flows,
+// where the token is delivered from the authorize endpoint rather than the
+// token endpoint. Same claims and signing path as the code flow's ID token.
+func (s *Service) MintIDToken(g DelegatedGrant) (string, error) {
+	return s.mintIDToken(g, s.Store.Now())
+}
+
 func (s *Service) mintIDToken(g DelegatedGrant, now int64) (string, error) {
 	tid := s.resolveTenant(g.TenantID)
 	claims := map[string]any{
