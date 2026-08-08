@@ -116,7 +116,8 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | **Managed identity** (`/msi/token`, App Service protocol) | Real — `azidentity`'s ManagedIdentityCredential gets a real token | 🟢 Real |
 | Fabric-audience tokens + workspace identity (app reg + SP + managed credential, state machine, cascade delete) | Real at the token layer | 🟢 Real |
 | Fabric **control plane** | Out of scope by design — the companion `fabric-emulator` serves it | 🟠 BYO-companion |
-| **Workload identity federation** (`federatedIdentityCredential`) | — despite `private_key_jwt` being present | 🔴 Not implemented |
+| **Workload identity federation** (`federatedIdentityCredential`) | Real token exchange: an external workload presents ITS OWN OIDC token as the `client_assertion` and the emulator matches a registered issuer/subject/audience trust, then **verifies the signature against keys fetched from that issuer's published JWKS** — no secret exists anywhere, which is the whole point. Expiry, wrong subject, wrong audience, forged signature and revoked credential are each refused. Managed through the admin API (`/admin/api/apps/{id}/federated-credentials`) rather than the Graph `federatedIdentityCredentials` route | 🟢 Real |
+| Graph route for `federatedIdentityCredentials` | Trusts are managed over the admin API instead | 🔴 Not implemented |
 | **Device registration / Intune compliance / device-bound tokens** | — | 🔴 Not implemented |
 | **Application Proxy** | — | 🔴 Not implemented |
 | **PIM / privileged access**, **entitlement management**, **access reviews** | — | 🔴 Not implemented |
