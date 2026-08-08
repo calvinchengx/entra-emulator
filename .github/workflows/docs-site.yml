@@ -30,9 +30,20 @@ permissions:
   id-token: write
 
 # One in-flight deploy at a time; don't cancel a running publish.
+#
+# PR builds get their OWN group, per ref. They must not share the deploy group:
+# GitHub keeps at most one PENDING run per concurrency group and cancels the
+# older one when a newer arrives, so while runners are saturated a steady
+# arrival of PR builds cancels the queued main-branch run over and over and the
+# site never publishes. A Dependabot batch is exactly that arrival pattern, and
+# it did this to the sibling repos' sites; nothing in the UI explains it,
+# because a cancelled run reads as a harmless supersession.
+#
+# PR builds also cancel their own predecessors (only the newest matters);
+# deploys never cancel a running publish.
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('pages-pr-{0}', github.ref) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
