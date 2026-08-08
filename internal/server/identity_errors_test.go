@@ -75,7 +75,7 @@ func TestAuthorizeEndpointErrors(t *testing.T) {
 
 	// Unknown client and bad redirect are shown as an error page (never redirected).
 	for _, q := range []url.Values{
-		{"client_id": {"00000000-0000-0000-0000-0000000000ff"}, "redirect_uri": {redirect}, "response_type": {"code"}},
+		{"client_id": {"f73eb7b3-0790-40a3-b964-db34fd88e1c4"}, "redirect_uri": {redirect}, "response_type": {"code"}},
 		{"client_id": {spaID}, "redirect_uri": {"https://evil.example/cb"}, "response_type": {"code"}},
 	} {
 		resp, err := client.Get(authorize + "?" + q.Encode())

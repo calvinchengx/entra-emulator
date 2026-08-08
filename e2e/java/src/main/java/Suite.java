@@ -28,7 +28,7 @@ public class Suite {
         String origin = System.getenv("EMU_ORIGIN");
         String tenant = System.getenv("EMU_TENANT");
         String authority = origin + "/" + tenant + "/";     // msal4j wants a trailing slash
-        String daemonId = "cccccccc-0000-0000-0000-000000000002";
+        String daemonId = "00d88624-f0d7-46f6-a641-6232c2608928";
         String daemonSecret = "daemon-app-secret";
 
         trustEmulatorCert(System.getenv("EMU_CERT"));

@@ -28,10 +28,10 @@ import (
 )
 
 const (
-	spaID        = "cccccccc-0000-0000-0000-000000000001"
-	daemonID     = "cccccccc-0000-0000-0000-000000000002"
+	spaID        = "189c7070-78a3-4c13-aa18-20a2ca5755ca"
+	daemonID     = "00d88624-f0d7-46f6-a641-6232c2608928"
 	daemonSecret = "daemon-app-secret"
-	aliceID      = "aaaaaaaa-0000-0000-0000-000000000001"
+	aliceID      = "df8ec5dd-1599-45ef-908b-4ae020cd1dbe"
 )
 
 func env(t *testing.T, key string) string {

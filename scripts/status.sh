@@ -21,11 +21,11 @@ case "$(uname -s 2>/dev/null || echo unknown)" in
 esac
 
 ENTRA="${ENTRA_URL:-https://localhost:8443}"
-TENANT="${TENANT_ID:-11111111-1111-1111-1111-111111111111}"
+TENANT="${TENANT_ID:-6f89cf12-978b-4d23-ac18-9ef0c127cf87}"
 # ENTRA_NAME, not NAME: a bare `NAME` is a common thing to have exported in a
 # shell, and inheriting it would send this looking for the wrong container.
 ENTRA_NAME="${ENTRA_NAME:-entra-emulator}"
-CLIENT_ID="${CLIENT_ID:-cccccccc-0000-0000-0000-000000000002}"
+CLIENT_ID="${CLIENT_ID:-00d88624-f0d7-46f6-a641-6232c2608928}"
 CLIENT_SECRET="${CLIENT_SECRET:-daemon-app-secret}"
 RC=0
 

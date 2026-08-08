@@ -10,7 +10,7 @@ import (
 func TestGraphWriteErrorPaths(t *testing.T) {
 	hts, _, _ := newTestServer(t)
 	app := appGraphToken(t, hts.URL)
-	missing := "00000000-0000-0000-0000-0000000000ff"
+	missing := "f73eb7b3-0790-40a3-b964-db34fd88e1c4"
 
 	// Missing-target updates/deletes → 404.
 	for _, tc := range []struct{ method, path string }{
@@ -56,7 +56,7 @@ func TestGraphWriteErrorPaths(t *testing.T) {
 func TestGraphReadNotFound(t *testing.T) {
 	hts, _, _ := newTestServer(t)
 	app := appGraphToken(t, hts.URL)
-	missing := "00000000-0000-0000-0000-0000000000ff"
+	missing := "f73eb7b3-0790-40a3-b964-db34fd88e1c4"
 
 	if code, _ := graphGet(t, hts.URL, "/graph/v1.0/servicePrincipals/"+missing, app); code != 404 {
 		t.Fatalf("unknown service principal: want 404, got %d", code)

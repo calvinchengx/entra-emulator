@@ -22,7 +22,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PORT = os.environ.get("E2E_PORT", "9743")
-TENANT = "11111111-1111-1111-1111-111111111111"
+TENANT = "6f89cf12-978b-4d23-ac18-9ef0c127cf87"
 ORIGIN = f"https://localhost:{PORT}"
 
 TLS = ssl.create_default_context()

@@ -24,7 +24,7 @@ func postRaw(t *testing.T, method, url, body string) int {
 func TestAdminErrorPaths(t *testing.T) {
 	hts, _, _ := newTestServer(t)
 	base := hts.URL + "/admin/api"
-	missing := "00000000-0000-0000-0000-0000000000ff"
+	missing := "f73eb7b3-0790-40a3-b964-db34fd88e1c4"
 
 	// A real app + group to hang sub-resource error cases off of.
 	_, app := postJSON(t, base+"/apps", map[string]any{"displayName": "ErrApp"})

@@ -18,8 +18,8 @@ Configure your API's JWT middleware with the emulator's issuer and JWKS
 
 | Setting | Value |
 |---|---|
-| Issuer | `https://localhost:8443/11111111-1111-1111-1111-111111111111/v2.0` |
-| JWKS URI | `https://localhost:8443/11111111-1111-1111-1111-111111111111/discovery/v2.0/keys` |
+| Issuer | `https://localhost:8443/6f89cf12-978b-4d23-ac18-9ef0c127cf87/v2.0` |
+| JWKS URI | `https://localhost:8443/6f89cf12-978b-4d23-ac18-9ef0c127cf87/discovery/v2.0/keys` |
 | Audience | your API's app-id URI, e.g. `api://my-api` |
 
 (These come from the [discovery document](08-oidc-endpoints.md); trust the
@@ -40,7 +40,7 @@ mint() { curl -sS $CACERT "$FORGE" -H 'Content-Type: application/json' -d "$1" |
 # A normal, valid access token for your API, as user Alice with a scope:
 TOKEN=$(mint '{
   "audience": "api://my-api",
-  "userId":   "aaaaaaaa-0000-0000-0000-000000000001",
+  "userId":   "df8ec5dd-1599-45ef-908b-4ae020cd1dbe",
   "scopes":   ["Tasks.Read"]
 }')
 
@@ -66,7 +66,7 @@ mint '{"audience":"api://my-api","signature":"invalid"}'
 mint '{"audience":"api://my-api","notBeforeSeconds":3600}'
 
 # Authenticated but missing the required scope → 403 (your authorization)
-mint '{"audience":"api://my-api","userId":"aaaaaaaa-0000-0000-0000-000000000001","scopes":[]}'
+mint '{"audience":"api://my-api","userId":"df8ec5dd-1599-45ef-908b-4ae020cd1dbe","scopes":[]}'
 
 # App-only token with a specific role, to test role-based authorization
 mint '{"audience":"api://my-api","roles":["Tasks.ReadWrite.All"]}'

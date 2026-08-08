@@ -13,13 +13,13 @@ String get emuOrigin => _originOverride.isNotEmpty
 
 const emuTenant = String.fromEnvironment(
   'EMU_TENANT',
-  defaultValue: '11111111-1111-1111-1111-111111111111',
+  defaultValue: '6f89cf12-978b-4d23-ac18-9ef0c127cf87',
 );
 
 /// Seeded public SPA app (docs/03-data-model-and-seed.md).
-const spaClientId = 'cccccccc-0000-0000-0000-000000000001';
+const spaClientId = '189c7070-78a3-4c13-aa18-20a2ca5755ca';
 
 /// Seeded user Alice — the device-code test approves as her.
-const aliceId = 'aaaaaaaa-0000-0000-0000-000000000001';
+const aliceId = 'df8ec5dd-1599-45ef-908b-4ae020cd1dbe';
 
 String get authorityUrl => '$emuOrigin/$emuTenant';

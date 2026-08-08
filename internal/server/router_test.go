@@ -79,7 +79,7 @@ func TestPortalFallback(t *testing.T) {
 		wantCode     int
 	}{
 		{"GET", "/admin/api/whatever", 404},                             // API prefix → JSON 404
-		{"GET", "/11111111-1111-1111-1111-111111111111/oauth2", 404},    // tenant-prefixed → 404
+		{"GET", "/6f89cf12-978b-4d23-ac18-9ef0c127cf87/oauth2", 404},    // tenant-prefixed → 404
 		{"GET", "/common/oauth2/v2.0/authorize", 404},                   // alias-prefixed → 404
 		{"POST", "/some/spa/route", 404},                                // non-GET non-API → 404
 		{"GET", "/dashboard", 200},                                      // SPA GET → portal
@@ -94,7 +94,7 @@ func TestPortalFallback(t *testing.T) {
 }
 
 func TestLooksLikeGUID(t *testing.T) {
-	if !looksLikeGUID("11111111-1111-1111-1111-111111111111") {
+	if !looksLikeGUID("6f89cf12-978b-4d23-ac18-9ef0c127cf87") {
 		t.Fatal("valid GUID rejected")
 	}
 	for _, bad := range []string{"", "common", "11111111", "zzzzzzzz-1111-1111-1111-111111111111",

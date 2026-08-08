@@ -27,11 +27,11 @@ Type "until curl -sf localhost:8099/health >/dev/null 2>&1; do sleep 0.3; done" 
 Sleep 2s
 Type "export PATH=$PWD/docs/demo:$PATH" Enter
 Type "PS1='$ '" Enter
-Type "I=http://localhost:8099/11111111-1111-1111-1111-111111111111/v2.0" Enter
-Type "T=http://localhost:8099/11111111-1111-1111-1111-111111111111/oauth2/v2.0/token" Enter
-Type "C=cccccccc-0000-0000-0000-000000000002" Enter
+Type "I=http://localhost:8099/6f89cf12-978b-4d23-ac18-9ef0c127cf87/v2.0" Enter
+Type "T=http://localhost:8099/6f89cf12-978b-4d23-ac18-9ef0c127cf87/oauth2/v2.0/token" Enter
+Type "C=00d88624-f0d7-46f6-a641-6232c2608928" Enter
 Type "S=daemon-app-secret" Enter
-Type "R=api://cccccccc-0000-0000-0000-000000000002/.default" Enter
+Type "R=api://00d88624-f0d7-46f6-a641-6232c2608928/.default" Enter
 Type "clear" Enter
 Show
 

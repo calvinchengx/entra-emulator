@@ -6,7 +6,7 @@ set -euo pipefail
 IMAGE="entra-emulator:smoke"
 NAME="entra-emulator-smoke"
 PORT="${SMOKE_PORT:-8459}"
-TENANT="11111111-1111-1111-1111-111111111111"
+TENANT="6f89cf12-978b-4d23-ac18-9ef0c127cf87"
 
 # The null device is not spelled the same everywhere. Under Git for Windows the
 # SHELL understands /dev/null, but curl.exe is a native Windows binary that does
@@ -49,7 +49,7 @@ check "health" 200 "http://localhost:$PORT/health"
 check "discovery" 200 "http://localhost:$PORT/$TENANT/v2.0/.well-known/openid-configuration"
 check "jwks" 200 "http://localhost:$PORT/$TENANT/discovery/v2.0/keys"
 check "client_credentials" 200 -X POST "http://localhost:$PORT/$TENANT/oauth2/v2.0/token" \
-  -d "grant_type=client_credentials&client_id=cccccccc-0000-0000-0000-000000000002&client_secret=daemon-app-secret&scope=https://graph.microsoft.com/.default"
+  -d "grant_type=client_credentials&client_id=00d88624-f0d7-46f6-a641-6232c2608928&client_secret=daemon-app-secret&scope=https://graph.microsoft.com/.default"
 check "portal" 200 "http://localhost:$PORT/"
 
 echo "==> in-container healthcheck subcommand"

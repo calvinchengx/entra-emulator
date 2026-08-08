@@ -19,7 +19,7 @@ import (
 	"github.com/calvinchengx/entra-emulator/internal/store"
 )
 
-const otherTenant = "22222222-2222-2222-2222-222222222222"
+const otherTenant = "e3e29cf2-136c-4e1d-90a0-bcc014db0edc"
 
 // newService builds a Service backed by a fresh store with an active home-tenant
 // signer and a minimal but realistic config.
@@ -980,7 +980,7 @@ func TestVerifyRS256AndDecodeUnverifiedErrors(t *testing.T) {
 func TestEnsureActiveKeyInsertError(t *testing.T) {
 	st := newStore(t)
 	// Tenant row does not exist -> InsertSigningKey violates the FK.
-	if _, err := EnsureActiveKey(st, "99999999-9999-9999-9999-999999999999"); err == nil {
+	if _, err := EnsureActiveKey(st, "5c12a8ec-71da-409d-8e04-ac3e04c8b7e0"); err == nil {
 		t.Fatal("EnsureActiveKey should fail when the tenant does not exist")
 	}
 }

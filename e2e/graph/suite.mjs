@@ -23,7 +23,7 @@ const ORIGIN = process.env.EMU_ORIGIN;
 const TENANT = process.env.EMU_TENANT;
 const GRAPH = `${ORIGIN}/graph/v1.0`;
 const AUTHORITY = `${ORIGIN}/${TENANT}`;
-const DAEMON_ID = 'cccccccc-0000-0000-0000-000000000002';
+const DAEMON_ID = '00d88624-f0d7-46f6-a641-6232c2608928';
 const DAEMON_SECRET = 'daemon-app-secret';
 const GLOBAL_ADMIN = '62e90394-69f5-4237-9190-012177145e10';
 

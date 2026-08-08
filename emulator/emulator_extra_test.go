@@ -12,7 +12,7 @@ import (
 // TestWithTenantIDOption verifies the tenant override flows into every
 // advertised URL and the health/discovery documents.
 func TestWithTenantIDOption(t *testing.T) {
-	custom := "22222222-2222-2222-2222-222222222222"
+	custom := "e3e29cf2-136c-4e1d-90a0-bcc014db0edc"
 	emu := emulator.StartT(t, emulator.WithTenantID(custom))
 
 	if emu.TenantID != custom {
@@ -135,7 +135,7 @@ func TestCloseIsIdempotent(t *testing.T) {
 // TestStartWithoutHelper exercises the plain Start (no *testing.T) path and
 // its accessors, closing manually.
 func TestStartWithoutHelper(t *testing.T) {
-	emu, err := emulator.Start(emulator.WithTenantID("33333333-3333-3333-3333-333333333333"))
+	emu, err := emulator.Start(emulator.WithTenantID("e74b53ad-4303-4e03-91a1-c0623f0c211e"))
 	if err != nil {
 		t.Fatalf("Start: %v", err)
 	}

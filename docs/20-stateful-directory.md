@@ -69,7 +69,7 @@ properties and an `@odata.type` cast:
   "value": [
     {
       "@odata.type": "#microsoft.graph.user",
-      "id": "aaaaaaaa-0000-0000-0000-000000000001",
+      "id": "df8ec5dd-1599-45ef-908b-4ae020cd1dbe",
       "displayName": "Alice Example",
       "userPrincipalName": "alice@entraemulator.dev",
       "accountEnabled": true,
@@ -217,7 +217,7 @@ surface Microsoft documents
 {
   "@odata.type":      "#microsoft.graph.unifiedRoleAssignment",
   "roleDefinitionId": "62e90394-69f5-4237-9190-012177145e10",  // Global Administrator
-  "principalId":      "aaaaaaaa-0000-0000-0000-000000000001",
+  "principalId":      "df8ec5dd-1599-45ef-908b-4ae020cd1dbe",
   "directoryScopeId": "/"                                       // tenant-wide
 }
 ```

@@ -10,17 +10,17 @@ import { api } from './api.js';
 import Tenants from './Tenants.svelte';
 
 const HOME = {
-  id: '11111111-1111-1111-1111-111111111111',
+  id: '6f89cf12-978b-4d23-ac18-9ef0c127cf87',
   displayName: 'Home Tenant',
   initialDomain: 'home.onmicrosoft.com',
-  issuer: 'https://localhost/11111111-1111-1111-1111-111111111111/v2.0',
+  issuer: 'https://localhost/6f89cf12-978b-4d23-ac18-9ef0c127cf87/v2.0',
   isHome: true,
 };
 const B = {
-  id: '22222222-2222-2222-2222-222222222222',
+  id: 'e3e29cf2-136c-4e1d-90a0-bcc014db0edc',
   displayName: 'Contoso',
   initialDomain: 'contoso.onmicrosoft.com',
-  issuer: 'https://localhost/22222222-2222-2222-2222-222222222222/v2.0',
+  issuer: 'https://localhost/e3e29cf2-136c-4e1d-90a0-bcc014db0edc/v2.0',
   isHome: false,
 };
 
