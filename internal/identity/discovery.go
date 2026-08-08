@@ -56,7 +56,7 @@ func (i *Identity) handleDiscovery(w http.ResponseWriter, r *http.Request) {
 		"jwks_uri":                      base + "/discovery/v2.0/keys",
 		"userinfo_endpoint":             i.userinfoEndpoint(),
 		"end_session_endpoint":          base + "/oauth2/v2.0/logout",
-		"response_types_supported":      []string{"code"},
+		"response_types_supported":      []string{"code", "id_token", "code id_token"},
 		"response_modes_supported":      []string{"query", "fragment", "form_post"},
 		"grant_types_supported": []string{
 			"authorization_code", "refresh_token", "client_credentials", "password",

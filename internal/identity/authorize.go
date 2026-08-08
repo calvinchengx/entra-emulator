@@ -5,6 +5,8 @@ import (
 	"html"
 	"net/http"
 	"net/url"
+	"sort"
+	"strings"
 
 	"github.com/calvinchengx/entra-emulator/internal/store"
 	"github.com/calvinchengx/entra-emulator/internal/tokens"
@@ -23,6 +25,7 @@ type authorizeState struct {
 	Challenge    string `json:"challenge"`
 	Method       string `json:"method"`
 	ResponseMode string `json:"responseMode"`
+	ResponseType string `json:"responseType"`
 }
 
 func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
@@ -61,6 +64,7 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		Challenge:    param("code_challenge"),
 		Method:       param("code_challenge_method"),
 		ResponseMode: param("response_mode"),
+		ResponseType: normalizeResponseType(param("response_type")),
 	}
 	prompt := param("prompt")
 	loginHint := param("login_hint")
@@ -81,9 +85,28 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	redirectErr := func(code, desc string) {
 		i.deliverAuthorizeError(w, st, code, desc)
 	}
-	if param("response_type") != "code" {
-		redirectErr("unsupported_response_type", "Only response_type=code is supported.")
+	switch st.ResponseType {
+	case "code", "id_token", "code id_token":
+	default:
+		redirectErr("unsupported_response_type",
+			"Supported response_type values are code, id_token, and code id_token.")
 		return
+	}
+	if st.ResponseType != "code" {
+		// OIDC requires a nonce whenever an id_token comes back through the
+		// front channel, and forbids delivering one on the query string.
+		if st.Nonce == "" {
+			redirectErr("invalid_request", "nonce is required when response_type includes id_token.")
+			return
+		}
+		if st.ResponseMode == "" {
+			st.ResponseMode = "fragment"
+		}
+		if st.ResponseMode == "query" {
+			redirectErr("invalid_request",
+				"response_mode=query cannot deliver an id_token; use fragment or form_post.")
+			return
+		}
 	}
 	scopes := SplitScopes(st.Scope)
 	if !containsScope(scopes, "openid") {
@@ -94,7 +117,11 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		redirectErr("invalid_scope", "A requested resource scope is not registered.")
 		return
 	}
-	if !app.IsConfidential && st.Challenge == "" {
+	// PKCE protects the code exchange, so it is only meaningful when a code is
+	// actually issued. Pure implicit (id_token only) returns no code, and real
+	// Entra does not demand a challenge for it.
+	issuesCode := st.ResponseType == "code" || st.ResponseType == "code id_token"
+	if issuesCode && !app.IsConfidential && st.Challenge == "" {
 		redirectErr("invalid_request", "Public clients must send a PKCE code_challenge.")
 		return
 	}
@@ -241,7 +268,30 @@ func (i *Identity) issueCodeAndDeliver(w http.ResponseWriter, st authorizeState,
 		i.renderErrorPage(w, http.StatusInternalServerError, "Error", "Could not issue an authorization code.")
 		return
 	}
-	i.deliverAuthorizeResult(w, st, url.Values{"code": {code}})
+	params := url.Values{}
+	if st.ResponseType == "code" || st.ResponseType == "code id_token" {
+		params.Set("code", code)
+	}
+	if st.ResponseType == "id_token" || st.ResponseType == "code id_token" {
+		idToken, err := i.Tokens.MintIDToken(tokens.DelegatedGrant{
+			App: app, User: user, Scopes: resolved.Granted,
+			Resource: resolved.Resource, Nonce: st.Nonce, AMR: amr,
+		})
+		if err != nil {
+			i.renderErrorPage(w, http.StatusInternalServerError, "Error", "Could not issue an ID token.")
+			return
+		}
+		params.Set("id_token", idToken)
+	}
+	i.deliverAuthorizeResult(w, st, params)
+}
+
+// normalizeResponseType sorts the space-delimited values so "id_token code"
+// and "code id_token" are the same request, as OIDC specifies.
+func normalizeResponseType(v string) string {
+	parts := strings.Fields(v)
+	sort.Strings(parts)
+	return strings.Join(parts, " ")
 }
 
 func (i *Identity) deliverAuthorizeError(w http.ResponseWriter, st authorizeState, code, desc string) {

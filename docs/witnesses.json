@@ -330,5 +330,13 @@
     "witnesses": [
       "go:TestPasswordReset"
     ]
+  },
+  "implicit-hybrid-flow": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "Implicit / hybrid flow",
+    "witnesses": [
+      "go:TestImplicitAndHybridFlows",
+      "go:TestGoldenParityOIDCDiscovery"
+    ]
   }
 }
