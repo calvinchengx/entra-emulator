@@ -142,6 +142,11 @@ func TestGoldenParityOIDCDiscovery(t *testing.T) {
 	if extra := notSubset(asStrings(doc["token_endpoint_auth_methods_supported"]), asStrings(pv["token_endpoint_auth_methods_subset_of"])); len(extra) > 0 {
 		t.Errorf("token_endpoint_auth_methods_supported has values Entra does not advertise: %v", extra)
 	}
+	// Implemented auth methods must actually be advertised, or a spec-driven
+	// client never attempts them (this is how private_key_jwt stayed invisible).
+	if miss := missingFrom(asStrings(doc["token_endpoint_auth_methods_supported"]), asStrings(pv["token_endpoint_auth_methods_must_include"])); len(miss) > 0 {
+		t.Errorf("token_endpoint_auth_methods_supported missing implemented methods %v", miss)
+	}
 	if miss := missingFrom(asStrings(doc["claims_supported"]), asStrings(pv["claims_supported_must_include"])); len(miss) > 0 {
 		t.Errorf("claims_supported missing core %v", miss)
 	}

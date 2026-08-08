@@ -269,5 +269,22 @@
     "witnesses": [
       "go:TestGoldenParityOIDCDiscovery"
     ]
+  },
+  "privatekeyjwt-client-assertion": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "`private_key_jwt` client assertion",
+    "witnesses": [
+      "go:TestClientAssertionHappyPath",
+      "go:TestClientAssertionWrongKey",
+      "go:TestAdvertisedAuthMethodsAreUsable"
+    ]
+  },
+  "rp-initiated-logout-endsessionendpoint": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "RP-initiated logout (`end_session_endpoint`)",
+    "witnesses": [
+      "go:TestLogoutWithSession",
+      "go:TestLogoutAdvertisement"
+    ]
   }
 }

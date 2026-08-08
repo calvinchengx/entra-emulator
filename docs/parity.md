@@ -58,8 +58,9 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | `password` (ROPC) | Real scrypt verification → `amr:["pwd"]` | 🟢 Real |
 | `urn:ietf:params:oauth:grant-type:jwt-bearer` (on-behalf-of) | Real; enforces assertion audience, rejects app-only assertions | 🟢 Real |
 | Device code (spec form **and** the bare `device_code` msal-node sends) | Real, with an atomic approve→mint step that closes the double-mint window | 🟢 Real |
-| `private_key_jwt` client assertion | Implemented — **but discovery advertises only `client_secret_post`/`client_secret_basic`, so a spec-driven client never tries it** | 🟡 Emulated |
-| Front-channel logout | `/logout` exists; `frontchannel_logout_supported` is not advertised | 🟡 Emulated |
+| `private_key_jwt` client assertion | Real: assertion verified against the app's registered certificate, **and now advertised in `token_endpoint_auth_methods_supported`** so a spec-driven client actually attempts it | 🟢 Real |
+| RP-initiated logout (`end_session_endpoint`) | Real: clears the SSO session and honours a **validated** `post_logout_redirect_uri` + `state`; advertised via `http_logout_supported` | 🟢 Real |
+| **Front-channel logout** (OP calls each RP's `frontchannel_logout_uri`) | Not implemented, and deliberately **not advertised** — claiming it would promise RPs a logout notification that never arrives | 🔴 Not implemented |
 | **Implicit / hybrid flow** | `response_types_supported: ["code"]` only | 🔴 Not implemented |
 | **mTLS / PoP / certificate-bound tokens** | — | 🔴 Not implemented |
 | **JAR** (`request_uri` — Entra advertises `request_uri_parameter_supported`) | — | 🔴 Not implemented |
