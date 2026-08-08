@@ -353,6 +353,7 @@ func (s *Store) migrate() error {
 		`ALTER TABLE users ADD COLUMN user_type TEXT NOT NULL DEFAULT 'Member'`,
 		`ALTER TABLE users ADD COLUMN external_user_state TEXT`,
 		`ALTER TABLE app_registrations ADD COLUMN frontchannel_logout_uri TEXT`,
+		`ALTER TABLE users ADD COLUMN invite_redirect_url TEXT`,
 	} {
 		if _, err := s.db.Exec(alter); err != nil &&
 			!strings.Contains(err.Error(), "duplicate column name") {

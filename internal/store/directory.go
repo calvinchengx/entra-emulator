@@ -105,13 +105,13 @@ const userCols = `id, tenant_id, user_principal_name, display_name,
 	COALESCE(given_name,''), COALESCE(surname,''), COALESCE(mail,''),
 	COALESCE(password_hash,''), account_enabled,
 	COALESCE(user_type,'Member'), COALESCE(external_user_state,''),
-	created_at, COALESCE(updated_at, created_at)`
+	created_at, COALESCE(updated_at, created_at), COALESCE(invite_redirect_url,'')`
 
 func scanUser(row interface{ Scan(...any) error }) (*User, error) {
 	u := &User{}
 	err := row.Scan(&u.ID, &u.TenantID, &u.UserPrincipalName, &u.DisplayName,
 		&u.GivenName, &u.Surname, &u.Mail, &u.PasswordHash, &u.AccountEnabled,
-		&u.UserType, &u.ExternalUserState, &u.CreatedAt, &u.UpdatedAt)
+		&u.UserType, &u.ExternalUserState, &u.CreatedAt, &u.UpdatedAt, &u.InviteRedirectURL)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -161,12 +161,12 @@ func (s *Store) CreateUser(u *User) error {
 		u.UpdatedAt = u.CreatedAt
 	}
 	_, err := s.db.Exec(`INSERT INTO users
-		(id, tenant_id, user_principal_name, display_name, given_name, surname, mail, password_hash, account_enabled, user_type, external_user_state, created_at, updated_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		(id, tenant_id, user_principal_name, display_name, given_name, surname, mail, password_hash, account_enabled, user_type, external_user_state, created_at, updated_at, invite_redirect_url)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		u.ID, u.TenantID, u.UserPrincipalName, u.DisplayName,
 		nullable(u.GivenName), nullable(u.Surname), nullable(u.Mail), nullable(u.PasswordHash),
 		u.AccountEnabled, userTypeOrDefault(u.UserType), nullable(u.ExternalUserState),
-		u.CreatedAt, u.UpdatedAt)
+		u.CreatedAt, u.UpdatedAt, nullable(u.InviteRedirectURL))
 	return mapConstraint(err)
 }
 
