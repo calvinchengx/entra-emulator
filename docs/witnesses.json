@@ -354,5 +354,21 @@
       "go:TestCustomSecurityAttributes",
       "go:TestGoldenParityGraph"
     ]
+  },
+  "jar-by-reference-requesturi-rfc-9101": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "JAR by reference (`request_uri`, RFC 9101)",
+    "witnesses": [
+      "go:TestRequestObjectJAR",
+      "go:TestGoldenParityOIDCDiscovery"
+    ]
+  },
+  "inline-request-parameter": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "Inline `request` parameter",
+    "witnesses": [
+      "go:TestRequestObjectJAR",
+      "go:TestGoldenParityOIDCDiscovery"
+    ]
   }
 }

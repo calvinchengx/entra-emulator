@@ -92,3 +92,39 @@ func numClaimF(claims map[string]any, key string) (int64, bool) {
 	f, ok := claims[key].(float64)
 	return int64(f), ok
 }
+
+// VerifyRequestObject validates a JAR request object (RFC 9101): signed by one
+// of the app's registered keys, issued by that app, and unexpired. Unlike a
+// client assertion it carries authorization parameters rather than
+// authenticating the client, so there is no audience-equals-token-endpoint
+// requirement — but `iss` must still be the client, or anyone could author one.
+func VerifyRequestObject(object, clientID string, publicKeysPEM []string, now int64) (map[string]any, error) {
+	if len(publicKeysPEM) == 0 {
+		return nil, fmt.Errorf("no registered key credentials for the client")
+	}
+	var claims map[string]any
+	var verified bool
+	for _, pemStr := range publicKeysPEM {
+		pub, err := parsePublicKeyPEM(pemStr)
+		if err != nil {
+			continue
+		}
+		if c, err := VerifyRS256(pub, object); err == nil {
+			claims, verified = c, true
+			break
+		}
+	}
+	if !verified {
+		return nil, fmt.Errorf("signature does not match any registered key")
+	}
+	if iss, _ := claims["iss"].(string); iss != clientID {
+		return nil, fmt.Errorf("request object iss must be the client_id")
+	}
+	if exp, ok := claims["exp"].(float64); ok && now >= int64(exp) {
+		return nil, fmt.Errorf("request object has expired")
+	}
+	if nbf, ok := claims["nbf"].(float64); ok && now < int64(nbf) {
+		return nil, fmt.Errorf("request object is not yet valid")
+	}
+	return claims, nil
+}

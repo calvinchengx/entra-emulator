@@ -53,6 +53,33 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return r.URL.Query().Get(k)
 	}
 
+	// JAR (RFC 9101): a signed request object referenced by request_uri
+	// supplies the authorization parameters. Resolve it FIRST, since every
+	// parameter read below may come from it. Inline `request` is rejected —
+	// Entra does not advertise request_parameter_supported.
+	if raw := param("request"); raw != "" {
+		i.renderErrorPage(w, http.StatusBadRequest, "Invalid request",
+			"The request parameter is not supported; use request_uri.")
+		return
+	}
+	if requestURI := param("request_uri"); requestURI != "" {
+		clientID := param("client_id")
+		if clientID == "" {
+			i.renderErrorPage(w, http.StatusBadRequest, "Invalid request",
+				"client_id is required alongside request_uri.")
+			return
+		}
+		claims, err := i.fetchRequestObject(clientID, requestURI)
+		if err != nil {
+			i.renderErrorPage(w, http.StatusBadRequest, "Invalid request", err.Error())
+			return
+		}
+		q := r.URL.Query()
+		applyRequestObject(q, claims)
+		r.URL.RawQuery = q.Encode()
+		param = func(k string) string { return q.Get(k) }
+	}
+
 	st := authorizeState{
 		Kind:         "authorize",
 		Tenant:       r.PathValue("tenant"),
