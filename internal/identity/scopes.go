@@ -78,6 +78,17 @@ func (i *Identity) ResolveDelegatedScopes(scopes []string) *ResolvedScopes {
 				return nil
 			}
 			out.Granted = append(out.Granted, sc)
+		// Well-known Azure resources, delegated: "https://vault.azure.net/
+		// .default" (or /user_impersonation) is how a signed-in user reaches
+		// Key Vault, Storage or ARM — the `az login` then `az keyvault secret
+		// show` path. Same carve-out the client-credentials flow has, so a
+		// user token gets the correct audience without a resource-app seed.
+		case azureDelegatedResource(sc) != "":
+			resource := azureDelegatedResource(sc)
+			if !out.setResource(azureAud(resource)) {
+				return nil
+			}
+			out.Granted = append(out.Granted, sc[strings.LastIndex(sc, "/")+1:])
 		case strings.Contains(sc, "/"):
 			idx := strings.LastIndex(sc, "/")
 			resource, name := sc[:idx], sc[idx+1:]

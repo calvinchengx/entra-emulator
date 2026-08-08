@@ -29,3 +29,19 @@ func azureAud(resource string) string {
 	}
 	return ""
 }
+
+// azureDelegatedResource recognizes a delegated scope aimed at a well-known
+// Azure resource ("https://vault.azure.net/.default",
+// "https://storage.azure.com/user_impersonation") and returns the resource
+// part; "" when the scope is not one of these.
+func azureDelegatedResource(scope string) string {
+	idx := strings.LastIndex(scope, "/")
+	if idx <= 0 {
+		return ""
+	}
+	resource := scope[:idx]
+	if azureAud(resource) != "" {
+		return resource
+	}
+	return ""
+}
