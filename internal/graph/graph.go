@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/calvinchengx/entra-emulator/internal/audit"
 	"github.com/calvinchengx/entra-emulator/internal/config"
 	"github.com/calvinchengx/entra-emulator/internal/httpx"
 	"github.com/calvinchengx/entra-emulator/internal/store"
@@ -17,10 +18,11 @@ type Graph struct {
 	Cfg    *config.Config
 	Store  *store.Store
 	Tokens *tokens.Service
+	Audit  *audit.Recorder
 }
 
-func New(cfg *config.Config, st *store.Store, ts *tokens.Service) *Graph {
-	return &Graph{Cfg: cfg, Store: st, Tokens: ts}
+func New(cfg *config.Config, st *store.Store, ts *tokens.Service, au *audit.Recorder) *Graph {
+	return &Graph{Cfg: cfg, Store: st, Tokens: ts, Audit: au}
 }
 
 // Register mounts the Graph routes under prefix ("" on the graph host,
@@ -44,6 +46,7 @@ func (g *Graph) Register(mux *http.ServeMux, prefix string) {
 	g.registerCustomRoles(mux, prefix)
 	g.registerAdminUnits(mux, prefix)
 	g.registerInvitations(mux, prefix)
+	g.registerAuditLogs(mux, prefix)
 	g.registerAuthMethods(mux, prefix)
 }
 

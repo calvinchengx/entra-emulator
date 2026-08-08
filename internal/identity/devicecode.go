@@ -177,6 +177,7 @@ func (i *Identity) grantDeviceCode(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteOAuthError(w, "invalid_grant", "AADSTS70019: The granted scopes are no longer valid.")
 		return
 	}
+	noteAuditSubject(r, user.ID, user.UserPrincipalName)
 	resp, err := i.Tokens.BuildDelegatedResponse(tokens.DelegatedGrant{
 		App: app, User: user, Scopes: resolved.Granted, Resource: resolved.Resource,
 	})

@@ -2,6 +2,7 @@ package identity
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -37,7 +38,8 @@ func (i *Identity) audited(flow string, next http.HandlerFunc) http.HandlerFunc 
 	return func(w http.ResponseWriter, r *http.Request) {
 		_ = r.ParseForm() // idempotent; the handler's own ParseForm returns the cache
 		cw := &captureWriter{ResponseWriter: w, status: http.StatusOK}
-		next(cw, r)
+		subj := &auditSubject{}
+		next(cw, r.WithContext(context.WithValue(r.Context(), auditSubjectKey{}, subj)))
 
 		ev := audit.Event{
 			Time:      i.Store.Now(),
@@ -47,6 +49,7 @@ func (i *Identity) audited(flow string, next http.HandlerFunc) http.HandlerFunc 
 			Status:    cw.status,
 			OK:        cw.status < 400,
 		}
+		ev.UserID, ev.UserPrincipalName = subj.UserID, subj.UPN
 		// Token errors are JSON with error/error_description.
 		if cw.status >= 400 && cw.body.Len() > 0 {
 			var oerr struct {
@@ -86,4 +89,19 @@ func extractQueryParam(rawurl, key string) string {
 		}
 	}
 	return ""
+}
+
+// The audit middleware records AFTER the handler returns, but only the handler
+// knows which user an exchange resolved. It therefore places a mutable holder
+// in the request context and handlers fill it in via noteAuditSubject.
+type auditSubject struct{ UserID, UPN string }
+
+type auditSubjectKey struct{}
+
+// noteAuditSubject records the user this exchange authenticated. Safe to call
+// from any handler: it is a no-op when the request is not being audited.
+func noteAuditSubject(r *http.Request, userID, upn string) {
+	if s, ok := r.Context().Value(auditSubjectKey{}).(*auditSubject); ok {
+		s.UserID, s.UPN = userID, upn
+	}
 }

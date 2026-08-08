@@ -44,6 +44,7 @@ func (i *Identity) grantResourceOwnerPassword(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	noteAuditSubject(r, user.ID, user.UserPrincipalName)
 	resp, err := i.Tokens.BuildDelegatedResponse(tokens.DelegatedGrant{
 		App: app, User: user, Scopes: resolved.Granted, Resource: resolved.Resource, AMR: "pwd",
 	})

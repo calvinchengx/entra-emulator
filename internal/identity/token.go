@@ -206,6 +206,7 @@ func (i *Identity) grantAuthorizationCode(w http.ResponseWriter, r *http.Request
 		}
 		grantScopes = req
 	}
+	noteAuditSubject(r, user.ID, user.UserPrincipalName)
 	resp, err := i.Tokens.BuildDelegatedResponse(tokens.DelegatedGrant{
 		App: app, User: user, Scopes: grantScopes, Resource: row.Resource, Nonce: row.Nonce, AMR: row.AMR,
 	})
@@ -238,6 +239,7 @@ func (i *Identity) grantRefreshToken(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteOAuthError(w, "invalid_grant", "AADSTS50057: The user account is disabled or deleted.")
 		return
 	}
+	noteAuditSubject(r, user.ID, user.UserPrincipalName)
 	resp, err := i.Tokens.BuildDelegatedResponse(tokens.DelegatedGrant{
 		App: app, User: user, Scopes: redeemed.Scopes, Resource: redeemed.Resource,
 		SkipRefreshToken: true,

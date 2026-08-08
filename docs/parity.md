@@ -85,7 +85,8 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | Administrative units | Real CRUD over `directory/administrativeUnits` plus membership of both users and groups (each returned with its own `@odata.type`), `Public`/`HiddenMembership` visibility, a dangling member refused, and FK-cascade so deleting a unit takes its memberships with it | 🟢 Real |
 | **Custom security attributes** | — | 🔴 Not implemented |
 | **Graph `beta` endpoint** | v1.0 only | 🔴 Not implemented |
-| **Sign-in / audit logs** (Graph `auditLogs`, `signIns`) | — (the emulator's own `/admin/api/audit` is a different, test-only thing) | 🔴 Not implemented |
+| Sign-in logs (Graph `auditLogs/signIns`) | Real: served over the flow recorder, so every row is an exchange that actually happened. The recorder now carries the **user each exchange resolved**, so a delegated row names `userId`/`userPrincipalName` while an app-only row is userless (correct, not missing); failures carry their concrete reason and every row has a stable id to de-duplicate on. `conditionalAccessStatus` is always `notApplied` — there is no CA engine, by design | 🟢 Real |
+| **Directory audit logs** (Graph `auditLogs/directoryAudits`) | The emulator records sign-ins, not directory mutations — so this is absent rather than served empty | 🔴 Not implemented |
 
 ## SCIM 2.0 (`10-scim-provisioning`)
 

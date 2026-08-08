@@ -316,5 +316,12 @@
       "go:TestB2BGuestInvitations",
       "go:TestGoldenParityGraph"
     ]
+  },
+  "sign-in-logs-graph-auditlogs-signins": {
+    "section": "Microsoft Graph (`09-graph-api`)",
+    "claim": "Sign-in logs (Graph `auditLogs/signIns`)",
+    "witnesses": [
+      "go:TestGraphSignInLogs"
+    ]
   }
 }
