@@ -346,5 +346,13 @@
       "go:TestFrontchannelLogout",
       "go:TestLogoutAdvertisement"
     ]
+  },
+  "custom-security-attributes": {
+    "section": "Microsoft Graph (`09-graph-api`)",
+    "claim": "Custom security attributes",
+    "witnesses": [
+      "go:TestCustomSecurityAttributes",
+      "go:TestGoldenParityGraph"
+    ]
   }
 }

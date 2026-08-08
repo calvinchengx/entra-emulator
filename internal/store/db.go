@@ -168,6 +168,30 @@ CREATE TABLE IF NOT EXISTS device_codes (
   expires_at  INTEGER NOT NULL,
   created_at  INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS attribute_sets (
+  id                    TEXT PRIMARY KEY,          -- the set name, e.g. "Engineering"
+  description           TEXT,
+  max_attributes_per_set INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS custom_security_attribute_definitions (
+  id              TEXT PRIMARY KEY,                -- "{attributeSet}_{name}"
+  attribute_set   TEXT NOT NULL REFERENCES attribute_sets(id) ON DELETE CASCADE,
+  name            TEXT NOT NULL,
+  description     TEXT,
+  type            TEXT NOT NULL,                   -- String | Integer | Boolean
+  status          TEXT NOT NULL DEFAULT 'Available',
+  is_collection   INTEGER NOT NULL DEFAULT 0,
+  is_searchable   INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS user_custom_security_attributes (
+  user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  definition_id TEXT NOT NULL,
+  value        TEXT NOT NULL,                      -- JSON-encoded, typed by the definition
+  PRIMARY KEY (user_id, definition_id)
+);
+
 CREATE TABLE IF NOT EXISTS session_apps (
   session_id TEXT NOT NULL,
   app_id     TEXT NOT NULL,
