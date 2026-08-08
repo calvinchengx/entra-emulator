@@ -72,6 +72,12 @@ The image defaults to `ORIGIN_MODE=compat` and binds `0.0.0.0`; mount a volume a
 `/app/data` to persist the store and cert. Tagged releases also publish cross-platform
 binaries (linux/darwin/windows × amd64/arm64) via GoReleaser.
 
+To run this emulator alongside its siblings — `azure-keyvault-emulator`,
+`arm-emulator`, and `fabric-emulator`, which validate the tokens this one issues —
+see [**azure-emulators**](https://github.com/calvinchengx/azure-emulators): a
+composition-only repo with the family `docker-compose.yml` and the issuer wiring
+they share.
+
 ### Homebrew
 
 macOS and Linux (Intel/Apple Silicon), from the tap:
