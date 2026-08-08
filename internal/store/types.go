@@ -37,6 +37,10 @@ type User struct {
 	AccountEnabled    bool
 	UserType          string // Member | Guest (B2B)
 	ExternalUserState string // guests: PendingAcceptance | Accepted
+	// InviteRedirectURL is the guest's post-redemption destination, bound at
+	// invitation time. Redemption reads it from here rather than from the
+	// redeem link, so the target cannot be swapped by whoever follows the link.
+	InviteRedirectURL string
 	CreatedAt         int64
 	UpdatedAt         int64 // last mutation; drives incremental SCIM sync
 }

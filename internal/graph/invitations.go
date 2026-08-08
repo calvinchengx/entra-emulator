@@ -77,6 +77,7 @@ func (g *Graph) createInvitation(w http.ResponseWriter, r *http.Request, _ *toke
 		AccountEnabled:    true,
 		UserType:          userType,
 		ExternalUserState: "PendingAcceptance",
+		InviteRedirectURL: body.InviteRedirectURL,
 		CreatedAt:         now,
 	}
 	if err := g.Store.CreateUser(guest); err != nil {
@@ -89,9 +90,10 @@ func (g *Graph) createInvitation(w http.ResponseWriter, r *http.Request, _ *toke
 	if g.Cfg.Origins.Graph == g.Cfg.Origins.Login {
 		redeem += "/graph"
 	}
-	redeem += "/invitations/redeem?" + url.Values{
-		"id": {guest.ID}, "redirect": {body.InviteRedirectURL},
-	}.Encode()
+	// Only the invitation id travels in the link. The redirect target is bound
+	// to the invitation server-side, so following a tampered link cannot send
+	// the guest somewhere the inviting app never named.
+	redeem += "/invitations/redeem?" + url.Values{"id": {guest.ID}}.Encode()
 
 	httpx.WriteJSON(w, http.StatusCreated, map[string]any{
 		"@odata.context":          g.contextURL("invitations/$entity"),
@@ -123,7 +125,9 @@ func (g *Graph) redeemInvitation(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if target := r.URL.Query().Get("redirect"); target != "" {
+	// The destination comes from the invitation record, never from the query —
+	// a `redirect` parameter on the link is ignored rather than honored.
+	if target := u.InviteRedirectURL; target != "" {
 		http.Redirect(w, r, target, http.StatusFound)
 		return
 	}

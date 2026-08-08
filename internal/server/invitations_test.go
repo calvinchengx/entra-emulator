@@ -75,6 +75,27 @@ func TestB2BGuestInvitations(t *testing.T) {
 		}
 	})
 
+	// Open-redirect guard: the redemption target is bound to the invitation at
+	// creation, so a `redirect` bolted onto the link must be ignored — not
+	// followed. Before this was enforced, the link carried its own destination
+	// and anyone could swap it for an arbitrary origin.
+	t.Run("a redirect parameter on the link cannot retarget redemption", func(t *testing.T) {
+		client := noRedirectJar()
+		resp, err := client.Get(redeemURL + "&redirect=https://evil.example/steal")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		if loc := resp.Header.Get("Location"); strings.Contains(loc, "evil.example") {
+			t.Fatalf("redemption followed an attacker-supplied redirect: %q", loc)
+		}
+		if resp.StatusCode == http.StatusFound &&
+			resp.Header.Get("Location") != "https://localhost:3000/welcome" {
+			t.Errorf("redirect target = %q, want the invitation's own URL",
+				resp.Header.Get("Location"))
+		}
+	})
+
 	t.Run("ordinary members are not guests", func(t *testing.T) {
 		// The seeded users must still report Member with no external state, or
 		// the new fields would silently mislabel the whole directory.
