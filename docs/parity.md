@@ -62,7 +62,8 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | Front-channel logout | `/logout` exists; `frontchannel_logout_supported` is not advertised | 🟡 Emulated |
 | **Implicit / hybrid flow** | `response_types_supported: ["code"]` only | 🔴 Not implemented |
 | **mTLS / PoP / certificate-bound tokens** | — | 🔴 Not implemented |
-| **PAR / JAR** (`request_uri`) | — | 🔴 Not implemented |
+| **JAR** (`request_uri` — Entra advertises `request_uri_parameter_supported`) | — | 🔴 Not implemented |
+| PAR (pushed authorization requests) | Not implemented — and **not an Entra feature either**: the real discovery document advertises no `pushed_authorization_request_endpoint`, so this is parity, not a gap | 🟢 Real |
 | **CAE** (continuous access evaluation) | — | 🔴 Not implemented |
 | **Token-lifetime / claims-mapping policies** | — | 🔴 Not implemented |
 

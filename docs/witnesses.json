@@ -262,5 +262,12 @@
       "go:TestGoldenParityOIDCDiscovery",
       "go:TestJWKSAndTokenVerify"
     ]
+  },
+  "par-pushed-authorization-requests": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "PAR (pushed authorization requests)",
+    "witnesses": [
+      "go:TestGoldenParityOIDCDiscovery"
+    ]
   }
 }
