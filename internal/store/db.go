@@ -165,6 +165,15 @@ CREATE TABLE IF NOT EXISTS device_codes (
   expires_at  INTEGER NOT NULL,
   created_at  INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS custom_role_definitions (
+  id               TEXT PRIMARY KEY,
+  display_name     TEXT NOT NULL,
+  description      TEXT,
+  is_enabled       INTEGER NOT NULL DEFAULT 1,
+  role_permissions TEXT NOT NULL DEFAULT '[]',   -- JSON array of allowedResourceActions
+  created_at       INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS app_federated_credentials (
   id           TEXT PRIMARY KEY,
   app_id       TEXT NOT NULL REFERENCES app_registrations(app_id) ON DELETE CASCADE,
