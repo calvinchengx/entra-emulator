@@ -106,7 +106,8 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | **MFA / step-up authentication** | — | 🔴 Not implemented |
 | **Conditional Access** (policies, named locations, auth strengths) | — the line the project deliberately doesn't cross | 🔴 Not implemented |
 | **Identity Protection / risky users** | — | 🔴 Not implemented |
-| **SSPR / password reset** | — | 🔴 Not implemented |
+| Password reset (Graph `authentication/passwordMethods/{id}/resetPassword`) | Real: the new password is scrypt-hashed into the directory, so the old credential immediately stops signing in and the new one works. Omitting `newPassword` returns a system-generated one in Entra's `passwordResetResponse` shape, with `202` + `Location` as Graph answers this long-running operation | 🟢 Real |
+| **Interactive SSPR** (verify by email / SMS / security questions at `passwordreset.microsoftonline.com`) | Not implemented — it is a first-party web flow, not a documented protocol, so emulating it would mean inventing a wire format rather than reproducing one | 🔴 Not implemented |
 | **SAML / WS-Federation** | — stated non-goal | 🔴 Not implemented |
 | **B2C user flows / External ID / CIAM** | — stated non-goal | 🔴 Not implemented |
 | B2B guest invitations | Real: `POST /invitations` creates an actual directory user with Entra's external shape — `#EXT#` UPN, `userType: Guest`, `externalUserState: PendingAcceptance` — and the returned redeem link flips that state to `Accepted` and redirects to the inviting app. Members keep `userType: Member` with a null external state | 🟢 Real |

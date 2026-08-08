@@ -47,6 +47,7 @@ func (g *Graph) Register(mux *http.ServeMux, prefix string) {
 	g.registerAdminUnits(mux, prefix)
 	g.registerInvitations(mux, prefix)
 	g.registerAuditLogs(mux, prefix)
+	g.registerPasswordReset(mux, prefix)
 	g.registerAuthMethods(mux, prefix)
 }
 
