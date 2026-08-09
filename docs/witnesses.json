@@ -190,7 +190,8 @@
     "claim": "**Managed identity** (`/msi/token`, App Service protocol)",
     "witnesses": [
       "go:TestMSISystemAssigned",
-      "go:TestMSIUserAssignedByClientID"
+      "go:TestMSIUserAssignedByClientID",
+      "ci:sdk-e2e"
     ]
   },
   "fabric-audience-tokens-workspace-identity-app-reg-sp-managed-credential-state-machine-cascade-delete": {
