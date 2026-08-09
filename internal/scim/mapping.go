@@ -26,52 +26,77 @@ func isoTime(epoch int64) string {
 	return time.Unix(epoch, 0).UTC().Format(time.RFC3339)
 }
 
-// userResource maps a store user to a SCIM User (core schema).
-func userResource(u *store.User, base string) map[string]any {
+// userResource maps a store user to a SCIM User (core schema). externalId is
+// passed in rather than read from the user: it lives beside the directory, not
+// on it (see store.SetExternalID).
+func userResource(u *store.User, base string, externalID string) map[string]any {
 	res := map[string]any{
-		"schemas":     []string{userSchema},
-		"id":          u.ID,
-		"userName":    u.UserPrincipalName,
-		"displayName": u.DisplayName,
-		"active":      u.AccountEnabled,
-		"name": map[string]any{
-			"givenName":  u.GivenName,
-			"familyName": u.Surname,
-		},
+		"schemas":  []string{userSchema},
+		"id":       u.ID,
+		"userName": u.UserPrincipalName,
+		"active":   u.AccountEnabled,
 		"meta": map[string]any{
 			"resourceType": "User",
 			"created":      isoTime(u.CreatedAt),
 			"location":     base + "/Users/" + u.ID,
 		},
 	}
+	// Unset attributes are omitted, not emitted empty. SCIM has no empty-string
+	// state: a client that removes displayName and gets back "" cannot tell the
+	// removal happened, and neither could our own PATCH tests.
+	if u.DisplayName != "" {
+		res["displayName"] = u.DisplayName
+	}
+	if u.GivenName != "" || u.Surname != "" {
+		name := map[string]any{}
+		if u.GivenName != "" {
+			name["givenName"] = u.GivenName
+		}
+		if u.Surname != "" {
+			name["familyName"] = u.Surname
+		}
+		res["name"] = name
+	}
 	if u.Mail != "" {
 		res["emails"] = []map[string]any{{"value": u.Mail, "type": "work", "primary": true}}
+	}
+	if externalID != "" {
+		res["externalId"] = externalID
 	}
 	return res
 }
 
 // groupResource maps a store group + its members to a SCIM Group.
-func groupResource(g *store.Group, members []*store.User, base string) map[string]any {
+func groupResource(g *store.Group, members []*store.User, base string, externalID string) map[string]any {
 	ms := make([]map[string]any, 0, len(members))
 	for _, m := range members {
 		ms = append(ms, map[string]any{"value": m.ID, "display": m.DisplayName, "$ref": base + "/Users/" + m.ID})
 	}
-	return map[string]any{
+	res := map[string]any{
 		"schemas":     []string{groupSchema},
 		"id":          g.ID,
 		"displayName": g.DisplayName,
-		"members":     ms,
 		"meta": map[string]any{
 			"resourceType": "Group",
 			"created":      isoTime(g.CreatedAt),
 			"location":     base + "/Groups/" + g.ID,
 		},
 	}
+	// An empty membership is absent, not []: a client that removes every member
+	// needs to see the attribute gone to know the removal took.
+	if len(ms) > 0 {
+		res["members"] = ms
+	}
+	if externalID != "" {
+		res["externalId"] = externalID
+	}
+	return res
 }
 
 // userBody is the writable subset of a SCIM User (create / replace).
 type userBody struct {
 	UserName    string `json:"userName"`
+	ExternalID  string `json:"externalId"`
 	DisplayName string `json:"displayName"`
 	Name        struct {
 		GivenName  string `json:"givenName"`

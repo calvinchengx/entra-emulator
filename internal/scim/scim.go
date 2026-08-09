@@ -39,12 +39,26 @@ func (s *Service) Register(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc("GET "+p+"/Schemas", s.auth(s.schemas))
 	mux.HandleFunc("GET "+p+"/Schemas/{id}", s.auth(s.schema))
 
+	// Anything else under the SCIM prefix answers with a SCIM Error resource.
+	// Without this the Go mux's plain-text 404 reaches the client, and a SCIM
+	// client parsing it sees an untyped body rather than an error it can read.
+	mux.HandleFunc(p+"/", s.auth(func(w http.ResponseWriter, r *http.Request) {
+		scimErr(w, http.StatusNotFound, "No such SCIM endpoint: "+r.URL.Path)
+	}))
+
 	mux.HandleFunc("GET "+p+"/Users", s.auth(s.listUsers))
 	mux.HandleFunc("POST "+p+"/Users", s.auth(s.createUser))
 	mux.HandleFunc("GET "+p+"/Users/{id}", s.auth(s.getUser))
 	mux.HandleFunc("PUT "+p+"/Users/{id}", s.auth(s.replaceUser))
 	mux.HandleFunc("PATCH "+p+"/Users/{id}", s.auth(s.patchUser))
 	mux.HandleFunc("DELETE "+p+"/Users/{id}", s.auth(s.deleteUser))
+
+	// RFC 7644 §3.4.3 query-by-POST, for filters too long or too sensitive for
+	// a URL. Each delegates to the list handler so filtering and paging have
+	// exactly one implementation.
+	mux.HandleFunc("POST "+p+"/Users/.search", s.auth(s.searchUsers))
+	mux.HandleFunc("POST "+p+"/Groups/.search", s.auth(s.searchGroups))
+	mux.HandleFunc("POST "+p+"/.search", s.auth(s.searchAll))
 
 	mux.HandleFunc("GET "+p+"/Groups", s.auth(s.listGroups))
 	mux.HandleFunc("POST "+p+"/Groups", s.auth(s.createGroup))

@@ -146,8 +146,11 @@ func TestSCIMGroupMembership(t *testing.T) {
 		t.Fatalf("patch remove member: %d", code)
 	}
 	_, after := scimReq(t, "GET", base+"/"+gid, nil)
-	if len(after["members"].([]any)) != 0 {
-		t.Fatalf("member not removed: %v", after["members"])
+	// An emptied membership is absent, not []. SCIM has no empty-collection
+	// state distinct from unset, and a client removing the last member needs
+	// the attribute to disappear to know the removal took.
+	if got, present := after["members"]; present {
+		t.Fatalf("member not removed, members still present: %v", got)
 	}
 
 	// Rename via PATCH replace displayName.

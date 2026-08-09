@@ -16,12 +16,22 @@ func (s *Service) listUsers(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	var users []*store.User
 	if attr, value, ok := filterEq(q.Get("filter")); ok {
-		if attr != "username" {
-			scimErr(w, http.StatusBadRequest, "Only 'userName eq' filters are supported.")
+		switch attr {
+		case "username":
+			if u, err := s.Store.GetUserByUPN(value); err == nil {
+				users = []*store.User{u}
+			}
+		case "externalid":
+			// Entra correlates by externalId on re-sync, so a provisioning
+			// client that lost its local mapping must be able to look one up.
+			if id, ok := s.Store.FindByExternalID("User", value); ok {
+				if u, err := s.Store.GetUser(id); err == nil {
+					users = []*store.User{u}
+				}
+			}
+		default:
+			scimErr(w, http.StatusBadRequest, "Only 'userName eq' and 'externalId eq' filters are supported.")
 			return
-		}
-		if u, err := s.Store.GetUserByUPN(value); err == nil {
-			users = []*store.User{u}
 		}
 	} else {
 		all, _, err := s.Store.ListUsers(allRows, 0, "")
@@ -33,11 +43,14 @@ func (s *Service) listUsers(w http.ResponseWriter, r *http.Request) {
 	}
 	start, page := paginate(q, len(users))
 	b := base(r)
+	ext := s.Store.ExternalIDs("User")
 	resources := make([]any, 0)
 	for _, u := range users[start:page] {
-		resources = append(resources, userResource(u, b))
+		resources = append(resources, userResource(u, b, ext[u.ID]))
 	}
-	writeSCIM(w, http.StatusOK, withTotal(listResponse(resources, start+1), len(users)))
+	inc, exc := projectionFrom(r)
+	writeSCIM(w, http.StatusOK,
+		withTotal(listResponse(projectAll(resources, inc, exc), start+1), len(users)))
 }
 
 func (s *Service) createUser(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +76,10 @@ func (s *Service) createUser(w http.ResponseWriter, r *http.Request) {
 		writeStoreErr(w, err)
 		return
 	}
-	writeSCIM(w, http.StatusCreated, userResource(u, base(r)))
+	if body.ExternalID != "" {
+		_ = s.Store.SetExternalID("User", u.ID, body.ExternalID)
+	}
+	writeResource(w, r, http.StatusCreated, userResource(u, base(r), body.ExternalID))
 }
 
 func (s *Service) getUser(w http.ResponseWriter, r *http.Request) {
@@ -72,7 +88,8 @@ func (s *Service) getUser(w http.ResponseWriter, r *http.Request) {
 		writeStoreErr(w, err)
 		return
 	}
-	writeSCIM(w, http.StatusOK, userResource(u, base(r)))
+	writeResource(w, r, http.StatusOK,
+		userResource(u, base(r), s.Store.ExternalID("User", u.ID)))
 }
 
 func (s *Service) replaceUser(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +107,9 @@ func (s *Service) replaceUser(w http.ResponseWriter, r *http.Request) {
 		writeStoreErr(w, err)
 		return
 	}
-	writeSCIM(w, http.StatusOK, userResource(u, base(r)))
+	// PUT replaces the resource wholesale, so an absent externalId clears it.
+	_ = s.Store.SetExternalID("User", u.ID, body.ExternalID)
+	writeResource(w, r, http.StatusOK, userResource(u, base(r), body.ExternalID))
 }
 
 func (s *Service) patchUser(w http.ResponseWriter, r *http.Request) {
@@ -103,21 +122,25 @@ func (s *Service) patchUser(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	ext := s.Store.ExternalID("User", u.ID)
 	for _, op := range ops {
-		applyUserOp(u, op)
+		applyUserOp(u, op, &ext)
 	}
 	if err := s.Store.UpdateUser(u); err != nil {
 		writeStoreErr(w, err)
 		return
 	}
-	writeSCIM(w, http.StatusOK, userResource(u, base(r)))
+	_ = s.Store.SetExternalID("User", u.ID, ext)
+	writeResource(w, r, http.StatusOK, userResource(u, base(r), ext))
 }
 
 func (s *Service) deleteUser(w http.ResponseWriter, r *http.Request) {
-	if err := s.Store.DeleteUser(r.PathValue("id")); err != nil {
+	id := r.PathValue("id")
+	if err := s.Store.DeleteUser(id); err != nil {
 		writeStoreErr(w, err)
 		return
 	}
+	s.Store.DeleteExternalID("User", id)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -125,6 +148,7 @@ func (s *Service) deleteUser(w http.ResponseWriter, r *http.Request) {
 
 type groupBody struct {
 	DisplayName string `json:"displayName"`
+	ExternalID  string `json:"externalId"`
 	Members     []struct {
 		Value string `json:"value"`
 	} `json:"members"`
@@ -137,23 +161,33 @@ func (s *Service) listGroups(w http.ResponseWriter, r *http.Request) {
 		writeStoreErr(w, err)
 		return
 	}
-	if attr, value, ok := filterEq(q.Get("filter")); ok && attr == "displayname" {
+	if attr, value, ok := filterEq(q.Get("filter")); ok {
 		filtered := all[:0]
 		for _, g := range all {
-			if g.DisplayName == value {
-				filtered = append(filtered, g)
+			switch attr {
+			case "displayname":
+				if g.DisplayName == value {
+					filtered = append(filtered, g)
+				}
+			case "externalid":
+				if s.Store.ExternalID("Group", g.ID) == value {
+					filtered = append(filtered, g)
+				}
 			}
 		}
 		all = filtered
 	}
 	start, page := paginate(q, len(all))
 	b := base(r)
+	ext := s.Store.ExternalIDs("Group")
 	resources := make([]any, 0)
 	for _, g := range all[start:page] {
 		members, _ := s.Store.ListGroupMembers(g.ID)
-		resources = append(resources, groupResource(g, members, b))
+		resources = append(resources, groupResource(g, members, b, ext[g.ID]))
 	}
-	writeSCIM(w, http.StatusOK, withTotal(listResponse(resources, start+1), len(all)))
+	inc, exc := projectionFrom(r)
+	writeSCIM(w, http.StatusOK,
+		withTotal(listResponse(projectAll(resources, inc, exc), start+1), len(all)))
 }
 
 func (s *Service) createGroup(w http.ResponseWriter, r *http.Request) {
@@ -173,8 +207,11 @@ func (s *Service) createGroup(w http.ResponseWriter, r *http.Request) {
 	for _, m := range body.Members {
 		_ = s.Store.AddGroupMember(g.ID, m.Value)
 	}
+	if body.ExternalID != "" {
+		_ = s.Store.SetExternalID("Group", g.ID, body.ExternalID)
+	}
 	members, _ := s.Store.ListGroupMembers(g.ID)
-	writeSCIM(w, http.StatusCreated, groupResource(g, members, base(r)))
+	writeResource(w, r, http.StatusCreated, groupResource(g, members, base(r), body.ExternalID))
 }
 
 func (s *Service) getGroup(w http.ResponseWriter, r *http.Request) {
@@ -184,7 +221,8 @@ func (s *Service) getGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	members, _ := s.Store.ListGroupMembers(g.ID)
-	writeSCIM(w, http.StatusOK, groupResource(g, members, base(r)))
+	writeResource(w, r, http.StatusOK,
+		groupResource(g, members, base(r), s.Store.ExternalID("Group", g.ID)))
 }
 
 // replaceGroup implements PUT /Groups/{id} (RFC 7644 §3.5.1): the resource is
@@ -231,8 +269,9 @@ func (s *Service) replaceGroup(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	_ = s.Store.SetExternalID("Group", g.ID, body.ExternalID)
 	members, _ := s.Store.ListGroupMembers(g.ID)
-	writeSCIM(w, http.StatusOK, groupResource(g, members, base(r)))
+	writeResource(w, r, http.StatusOK, groupResource(g, members, base(r), body.ExternalID))
 }
 
 func (s *Service) patchGroup(w http.ResponseWriter, r *http.Request) {
@@ -245,22 +284,26 @@ func (s *Service) patchGroup(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	ext := s.Store.ExternalID("Group", g.ID)
 	for _, op := range ops {
-		s.applyGroupOp(g, op)
+		s.applyGroupOp(g, op, &ext)
 	}
 	if err := s.Store.UpdateGroup(g); err != nil {
 		writeStoreErr(w, err)
 		return
 	}
+	_ = s.Store.SetExternalID("Group", g.ID, ext)
 	members, _ := s.Store.ListGroupMembers(g.ID)
-	writeSCIM(w, http.StatusOK, groupResource(g, members, base(r)))
+	writeResource(w, r, http.StatusOK, groupResource(g, members, base(r), ext))
 }
 
 func (s *Service) deleteGroup(w http.ResponseWriter, r *http.Request) {
-	if err := s.Store.DeleteGroup(r.PathValue("id")); err != nil {
+	id := r.PathValue("id")
+	if err := s.Store.DeleteGroup(id); err != nil {
 		writeStoreErr(w, err)
 		return
 	}
+	s.Store.DeleteExternalID("Group", id)
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -282,50 +325,130 @@ func decodePatch(w http.ResponseWriter, r *http.Request) ([]patchOp, bool) {
 	return body.Operations, true
 }
 
-// applyUserOp handles the common Entra user patches: replace active / displayName
-// / name.* / userName, either pathed or as a no-path object of attributes.
-func applyUserOp(u *store.User, op patchOp) {
-	if strings.EqualFold(op.Op, "remove") {
-		return
-	}
+// applyUserOp applies one PatchOp (RFC 7644 §3.5.2) to a user. add and replace
+// both write the value; remove clears the attribute named by the path.
+//
+// Previously remove was a no-op and only five paths were writable, so a client
+// that patched name, emails or externalId got 200 OK and no change — the worst
+// kind of failure, because it looks like success.
+func applyUserOp(u *store.User, op patchOp, ext *string) {
+	remove := strings.EqualFold(op.Op, "remove")
 	if op.Path == "" {
-		// No-path replace: value is an object of attributes.
+		// RFC 7644 §3.5.2.2: remove requires a path. A no-path value is an
+		// object of attributes to write.
+		if remove {
+			return
+		}
 		var attrs map[string]json.RawMessage
 		if json.Unmarshal(op.Value, &attrs) == nil {
 			for k, v := range attrs {
-				setUserAttr(u, k, v)
+				setUserAttr(u, k, v, ext, false)
 			}
 		}
 		return
 	}
-	setUserAttr(u, op.Path, op.Value)
+	setUserAttr(u, op.Path, op.Value, ext, remove)
 }
 
-func setUserAttr(u *store.User, path string, raw json.RawMessage) {
-	switch strings.ToLower(path) {
+// nameBody is the complex "name" attribute as a whole-object patch target.
+type nameBody struct {
+	GivenName  string `json:"givenName"`
+	FamilyName string `json:"familyName"`
+}
+
+// emailBody mirrors the multi-valued "emails" attribute.
+type emailBody struct {
+	Value   string `json:"value"`
+	Type    string `json:"type"`
+	Primary bool   `json:"primary"`
+}
+
+func setUserAttr(u *store.User, path string, raw json.RawMessage, ext *string, remove bool) {
+	// Multi-valued paths arrive as emails[type eq "work"].value; the emulator
+	// keeps a single mail, so the sub-path collapses onto it.
+	lower := strings.ToLower(path)
+	if i := strings.Index(lower, "["); i >= 0 {
+		lower = lower[:i]
+	}
+	switch lower {
 	case "active":
+		// accountEnabled is non-nullable in the directory, exactly as it is in
+		// Entra, so remove resets it to the default rather than unsetting it.
+		if remove {
+			u.AccountEnabled = true
+			return
+		}
 		var b bool
 		if json.Unmarshal(raw, &b) == nil {
 			u.AccountEnabled = b
 		}
 	case "displayname":
-		u.DisplayName = asString(raw)
+		u.DisplayName = valueOrEmpty(raw, remove)
 	case "username":
-		u.UserPrincipalName = asString(raw)
+		if !remove { // userName is required; removing it would orphan the user
+			u.UserPrincipalName = asString(raw)
+		}
+	case "externalid":
+		*ext = valueOrEmpty(raw, remove)
+	case "name":
+		if remove {
+			u.GivenName, u.Surname = "", ""
+			return
+		}
+		var n nameBody
+		if json.Unmarshal(raw, &n) == nil {
+			u.GivenName, u.Surname = n.GivenName, n.FamilyName
+		}
 	case "name.givenname":
-		u.GivenName = asString(raw)
+		u.GivenName = valueOrEmpty(raw, remove)
 	case "name.familyname":
-		u.Surname = asString(raw)
+		u.Surname = valueOrEmpty(raw, remove)
+	case "emails":
+		if remove {
+			u.Mail = ""
+			return
+		}
+		u.Mail = firstEmail(raw)
 	}
+}
+
+// valueOrEmpty returns "" for a remove, else the decoded string.
+func valueOrEmpty(raw json.RawMessage, remove bool) string {
+	if remove {
+		return ""
+	}
+	return asString(raw)
+}
+
+// firstEmail accepts either the array form or a bare string (the sub-path
+// emails[...].value case), preferring the primary entry.
+func firstEmail(raw json.RawMessage) string {
+	var list []emailBody
+	if json.Unmarshal(raw, &list) == nil && len(list) > 0 {
+		for _, e := range list {
+			if e.Primary && e.Value != "" {
+				return e.Value
+			}
+		}
+		return list[0].Value
+	}
+	return asString(raw)
 }
 
 var memberPathRe = regexp.MustCompile(`members\[value eq "([^"]+)"\]`)
 
-// applyGroupOp handles displayName replace and members add/remove.
-func (s *Service) applyGroupOp(g *store.Group, op patchOp) {
+// applyGroupOp handles displayName / externalId replace and members add/remove.
+func (s *Service) applyGroupOp(g *store.Group, op patchOp, ext *string) {
+	remove := strings.EqualFold(op.Op, "remove")
 	// Rename.
 	if strings.EqualFold(op.Path, "displayName") {
-		g.DisplayName = asString(op.Value)
+		if !remove { // displayName is required on a Group
+			g.DisplayName = asString(op.Value)
+		}
+		return
+	}
+	if strings.EqualFold(op.Path, "externalId") {
+		*ext = valueOrEmpty(op.Value, remove)
 		return
 	}
 	// Remove by path filter: members[value eq "id"].
@@ -341,6 +464,23 @@ func (s *Service) applyGroupOp(g *store.Group, op patchOp) {
 		Value string `json:"value"`
 	}
 	if json.Unmarshal(op.Value, &members) != nil {
+		// `remove` on the whole members attribute carries no value and clears
+		// the membership; without this the op silently did nothing.
+		if remove {
+			if current, err := s.Store.ListGroupMembers(g.ID); err == nil {
+				for _, u := range current {
+					_ = s.Store.RemoveGroupMember(g.ID, u.ID)
+				}
+			}
+		}
+		return
+	}
+	if remove && len(members) == 0 {
+		if current, err := s.Store.ListGroupMembers(g.ID); err == nil {
+			for _, u := range current {
+				_ = s.Store.RemoveGroupMember(g.ID, u.ID)
+			}
+		}
 		return
 	}
 	for _, m := range members {
