@@ -53,7 +53,8 @@
     "witnesses": [
       "ci:sdk-e2e",
       "go:TestApplyTokenConfigGroupOverage",
-      "go:TestApplyTokenConfigGroupsViaOptionalClaim"
+      "go:TestApplyTokenConfigGroupsViaOptionalClaim",
+      "go:TestGraphEmittedURLsResolve"
     ]
   },
   "oidc-discovery-jwks": {
@@ -441,7 +442,8 @@
     "section": "Microsoft Graph (`09-graph-api`)",
     "claim": "`getMemberObjects` / `getMemberGroups`",
     "witnesses": [
-      "ci:sdk-e2e"
+      "ci:sdk-e2e",
+      "go:TestGraphEmittedURLsResolve"
     ]
   }
 }
