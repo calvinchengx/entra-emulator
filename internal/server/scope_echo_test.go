@@ -85,5 +85,10 @@ func TestScopeEchoOnExchangeAndRefresh(t *testing.T) {
 		if resp.StatusCode == http.StatusOK {
 			t.Fatalf("an unregistered scope was accepted: %v", out)
 		}
+		// Assert WHY: any non-200 would satisfy the check above, including a
+		// refresh token that had simply been rotated away by an earlier subtest.
+		if out["error"] != "invalid_scope" {
+			t.Fatalf("refused, but not as invalid_scope: %v", out)
+		}
 	})
 }

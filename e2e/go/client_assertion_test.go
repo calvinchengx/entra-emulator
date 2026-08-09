@@ -19,6 +19,7 @@ import (
 	"encoding/pem"
 	"math/big"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -114,6 +115,14 @@ func TestMSALGoCertificateClientAuthentication(t *testing.T) {
 			AcquireTokenByCredential(context.Background(), scopes)
 		if err == nil {
 			t.Fatal("an assertion signed by an unregistered key was accepted")
+		}
+		// Assert WHY it failed. `err != nil` alone would stay green if the
+		// request never reached signature verification — a transport error, a
+		// malformed assertion, a 500 — which is exactly the state this test
+		// exists to rule out.
+		if !strings.Contains(err.Error(), "invalid_client") ||
+			!strings.Contains(err.Error(), "does not match any registered key") {
+			t.Fatalf("refused, but not for the signature: %v", err)
 		}
 	})
 }
