@@ -94,6 +94,37 @@ SCIM request log stream (reuses the Audit view pattern).
   Entra-shaped requests (correlation filter, PatchOp, `active:false` on disable)
   — CI-verifiable like the [SDK matrix](16-e2e-sdk-matrix.md).
 
+## Witnessed by an independent checker
+
+The inbound service provider is driven in CI by
+[scim2-tester](https://github.com/python-scim/scim2-tester), an RFC 7643/7644
+compliance checker written by neither us nor Microsoft (`e2e/scim`, job
+`scim-e2e`).
+
+Microsoft ships no SCIM client that can witness this: their SCIM client is the
+Entra provisioning service, a cloud service; their
+[SCIM Validator](https://scimvalidator.microsoft.com/) is hosted and so cannot
+reach a localhost emulator; and `AzureAD/SCIMReferenceCode` is a *server*. An
+independent third party is therefore the strongest witness available here, and
+a stronger one than our own client driving our own server.
+
+### Model boundaries the checker reports
+
+Five checks fail by design, pinned by name in `e2e/scim/suite.py` so a *new*
+failure breaks the build while these stay documented. Each is a place the
+directory model — which mirrors Entra's — cannot represent what unconstrained
+SCIM allows:
+
+| check | why it cannot pass |
+|---|---|
+| `emails.type` / `emails.primary` round-trip | the directory keeps a single `mail`, as Entra's user does, not a typed multi-valued SCIM collection |
+| `members.display` round-trip | membership display is derived from the member's `displayName`, not stored per edge, so a caller cannot set it independently |
+| `remove` of `active` | `accountEnabled` is non-nullable in the directory, exactly as in Entra, so removal resets it to the default rather than unsetting it |
+
+These are boundaries of the emulated model, not gaps in the wire protocol. If
+one starts passing, the suite fails as **stale** rather than silently over-
+reporting: a pin that no longer describes reality is worse than no pin.
+
 ## Non-goals
 
 The full SCIM filter grammar (only the `eq` correlation filters Entra uses),
