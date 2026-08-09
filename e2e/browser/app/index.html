@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>msal-browser witness</title>
+</head>
+<body>
+  <!--
+    The smallest real MSAL.js single-page app. It exists to be a WITNESS: an
+    unmodified @azure/msal-browser, running in a real browser, driving the
+    emulator's authorize + token endpoints through the redirect flow it would
+    use against cloud Entra. No emulator-specific shims.
+
+    Served over http://localhost, which browsers treat as a secure context, so
+    crypto.subtle (and therefore PKCE) works without TLS.
+  -->
+  <h1>msal-browser witness</h1>
+  <button id="login">Sign in</button>
+  <pre id="status">idle</pre>
+  <pre id="account"></pre>
+  <pre id="token"></pre>
+  <pre id="claims"></pre>
+
+  <script src="/vendor/msal-browser.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const cfg = window.__CONFIG__ = JSON.parse(
+      new URLSearchParams(location.search).get("cfg") ||
+      document.currentScript.dataset.cfg || "null") || window.__DEFAULT_CONFIG__;
+
+    async function main() {
+      // Config arrives as query params on first load. MSAL redirects back to
+      // the bare redirectUri, which drops them — so stash it, and read the
+      // stash when the query string is gone.
+      const params = new URLSearchParams(location.search);
+      const stashed = JSON.parse(sessionStorage.getItem("witness-config") || "null");
+      const cfg = params.get("authority")
+        ? {
+            authority: params.get("authority"),
+            clientId: params.get("clientId"),
+            scope: params.get("scope"),
+          }
+        : stashed;
+      if (!cfg || !cfg.authority) {
+        $("status").textContent = "error: no config (pass ?authority=&clientId=)";
+        return;
+      }
+      sessionStorage.setItem("witness-config", JSON.stringify(cfg));
+      const { authority, clientId, scope } = cfg;
+
+      const msalInstance = new msal.PublicClientApplication({
+        auth: {
+          clientId,
+          authority,
+          // The emulator is the only authority; tell MSAL it is known so it
+          // does not try to validate it against Microsoft's instance list.
+          knownAuthorities: [new URL(authority).host],
+          redirectUri: location.origin + "/",
+          navigateToLoginRequestUrl: false,
+        },
+        cache: { cacheLocation: "sessionStorage" },
+        system: { loggerOptions: { loggerCallback: () => {} } },
+      });
+
+      await msalInstance.initialize();
+
+      // Completing a redirect is the whole point: MSAL parses the emulator's
+      // response, exchanges the code with PKCE, and caches the result.
+      let result = null;
+      try {
+        result = await msalInstance.handleRedirectPromise();
+      } catch (e) {
+        $("status").textContent = "redirect-error: " + e.message;
+        return;
+      }
+
+      if (result) {
+        $("status").textContent = "authenticated";
+        $("account").textContent = result.account ? result.account.username : "";
+        $("token").textContent = result.accessToken || "";
+        $("claims").textContent = JSON.stringify(result.idTokenClaims || {});
+        return;
+      }
+
+      const cached = msalInstance.getAllAccounts();
+      if (cached.length > 0) {
+        $("status").textContent = "cached";
+        $("account").textContent = cached[0].username;
+        return;
+      }
+
+      $("status").textContent = "ready";
+      $("login").addEventListener("click", async () => {
+        try {
+          await msalInstance.loginRedirect({ scopes: scope ? [scope] : ["openid", "profile"] });
+        } catch (e) {
+          // Surface it: a silently-rejected loginRedirect just leaves the page
+          // sitting on "ready", which is indistinguishable from a dead button.
+          $("status").textContent = "login-error: " + (e && e.message ? e.message : String(e));
+        }
+      });
+    }
+
+    main().catch((e) => { $("status").textContent = "error: " + e.message; });
+  </script>
+</body>
+</html>

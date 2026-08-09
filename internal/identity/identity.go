@@ -59,15 +59,16 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service, fs *faults.Sto
 // Register mounts the tenant-scoped OIDC routes on mux. Paths carry a
 // {tenant} wildcard validated per request.
 func (i *Identity) Register(mux *http.ServeMux) {
-	mux.HandleFunc("GET /{tenant}/v2.0/.well-known/openid-configuration", i.handleDiscovery)
-	mux.HandleFunc("GET /{tenant}/discovery/v2.0/keys", i.handleJWKS)
+	mux.HandleFunc("GET /{tenant}/v2.0/.well-known/openid-configuration", withCORS(i.handleDiscovery))
+	mux.HandleFunc("GET /{tenant}/discovery/v2.0/keys", withCORS(i.handleJWKS))
 	// MSAL/ADAL validate the authority via instance discovery before acquiring a
 	// token; `common` here is a literal segment (not a tenant), so it is its own
 	// route. Real Fabric clients (fab CLI, azcopy) require this to authenticate.
-	mux.HandleFunc("GET /common/discovery/instance", i.handleInstanceDiscovery)
+	mux.HandleFunc("GET /common/discovery/instance", withCORS(i.handleInstanceDiscovery))
+	registerCORSPreflight(mux)
 	mux.HandleFunc("GET /{tenant}/oauth2/v2.0/authorize", i.audited("authorize", i.handleAuthorize))
 	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/authorize", i.audited("authorize", i.handleAuthorize))
-	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/token", i.audited("token", i.handleToken))
+	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/token", withCORS(i.audited("token", i.handleToken)))
 	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/devicecode", i.handleDeviceAuthorization)
 	mux.HandleFunc("GET /{tenant}/oauth2/v2.0/devicecode", i.handleDeviceCodePage)
 	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/devicecode/verify", i.handleDeviceVerify)

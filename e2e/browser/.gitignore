@@ -1,0 +1,6 @@
+node_modules/
+test-results/
+playwright-report/
+run.log
+.e2e-config.json
+.e2e-emulator.pid

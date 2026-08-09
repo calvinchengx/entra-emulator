@@ -145,6 +145,7 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | Concurrency contracts (single-use codes, refresh-reuse detection, device-code approve→mint) | Real atomic SQL — not best-effort | 🟢 Real |
 | Multi-tenant | Multiple tenants exist and are isolated | 🟡 Emulated |
 | TLS with a wildcard cert over the emulator's origins | Real self-signed X.509, regenerated on SAN drift, stable fingerprint otherwise | 🟢 Real |
+| CORS on the OIDC surface | Real: discovery, JWKS, instance discovery and the token endpoint reflect the caller's `Origin`, `Vary` on it, and answer preflight with the headers MSAL.js sends — without which **no browser SPA can authenticate at all**. Divergence: Entra enables token-endpoint CORS only for a redirect URI registered as type `spa`; the emulator allows any origin, so it will not reproduce the "forgot to register it as SPA" failure | 🟢 Real |
 | Cloud-instance metadata (`tenant_region_scope`, `cloud_instance_name`, `cloud_graph_host_name`, `msgraph_host`, `rbac_url`) | Advertised in discovery, pointing at the emulator's **own** origins — a client that reads them is never sent to the real cloud | 🟢 Real |
 | **Sovereign clouds** (US Gov / China / Germany instance routing) | Single local instance only | 🔴 Not implemented |
 
@@ -174,7 +175,7 @@ discovery disabled per-SDK, and TLS trust injected per-SDK.
 | **msal4j** (Java) | client_credentials, with the emulator cert in a real trust store | 🟢 CI `sdk-e2e` |
 | OpenFGA · SpiceDB · Keto · Permify · Casbin · OPA · Cedar | The PDP port against real engines | 🟢 CI `pdp-compat` (7-way matrix) |
 | Flutter (`http`, `flutter_appauth`) | Device code on real Android/iOS | 🟡 Nightly, not a PR gate; the auth-code leg is a manual screen |
-| **`@azure/msal-browser`** | — | 🔴 Not wired |
+| **`@azure/msal-browser`** | Real browser (Playwright + Chromium) completing the auth-code + PKCE redirect flow against the emulator | 🟢 CI `browser-e2e` |
 
 ### Contract conformance: golden references as witnesses
 

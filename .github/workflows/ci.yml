@@ -159,3 +159,27 @@ jobs:
         with:
           version: "0.11.32"
       - run: uv run --no-project --python 3.12 python scripts/check_witnesses.py --strict
+
+  browser-e2e:
+    name: msal-browser witness (real browser, redirect flow)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      # The other SDK suites run server-side, so none of them is subject to the
+      # same-origin policy. Only a real browser catches a missing CORS header on
+      # the OIDC surface — without which no SPA can authenticate at all.
+      - name: Install
+        working-directory: e2e/browser
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+      - name: Run the witness
+        working-directory: e2e/browser
+        run: npx playwright test

@@ -1,0 +1,14 @@
+{
+  "name": "entra-emulator-e2e-browser",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "@azure/msal-browser": "^4.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
+  }
+}

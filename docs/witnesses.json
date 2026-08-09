@@ -392,5 +392,13 @@
     "witnesses": [
       "go:TestDirectoryAuditLogs"
     ]
+  },
+  "cors-on-the-oidc-surface": {
+    "section": "Directory, storage & transport",
+    "claim": "CORS on the OIDC surface",
+    "witnesses": [
+      "go:TestOIDCCORS",
+      "ci:browser-e2e"
+    ]
   }
 }
