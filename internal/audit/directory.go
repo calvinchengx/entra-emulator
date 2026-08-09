@@ -96,7 +96,11 @@ func (r *DirectoryRecorder) List(limit int) []DirectoryEvent {
 	if limit <= 0 || limit > n {
 		limit = n
 	}
-	out := make([]DirectoryEvent, 0, limit)
+	// Allocate from the ring's own size, never from the caller's limit: `limit`
+	// originates in a request's $top, and sizing an allocation on request data
+	// is how a large-$top request turns into a large allocation. n is bounded by
+	// the fixed capacity, so this is bounded no matter what is asked for.
+	out := make([]DirectoryEvent, 0, n)
 	for i := 0; i < limit; i++ {
 		idx := (r.next - 1 - i + r.cap*2) % r.cap
 		out = append(out, r.buf[idx])
