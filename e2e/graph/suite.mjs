@@ -95,6 +95,68 @@ async function main() {
   check('list authentication methods', Array.isArray(methods.value) &&
     methods.value.some((m) => m['@odata.type'] === '#microsoft.graph.passwordAuthenticationMethod'));
 
+  // Unique per run, so a re-run against a persisted emulator does not collide.
+  const stamp = uid.slice(0, 8);
+
+  // 5b. Groups and membership through $ref — the half of the directory-writes
+  // claim the SDK never exercised, so that row rested on our own client alone.
+  const group = await api(`${GRAPH}/groups`).post({
+    displayName: `SDK Group ${stamp}`, mailEnabled: false,
+    mailNickname: `sdkgroup${stamp}`, securityEnabled: true,
+  });
+  const gid = group.id;
+  check('create group', !!gid && group.displayName === `SDK Group ${stamp}`);
+
+  // Membership is written as an OData reference, not an embedded object. A
+  // server that accepted a plain POST body here would look fine to a hand
+  // written client and fail against every real one.
+  await api(`${GRAPH}/groups/${gid}/members/$ref`).post({
+    '@odata.id': `${GRAPH}/directoryObjects/${uid}`,
+  });
+  const members = await api(`${GRAPH}/groups/${gid}/members`).get();
+  check('member added by $ref', (members.value ?? []).some((m) => m.id === uid));
+
+  const memberOf = await api(`${GRAPH}/users/${uid}/memberOf`).get();
+  check('memberOf reports the group', (memberOf.value ?? []).some((g) => g.id === gid));
+
+  await api(`${GRAPH}/groups/${gid}/members/${uid}/$ref`).delete();
+  const after = await api(`${GRAPH}/groups/${gid}/members`).get();
+  check('member removed by $ref', !(after.value ?? []).some((m) => m.id === uid));
+
+  // 5c. Applications — the third noun in the same claim.
+  const app = await api(`${GRAPH}/applications`).post({
+    displayName: `SDK App ${stamp}`,
+  });
+  check('create application', !!app.id && app.displayName === `SDK App ${stamp}`);
+  const appBack = await api(`${GRAPH}/applications/${app.id}`).get();
+  check('read application back', appBack.id === app.id);
+
+  // 5d. OData query options, built by the SDK rather than hand-written, which
+  // is the point: $select projection, $top paging and $count all have to be
+  // understood as the client emits them.
+  const projected = await api(`${GRAPH}/users`).select('id,displayName').get();
+  check('$select projects the requested fields',
+    (projected.value ?? []).length > 0 &&
+    Object.keys(projected.value[0]).every((k) => k === 'id' || k === 'displayName' ||
+      k.startsWith('@')));
+
+  const topped = await api(`${GRAPH}/users`).top(1).count(true).get();
+  check('$top bounds the page and $count reports the total',
+    (topped.value ?? []).length === 1 && typeof topped['@odata.count'] === 'number');
+
+  // The claim names $skiptoken, so the suite has to follow the link rather
+  // than stop at the first page — a nextLink nobody dereferences proves only
+  // that a string was emitted.
+  check('$top page carries a nextLink', typeof topped['@odata.nextLink'] === 'string');
+  const page2 = await api(topped['@odata.nextLink']).get();
+  check('nextLink returns a further page',
+    (page2.value ?? []).length > 0 && page2.value[0].id !== topped.value[0].id);
+
+  const filtered = await api(`${GRAPH}/users`)
+    .filter(`startswith(displayName,'SDK User')`).get();
+  check('$filter startswith selects the user',
+    (filtered.value ?? []).some((u) => u.id === uid));
+
   // 6. Soft-delete the user → it lands in the recycle bin.
   await api(`${GRAPH}/users/${uid}`).delete();
   let live404 = false;
