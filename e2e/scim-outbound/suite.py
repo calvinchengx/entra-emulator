@@ -211,10 +211,20 @@ def main() -> int:
         check("the target holds no users we did not push", not (names - expected),
               f"unexpected on target: {sorted(names - expected)}")
 
-        # Entra correlates by externalId; the reference server round-trips it.
-        ext = [u for u in resources if u.get("externalId")]
-        check("externalId reached the target", len(ext) > 0,
-              "no provisioned resource carried externalId")
+        # Entra correlates by externalId, carrying its own object id. Assert the
+        # VALUE per user, not that some resource happened to carry one:
+        # `len(ext) > 0` passes when a single user has an externalId and the
+        # rest do not, and passes when every value is wrong. Correlation is
+        # only worth anything if the id identifies the right user.
+        want_ext = {u["userName"]: u["id"] for u in (ours.get("Resources") or [])
+                    if u.get("active") is not False}
+        wrong = sorted(
+            f"{u.get('userName')}: got {u.get('externalId')!r}, want {want_ext[u['userName']]!r}"
+            for u in resources
+            if u.get("userName") in want_ext and u.get("externalId") != want_ext[u["userName"]]
+        )
+        check("externalId on the target is each user's directory object id", not wrong,
+              "; ".join(wrong))
 
         # Deprovision: disabling a user must push active:false, not a delete.
         target_user = next((u for u in resources if u.get("userName")), None)
