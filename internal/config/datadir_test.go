@@ -42,11 +42,16 @@ func TestDataDirDefaulting(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if c.DBPath != "/tmp/entra-state/entra-emulator.db" {
-			t.Fatalf("DBPath = %q", c.DBPath)
+		// filepath.Join, not a literal: Load joins with the platform
+		// separator, so a hardcoded "/tmp/entra-state/..." passes on Linux and
+		// macOS and fails on Windows against the identical, correct value
+		// "\\tmp\\entra-state\\...". The subtest above already builds its
+		// expectation this way.
+		if want := filepath.Join("/tmp/entra-state", "entra-emulator.db"); c.DBPath != want {
+			t.Fatalf("DBPath = %q, want %q", c.DBPath, want)
 		}
-		if c.TLSCertDir != "/tmp/entra-state/tls" {
-			t.Fatalf("TLSCertDir = %q", c.TLSCertDir)
+		if want := filepath.Join("/tmp/entra-state", "tls"); c.TLSCertDir != want {
+			t.Fatalf("TLSCertDir = %q, want %q", c.TLSCertDir, want)
 		}
 	})
 
