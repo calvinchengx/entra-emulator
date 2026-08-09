@@ -288,6 +288,7 @@
     "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
     "claim": "RP-initiated logout (`end_session_endpoint`)",
     "witnesses": [
+      "ci:browser-e2e",
       "go:TestLogoutWithSession",
       "go:TestLogoutAdvertisement"
     ]
@@ -353,6 +354,7 @@
     "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
     "claim": "Front-channel logout (OP calls each RP's `frontchannel_logout_uri`)",
     "witnesses": [
+      "ci:browser-e2e",
       "go:TestFrontchannelLogout",
       "go:TestLogoutAdvertisement"
     ]
