@@ -316,3 +316,82 @@ func patchOps(ops ...map[string]any) map[string]any {
 		"Operations": ops,
 	}
 }
+
+// TestSCIMEmittedURLsResolve follows every URL the SCIM layer hands a client,
+// rather than asserting the string looks right.
+//
+// A resource that advertises meta.location, or a member that advertises $ref,
+// is telling the client "fetch me here". Checking the *shape* of that string
+// passes even when the route behind it does not exist — which is exactly how
+// /ResourceTypes/{id} and /Schemas/{id} stayed 404 while the collections
+// happily advertised them. One package emitting a URL another package owns is
+// the sharp edge; the only test that catches it is one that follows the link.
+func TestSCIMEmittedURLsResolve(t *testing.T) {
+	hts, _, _ := newTestServer(t)
+	base := hts.URL + "/scim/v2"
+
+	uid, _ := mkUser(t, base, map[string]any{
+		"userName": "linked@entraemulator.dev", "displayName": "Linked",
+	})
+	code, grp := scimReq(t, "POST", base+"/Groups", map[string]any{
+		"displayName": "Linked Group",
+		"members":     []map[string]any{{"value": uid}},
+	})
+	if code != 201 {
+		t.Fatalf("create group: %d %v", code, grp)
+	}
+
+	// Collect every URL the server emitted, from every discovery and resource
+	// endpoint, then fetch each one.
+	seen := map[string]string{} // url -> where it came from
+
+	collect := func(where string, res map[string]any) {
+		if meta, ok := res["meta"].(map[string]any); ok {
+			if loc, ok := meta["location"].(string); ok && loc != "" {
+				seen[loc] = where + " meta.location"
+			}
+		}
+		if members, ok := res["members"].([]any); ok {
+			for _, m := range members {
+				if mm, ok := m.(map[string]any); ok {
+					if ref, ok := mm["$ref"].(string); ok && ref != "" {
+						seen[ref] = where + " members.$ref"
+					}
+				}
+			}
+		}
+	}
+
+	for _, path := range []string{"/Users", "/Groups", "/ResourceTypes", "/Schemas"} {
+		code, list := scimReq(t, "GET", base+path, nil)
+		if code != 200 {
+			t.Fatalf("GET %s: %d", path, code)
+		}
+		for _, r := range list["Resources"].([]any) {
+			if m, ok := r.(map[string]any); ok {
+				collect(path, m)
+			}
+		}
+	}
+	if len(seen) == 0 {
+		t.Fatal("no URLs were emitted at all — this test would pass vacuously")
+	}
+
+	for u, where := range seen {
+		// The emitted form is what a client follows: unescaped, absolute, and
+		// carrying whatever prefix the request arrived on.
+		if !strings.HasPrefix(u, hts.URL+"/scim/v2/") {
+			t.Errorf("%s emitted %q, which does not carry the request's /scim prefix", where, u)
+			continue
+		}
+		code, body := scimReq(t, "GET", u, nil)
+		if code != 200 {
+			t.Errorf("%s emitted %q which returns %d", where, u, code)
+			continue
+		}
+		if body["id"] == nil {
+			t.Errorf("%s emitted %q which resolved but returned no resource: %v", where, u, body)
+		}
+	}
+	t.Logf("followed %d emitted URLs", len(seen))
+}
