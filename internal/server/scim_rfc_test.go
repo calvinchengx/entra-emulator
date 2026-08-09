@@ -93,6 +93,14 @@ func TestSCIMExternalID(t *testing.T) {
 
 	// Deleting the user drops the mapping, so a recycled id cannot inherit it.
 	newID, _ := mkUser(t, base, map[string]any{"userName": "ext2@entraemulator.dev", "externalId": "ext-004"})
+
+	// Positive control on THIS key before deleting. Asserting only that the
+	// post-delete count is 0 would pass just as well if the filter never
+	// matched ext-004 at all — the assertion has to be able to fail.
+	_, before := scimReq(t, "GET", base+"/Users?filter="+url.QueryEscape(`externalId eq "ext-004"`), nil)
+	if int(before["totalResults"].(float64)) != 1 {
+		t.Fatalf("externalId filter does not match ext-004 even before delete: %v", before)
+	}
 	if code, _ := scimReq(t, "DELETE", base+"/Users/"+newID, nil); code != 204 {
 		t.Fatalf("delete user: %d", code)
 	}

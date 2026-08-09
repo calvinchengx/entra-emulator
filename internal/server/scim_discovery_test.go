@@ -97,9 +97,19 @@ func TestSCIMSchemasCarryAttributes(t *testing.T) {
 			if sm["type"] != "reference" {
 				continue
 			}
+			// Assert WHICH types, not merely that the list is non-empty:
+			// members.$ref points at Users, and ["Group"] or a garbage value
+			// would satisfy a length check while telling a client to follow
+			// the reference to the wrong collection.
 			rt, _ := sm["referenceTypes"].([]any)
-			if len(rt) == 0 {
-				t.Fatalf("reference attribute %v has no referenceTypes", sm["name"])
+			var got []string
+			for _, x := range rt {
+				if str, ok := x.(string); ok {
+					got = append(got, str)
+				}
+			}
+			if len(got) != 1 || got[0] != "User" {
+				t.Fatalf("members.$ref referenceTypes = %v, want [User]", rt)
 			}
 			checked = true
 		}
