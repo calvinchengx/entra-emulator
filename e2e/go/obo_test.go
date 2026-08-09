@@ -140,9 +140,17 @@ func TestMSALGoOnBehalfOf(t *testing.T) {
 		if err != nil {
 			t.Fatalf("acquire a Graph-audience token: %v", err)
 		}
-		if _, err := cca.AcquireTokenOnBehalfOf(context.Background(), graphTok.AccessToken,
-			[]string{"https://graph.microsoft.com/User.Read"}); err == nil {
+		_, err = cca.AcquireTokenOnBehalfOf(context.Background(), graphTok.AccessToken,
+			[]string{"https://graph.microsoft.com/User.Read"})
+		if err == nil {
 			t.Fatal("a token addressed to Graph was redeemed by the middle tier")
+		}
+		// Assert WHY. A bare `err != nil` would pass if OBO were broken outright,
+		// or if the assertion failed to parse — neither of which proves the
+		// audience rule is enforced.
+		if !strings.Contains(err.Error(), "invalid_grant") ||
+			!strings.Contains(err.Error(), "not addressed to this application") {
+			t.Fatalf("refused, but not by the audience rule: %v", err)
 		}
 	})
 }
