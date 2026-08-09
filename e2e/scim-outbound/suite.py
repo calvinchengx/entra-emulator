@@ -197,8 +197,19 @@ def main() -> int:
         check("reference server lists provisioned users", code == 200, str(code))
         resources = users.get("Resources") or []
         names = {u.get("userName") for u in resources}
-        check("provisioned users landed", len(names) >= created,
-              f"{len(names)} on target vs {created} reported")
+
+        # Compare identities, not counts. `len(names) >= created` would pass on
+        # a target holding unrelated users, or on ours failing to land while
+        # someone else's were present — it asserts the shape of the result
+        # rather than the result. Name the users we expect and look for those.
+        _, ours = req(f"{ORIGIN}/scim/v2/Users", token="scim-secret-token")
+        expected = {u["userName"] for u in (ours.get("Resources") or [])
+                    if u.get("active") is not False}
+        missing = sorted(expected - names)
+        check("every enabled directory user reached the target", not missing,
+              f"missing from target: {missing}")
+        check("the target holds no users we did not push", not (names - expected),
+              f"unexpected on target: {sorted(names - expected)}")
 
         # Entra correlates by externalId; the reference server round-trips it.
         ext = [u for u in resources if u.get("externalId")]
