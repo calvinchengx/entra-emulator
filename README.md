@@ -1,8 +1,12 @@
 # Entra Emulator
 
+[![version](https://img.shields.io/github/v/release/calvinchengx/entra-emulator?label=version)](https://github.com/calvinchengx/entra-emulator/releases/latest)
 [![CI](https://github.com/calvinchengx/entra-emulator/actions/workflows/ci.yml/badge.svg)](https://github.com/calvinchengx/entra-emulator/actions/workflows/ci.yml)
-[![Flutter e2e](https://github.com/calvinchengx/entra-emulator/actions/workflows/flutter-e2e.yml/badge.svg)](https://github.com/calvinchengx/entra-emulator/actions/workflows/flutter-e2e.yml)
+[![Docs](https://github.com/calvinchengx/entra-emulator/actions/workflows/docs-site.yml/badge.svg)](https://calvinchengx.github.io/entra-emulator/)
+[![CodeQL](https://github.com/calvinchengx/entra-emulator/actions/workflows/codeql.yml/badge.svg)](https://github.com/calvinchengx/entra-emulator/actions/workflows/codeql.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
+[![Flutter e2e](https://github.com/calvinchengx/entra-emulator/actions/workflows/flutter-e2e.yml/badge.svg)](https://github.com/calvinchengx/entra-emulator/actions/workflows/flutter-e2e.yml)
 
 **A local, MSAL-compatible emulator of Microsoft Entra ID (Azure AD), in a single Go
 binary.** The OIDC/OAuth 2.0 v2.0 endpoints MSAL talks to, a minimal read-only
