@@ -10,11 +10,13 @@ import (
 
 // SCIM 2.0 schema URNs (RFC 7643/7644).
 const (
-	userSchema  = "urn:ietf:params:scim:schemas:core:2.0:User"
-	groupSchema = "urn:ietf:params:scim:schemas:core:2.0:Group"
-	listSchema  = "urn:ietf:params:scim:api:messages:2.0:ListResponse"
-	errorSchema = "urn:ietf:params:scim:api:messages:2.0:Error"
-	patchSchema = "urn:ietf:params:scim:api:messages:2.0:PatchOp"
+	userSchema         = "urn:ietf:params:scim:schemas:core:2.0:User"
+	groupSchema        = "urn:ietf:params:scim:schemas:core:2.0:Group"
+	listSchema         = "urn:ietf:params:scim:api:messages:2.0:ListResponse"
+	schemaSchema       = "urn:ietf:params:scim:schemas:core:2.0:Schema"
+	resourceTypeSchema = "urn:ietf:params:scim:schemas:core:2.0:ResourceType"
+	errorSchema        = "urn:ietf:params:scim:api:messages:2.0:Error"
+	patchSchema        = "urn:ietf:params:scim:api:messages:2.0:PatchOp"
 )
 
 func isoTime(epoch int64) string {

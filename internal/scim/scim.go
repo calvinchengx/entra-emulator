@@ -35,7 +35,9 @@ func (s *Service) Register(mux *http.ServeMux, prefix string) {
 	p := prefix + "/v2"
 	mux.HandleFunc("GET "+p+"/ServiceProviderConfig", s.auth(s.serviceProviderConfig))
 	mux.HandleFunc("GET "+p+"/ResourceTypes", s.auth(s.resourceTypes))
+	mux.HandleFunc("GET "+p+"/ResourceTypes/{id}", s.auth(s.resourceType))
 	mux.HandleFunc("GET "+p+"/Schemas", s.auth(s.schemas))
+	mux.HandleFunc("GET "+p+"/Schemas/{id}", s.auth(s.schema))
 
 	mux.HandleFunc("GET "+p+"/Users", s.auth(s.listUsers))
 	mux.HandleFunc("POST "+p+"/Users", s.auth(s.createUser))
@@ -130,22 +132,34 @@ func (s *Service) serviceProviderConfig(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Service) resourceTypes(w http.ResponseWriter, r *http.Request) {
-	b := base(r)
-	writeSCIM(w, http.StatusOK, listResponse([]any{
-		map[string]any{"schemas": []string{"urn:ietf:params:scim:schemas:core:2.0:ResourceType"},
-			"id": "User", "name": "User", "endpoint": "/Users", "schema": userSchema,
-			"meta": map[string]any{"resourceType": "ResourceType", "location": b + "/ResourceTypes/User"}},
-		map[string]any{"schemas": []string{"urn:ietf:params:scim:schemas:core:2.0:ResourceType"},
-			"id": "Group", "name": "Group", "endpoint": "/Groups", "schema": groupSchema,
-			"meta": map[string]any{"resourceType": "ResourceType", "location": b + "/ResourceTypes/Group"}},
-	}, 1))
+	writeSCIM(w, http.StatusOK, listResponse(
+		ordered(resourceTypeDefs(base(r)), "User", "Group"), 1))
+}
+
+// resourceType serves a single ResourceType. The collection already advertises
+// meta.location for each entry, so without this route those links 404.
+func (s *Service) resourceType(w http.ResponseWriter, r *http.Request) {
+	def, ok := resourceTypeDefs(base(r))[r.PathValue("id")]
+	if !ok {
+		scimErr(w, http.StatusNotFound, "Resource type not found.")
+		return
+	}
+	writeSCIM(w, http.StatusOK, def)
 }
 
 func (s *Service) schemas(w http.ResponseWriter, r *http.Request) {
-	writeSCIM(w, http.StatusOK, listResponse([]any{
-		map[string]any{"id": userSchema, "name": "User"},
-		map[string]any{"id": groupSchema, "name": "Group"},
-	}, 1))
+	writeSCIM(w, http.StatusOK, listResponse(
+		ordered(schemaDefs(base(r)), userSchema, groupSchema), 1))
+}
+
+// schema serves a single Schema by its urn: id.
+func (s *Service) schema(w http.ResponseWriter, r *http.Request) {
+	def, ok := schemaDefs(base(r))[r.PathValue("id")]
+	if !ok {
+		scimErr(w, http.StatusNotFound, "Schema not found.")
+		return
+	}
+	writeSCIM(w, http.StatusOK, def)
 }
 
 func listResponse(resources []any, startIndex int) map[string]any {
