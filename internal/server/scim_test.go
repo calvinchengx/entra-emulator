@@ -133,8 +133,15 @@ func TestSCIMGroupMembership(t *testing.T) {
 		t.Fatalf("create group: %d %v", code, g)
 	}
 	gid := g["id"].(string)
-	if members := g["members"].([]any); len(members) != 1 {
-		t.Fatalf("initial member missing: %v", g["members"])
+	// Assert WHICH member, not how many: len(members) == 1 passes on a group
+	// containing somebody else entirely, and the failure message would then
+	// say "missing" about a member that is present and wrong.
+	members, _ := g["members"].([]any)
+	if len(members) != 1 {
+		t.Fatalf("want exactly one initial member, got %v", g["members"])
+	}
+	if m, _ := members[0].(map[string]any); m["value"] != aliceID {
+		t.Fatalf("initial member is %v, want alice (%s)", m["value"], aliceID)
 	}
 
 	// PATCH remove Alice via the members[value eq "id"] path.
