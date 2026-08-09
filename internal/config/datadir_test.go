@@ -37,16 +37,21 @@ func TestDataDirDefaulting(t *testing.T) {
 
 	t.Run("a path moves both the DB and the TLS material", func(t *testing.T) {
 		clear(t)
-		t.Setenv("ENTRA_DATA_DIR", "/tmp/entra-state")
+		// The expectations are joined the same way the config joins them.
+		// Hard-coding "/tmp/entra-state/..." asserted the POSIX separator, so
+		// this failed on Windows where filepath.Join yields backslashes — the
+		// separator was never what the test set out to prove.
+		dir := t.TempDir()
+		t.Setenv("ENTRA_DATA_DIR", dir)
 		c, err := Load(os.Getenv)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if c.DBPath != "/tmp/entra-state/entra-emulator.db" {
-			t.Fatalf("DBPath = %q", c.DBPath)
+		if want := filepath.Join(dir, "entra-emulator.db"); c.DBPath != want {
+			t.Fatalf("DBPath = %q, want %q", c.DBPath, want)
 		}
-		if c.TLSCertDir != "/tmp/entra-state/tls" {
-			t.Fatalf("TLSCertDir = %q", c.TLSCertDir)
+		if want := filepath.Join(dir, "tls"); c.TLSCertDir != want {
+			t.Fatalf("TLSCertDir = %q, want %q", c.TLSCertDir, want)
 		}
 	})
 
