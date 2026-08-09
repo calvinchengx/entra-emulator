@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/calvinchengx/entra-emulator/internal/tokens"
 )
@@ -105,13 +106,12 @@ func (i *Identity) handleSAMLMetadata(w http.ResponseWriter, r *http.Request) {
 			"No signing key for this tenant.")
 		return
 	}
-	// The certificate's validity window is derived from when the key was
-	// created, which is what makes re-deriving it reproducible.
-	var created int64
-	if row, err := i.Store.GetSigningKey(signer.Kid); err == nil {
-		created = row.CreatedAt
-	}
-	der, err := signer.SAMLCertificate(tid, created)
+	// A window anchored to today, not to when the key was made. Anchoring it
+	// to key creation looked reproducible and shipped an expired certificate
+	// the moment a database outlived the validity period, which every SP that
+	// checks validity would reject. Truncating to the day keeps it stable for
+	// anyone fetching metadata twice in a session.
+	der, err := signer.SAMLCertificate(tid, time.Now().AddDate(0, 0, -1).Truncate(24*time.Hour))
 	if err != nil {
 		i.renderErrorPage(w, http.StatusInternalServerError, "Metadata unavailable",
 			"Could not derive the signing certificate.")

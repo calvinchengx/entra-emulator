@@ -20,11 +20,19 @@ import (
 // envelopes, and a token this emulator signs and an assertion it signs are
 // backed by the same private key.
 //
-// DERIVED, NOT STORED. Every field below is a function of the key and its
-// creation time, and PKCS#1 v1.5 with SHA-256 is a deterministic signature, so
-// re-deriving produces byte-identical DER. That means no schema migration, no
-// second source of truth, and no chance of the metadata advertising one
-// certificate while the assertions are signed under another.
+// DERIVED, NOT STORED. Every field is a function of its arguments, and PKCS#1
+// v1.5 with SHA-256 is a deterministic signature, so the same inputs produce
+// byte-identical DER. No schema migration, no second source of truth, and no
+// chance of metadata advertising one certificate while assertions are signed
+// under another.
+//
+// THE WINDOW IS THE CALLER'S, AND THAT IS THE POINT. This first derived it
+// from the key's creation time, which was reproducible and wrong: a key older
+// than the validity period yields an EXPIRED certificate, and a service
+// provider that checks validity then rejects every assertion the emulator
+// ever signs. A test dated 2024 running in 2026 found it. Callers pass a
+// window covering now; determinism survives because the parameter is explicit
+// rather than because the value never moves.
 
 // samlCertValidity is 397 days, not the ten years a local dev certificate
 // invites. Apple refuses to trust any TLS server certificate longer than 825
@@ -36,14 +44,14 @@ const samlCertValidity = 397 * 24 * time.Hour
 
 // SAMLCertificate returns the tenant's SAML signing certificate, DER encoded,
 // wrapping the same RSA key that signs its JWTs.
-func (s *Signer) SAMLCertificate(tenantID string, createdAt int64) ([]byte, error) {
+func (s *Signer) SAMLCertificate(tenantID string, notBefore time.Time) ([]byte, error) {
 	if s == nil || s.PrivateKey == nil {
 		return nil, fmt.Errorf("tokens: no signing key for tenant %s", tenantID)
 	}
 	sum := sha256.Sum256([]byte(s.Kid))
 	serial := serialFromDigest(sum[:16])
 
-	notBefore := time.Unix(createdAt, 0).UTC().Truncate(time.Hour)
+	notBefore = notBefore.UTC().Truncate(time.Hour)
 	tmpl := &x509.Certificate{
 		SerialNumber:          serial,
 		Subject:               pkix.Name{CommonName: samlCertCN(tenantID)},
@@ -65,8 +73,8 @@ func (s *Signer) SAMLCertificate(tenantID string, createdAt int64) ([]byte, erro
 // SAMLCertificatePEM is SAMLCertificate in the PEM form humans and openssl
 // expect. Metadata carries the base64 DER without the armour, so callers that
 // build XML want SAMLCertificate directly.
-func (s *Signer) SAMLCertificatePEM(tenantID string, createdAt int64) ([]byte, error) {
-	der, err := s.SAMLCertificate(tenantID, createdAt)
+func (s *Signer) SAMLCertificatePEM(tenantID string, notBefore time.Time) ([]byte, error) {
+	der, err := s.SAMLCertificate(tenantID, notBefore)
 	if err != nil {
 		return nil, err
 	}

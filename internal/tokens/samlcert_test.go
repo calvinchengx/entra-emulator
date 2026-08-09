@@ -24,7 +24,7 @@ func testSigner(t *testing.T) *Signer {
 // rather than to paper over the difference.
 func TestSAMLCertificateIsDeterministic(t *testing.T) {
 	s := testSigner(t)
-	const created = 1723200000
+	created := time.Now().Add(-24 * time.Hour)
 
 	first, err := s.SAMLCertificate("tenant-a", created)
 	if err != nil {
@@ -41,7 +41,7 @@ func TestSAMLCertificateIsDeterministic(t *testing.T) {
 
 func TestSAMLCertificateWrapsTheSigningKey(t *testing.T) {
 	s := testSigner(t)
-	der, err := s.SAMLCertificate("tenant-a", 1723200000)
+	der, err := s.SAMLCertificate("tenant-a", time.Now().Add(-24*time.Hour))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestSAMLCertificateWrapsTheSigningKey(t *testing.T) {
 // certificate is the shape that cost arm-emulator its .NET-on-macOS witness.
 func TestSAMLCertificateLifetimeStaysUnderThePlatformCeiling(t *testing.T) {
 	s := testSigner(t)
-	const created = 1723200000
+	created := time.Now().Add(-24 * time.Hour)
 	der, err := s.SAMLCertificate("tenant-a", created)
 	if err != nil {
 		t.Fatal(err)
@@ -98,7 +98,7 @@ func TestSAMLCertificateLifetimeStaysUnderThePlatformCeiling(t *testing.T) {
 
 func TestSAMLCertificatePEMParses(t *testing.T) {
 	s := testSigner(t)
-	got, err := s.SAMLCertificatePEM("tenant-a", 1723200000)
+	got, err := s.SAMLCertificatePEM("tenant-a", time.Now().Add(-24*time.Hour))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,10 +109,10 @@ func TestSAMLCertificatePEMParses(t *testing.T) {
 
 func TestSAMLCertificateRefusesAnEmptySigner(t *testing.T) {
 	var s *Signer
-	if _, err := s.SAMLCertificate("tenant-a", 0); err == nil {
+	if _, err := s.SAMLCertificate("tenant-a", time.Now()); err == nil {
 		t.Fatal("want an error for a nil signer, got none")
 	}
-	if _, err := (&Signer{Kid: "k"}).SAMLCertificate("tenant-a", 0); err == nil {
+	if _, err := (&Signer{Kid: "k"}).SAMLCertificate("tenant-a", time.Now()); err == nil {
 		t.Fatal("want an error for a signer with no key, got none")
 	}
 }
@@ -135,7 +135,7 @@ func TestSerialFromDigestNeverReturnsZero(t *testing.T) {
 }
 
 func TestSAMLCertificatePEMPropagatesTheError(t *testing.T) {
-	if _, err := (&Signer{Kid: "k"}).SAMLCertificatePEM("tenant-a", 0); err == nil {
+	if _, err := (&Signer{Kid: "k"}).SAMLCertificatePEM("tenant-a", time.Now()); err == nil {
 		t.Fatal("want the underlying certificate error, got none")
 	}
 }
