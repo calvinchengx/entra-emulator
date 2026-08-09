@@ -89,11 +89,27 @@ export default async function globalSetup() {
   if (!spa) throw new Error('no seeded public client to drive');
 
   const origin = `http://localhost:${APP_PORT}`;
-  const reg = await json(`https://localhost:${EMU_PORT}/admin/api/apps/${spa.id}/redirectUris`, {
-    method: 'POST', ca, body: { uri: `${origin}/`, type: 'spa' },
+  // Two redirect URIs: the app itself (type `spa`, which is also what gates
+  // token-endpoint CORS) and the post-logout landing page. The emulator
+  // validates post_logout_redirect_uri against the app's registered URIs, so
+  // an unregistered one is refused — exactly as real Entra refuses it.
+  for (const uri of [`${origin}/`, `${origin}/signed-out.html`]) {
+    const reg = await json(`https://localhost:${EMU_PORT}/admin/api/apps/${spa.id}/redirectUris`, {
+      method: 'POST', ca, body: { uri, type: 'spa' },
+    });
+    if (reg.status !== 201 && reg.status !== 409) {
+      throw new Error(`could not register redirect URI ${uri}: ${reg.status} ${reg.text()}`);
+    }
+  }
+
+  // Make this app a front-channel logout relying party. The emulator notifies
+  // only the apps a session actually signed into, so this URI is fetched by the
+  // browser during logout and nowhere else.
+  const fc = await json(`https://localhost:${EMU_PORT}/admin/api/apps/${spa.id}`, {
+    method: 'PATCH', ca, body: { frontchannelLogoutUri: `${origin}/frontchannel-logout` },
   });
-  if (reg.status !== 201 && reg.status !== 409) {
-    throw new Error(`could not register redirect URI: ${reg.status} ${reg.text()}`);
+  if (fc.status !== 200 && fc.status !== 204) {
+    throw new Error(`could not set frontchannelLogoutUri: ${fc.status} ${fc.text()}`);
   }
 
   writeFileSync(new URL('./.e2e-config.json', import.meta.url), JSON.stringify({

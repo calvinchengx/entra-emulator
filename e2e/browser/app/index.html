@@ -16,6 +16,7 @@
   -->
   <h1>msal-browser witness</h1>
   <button id="login">Sign in</button>
+  <button id="logout">Sign out</button>
   <pre id="status">idle</pre>
   <pre id="account"></pre>
   <pre id="token"></pre>
@@ -63,6 +64,27 @@
       });
 
       await msalInstance.initialize();
+      // Exposed so a test can read the account through MSAL's public API rather
+      // than parsing its cache keys out of sessionStorage.
+      window.__msal = msalInstance;
+
+      // RP-initiated logout. MSAL sends post_logout_redirect_uri and, when
+      // given one, id_token_hint — but never client_id, so the emulator has to
+      // infer the app from the hint's aud before it will honour the redirect.
+      // The account is resolved at click time because it only exists after a
+      // sign-in has completed.
+      $("logout").addEventListener("click", async () => {
+        const account = msalInstance.getAllAccounts()[0];
+        try {
+          await msalInstance.logoutRedirect({
+            account,
+            idTokenHint: account?.idToken,
+            postLogoutRedirectUri: location.origin + "/signed-out.html",
+          });
+        } catch (e) {
+          $("status").textContent = "logout-error: " + (e && e.message ? e.message : String(e));
+        }
+      });
 
       // Completing a redirect is the whole point: MSAL parses the emulator's
       // response, exchanges the code with PKCE, and caches the result.

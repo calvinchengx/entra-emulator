@@ -10,6 +10,11 @@ export default defineConfig({
   timeout: 60_000,
   reporter: 'line',
   forbidOnly: !!process.env.CI,
+  // One worker: the specs share a single emulator and a single RP server whose
+  // recorded front-channel hits are global. Running them in parallel would let
+  // one test's logout land in another's assertions.
+  workers: 1,
+  fullyParallel: false,
   // The emulator's TLS cert is self-signed, so the browser must accept it —
   // the same trust step a developer makes locally.
   use: {
