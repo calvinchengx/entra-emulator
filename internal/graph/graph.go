@@ -45,6 +45,7 @@ func (g *Graph) Register(mux *http.ServeMux, prefix string) {
 	g.registerConsent(mux, prefix)
 	g.registerRoles(mux, prefix)
 	g.registerCustomRoles(mux, prefix)
+	g.registerMemberGroups(mux, prefix)
 	g.registerAdminUnits(mux, prefix)
 	g.registerInvitations(mux, prefix)
 	g.registerAuditLogs(mux, prefix)

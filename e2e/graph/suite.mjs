@@ -175,9 +175,16 @@ async function main() {
     Object.keys(projected.value[0]).every((k) => k === 'id' || k === 'displayName' ||
       k.startsWith('@')));
 
+  // The full list first, so $count can be checked against the real total
+  // rather than against its own type. `typeof === 'number'` would accept 0
+  // beside five users — a count is exactly the field where asserting the shape
+  // instead of the value proves nothing.
+  const everyUser = await api(`${GRAPH}/users`).top(999).get();
   const topped = await api(`${GRAPH}/users`).top(1).count(true).get();
-  check('$top bounds the page and $count reports the total',
-    (topped.value ?? []).length === 1 && typeof topped['@odata.count'] === 'number');
+  check('$top bounds the page and $count reports the real total',
+    (topped.value ?? []).length === 1 &&
+    topped['@odata.count'] === (everyUser.value ?? []).length,
+    `count=${topped['@odata.count']} actual=${(everyUser.value ?? []).length}`);
 
   // The claim names $skiptoken, so the suite has to follow the link rather
   // than stop at the first page — a nextLink nobody dereferences proves only

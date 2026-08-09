@@ -42,6 +42,7 @@
     "section": "Token service (`07-token-service`)",
     "claim": "`wids` (directory-role template GUIDs)",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestDirectoryRoleAssignmentDrivesWids",
       "go:TestDirectoryRoleScopedAssignmentNoWids"
     ]
@@ -50,8 +51,10 @@
     "section": "Token service (`07-token-service`)",
     "claim": "Optional claims + **group overage** (`_claim_names` / `_claim_sources`)",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestApplyTokenConfigGroupOverage",
-      "go:TestApplyTokenConfigGroupsViaOptionalClaim"
+      "go:TestApplyTokenConfigGroupsViaOptionalClaim",
+      "go:TestGraphEmittedURLsResolve"
     ]
   },
   "oidc-discovery-jwks": {
@@ -433,6 +436,14 @@
     "witnesses": [
       "ci:sdk-e2e",
       "go:TestUserRealmProbe"
+    ]
+  },
+  "getmemberobjects-getmembergroups": {
+    "section": "Microsoft Graph (`09-graph-api`)",
+    "claim": "`getMemberObjects` / `getMemberGroups`",
+    "witnesses": [
+      "ci:sdk-e2e",
+      "go:TestGraphEmittedURLsResolve"
     ]
   }
 }

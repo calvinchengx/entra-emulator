@@ -169,6 +169,18 @@ type TokenResponse struct {
 // defaultGroupOverageLimit mirrors Entra's JWT groups-claim cap.
 const defaultGroupOverageLimit = 200
 
+// graphBase is the origin a client should call Graph on. When Graph shares the
+// login origin (compat mode) the surface is mounted under /graph, and a URL
+// built without that prefix 404s — which matters most for the overage
+// `_claim_sources` endpoint, the one place a client is TOLD to follow a URL we
+// generated. internal/graph does the same collapse in contextURL and nextLink.
+func (s *Service) graphBase() string {
+	if s.Cfg.Origins.Graph == s.Cfg.Origins.Login {
+		return s.Cfg.Origins.Graph + "/graph"
+	}
+	return s.Cfg.Origins.Graph
+}
+
 // PairwiseSub derives the stable pairwise subject for (user, app, tenant).
 func (s *Service) PairwiseSub(userID, appID, tid string) string {
 	sum := sha256.Sum256([]byte(userID + "|" + appID + "|" + s.resolveTenant(tid)))
@@ -411,7 +423,7 @@ func (s *Service) applyTokenConfig(claims map[string]any, app *store.App, user *
 			claims["_claim_names"] = map[string]string{"groups": "src1"}
 			claims["_claim_sources"] = map[string]any{
 				"src1": map[string]string{
-					"endpoint": s.Cfg.Origins.Graph + "/v1.0/users/" + user.ID + "/getMemberObjects",
+					"endpoint": s.graphBase() + "/v1.0/users/" + user.ID + "/getMemberObjects",
 				},
 			}
 			return
