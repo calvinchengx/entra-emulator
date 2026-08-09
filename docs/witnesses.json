@@ -76,7 +76,8 @@
     "witnesses": [
       "ci:sdk-e2e",
       "go:TestAuthCodePKCEFlow",
-      "go:TestPKCEMismatchAndReplay"
+      "go:TestPKCEMismatchAndReplay",
+      "go:TestScopeEchoOnExchangeAndRefresh"
     ]
   },
   "refreshtoken": {
@@ -84,7 +85,8 @@
     "claim": "`refresh_token`",
     "witnesses": [
       "ci:sdk-e2e",
-      "go:TestRefreshRotationAndFamilyRevocation"
+      "go:TestRefreshRotationAndFamilyRevocation",
+      "go:TestScopeEchoOnExchangeAndRefresh"
     ]
   },
   "clientcredentials": {
