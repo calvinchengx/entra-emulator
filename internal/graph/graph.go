@@ -49,6 +49,7 @@ func (g *Graph) Register(mux *http.ServeMux, prefix string) {
 	g.registerAuditLogs(mux, prefix)
 	g.registerPasswordReset(mux, prefix)
 	g.registerCustomSecurityAttributes(mux, prefix)
+	g.registerFederatedCredentials(mux, prefix)
 	g.registerAuthMethods(mux, prefix)
 }
 

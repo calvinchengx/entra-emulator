@@ -106,3 +106,33 @@ func (s *Store) MatchFederatedCredential(appID, issuer, subject, audience string
 	}
 	return nil, ErrNotFound
 }
+
+// GetFederatedCredential returns one trust by id, scoped to its app.
+func (s *Store) GetFederatedCredential(appID, id string) (*FederatedCredential, error) {
+	row := s.db.QueryRow(`SELECT `+federatedCredCols+
+		` FROM app_federated_credentials WHERE app_id=? AND id=?`, appID, id)
+	c, err := scanFederatedCredential(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return c, err
+}
+
+// UpdateFederatedCredential patches a trust in place. The name is immutable in
+// Graph, so only the matching fields move.
+func (s *Store) UpdateFederatedCredential(c *FederatedCredential) error {
+	if len(c.Audiences) == 0 {
+		c.Audiences = []string{DefaultFederatedAudience}
+	}
+	res, err := s.db.Exec(
+		`UPDATE app_federated_credentials SET issuer=?, subject=?, audiences=?, description=?
+		 WHERE app_id=? AND id=?`,
+		c.Issuer, c.Subject, strings.Join(c.Audiences, ","), c.Description, c.AppID, c.ID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
