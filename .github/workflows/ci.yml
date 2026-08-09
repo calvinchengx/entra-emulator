@@ -183,3 +183,38 @@ jobs:
       - name: Run the witness
         working-directory: e2e/browser
         run: npx playwright test
+
+  scim-e2e:
+    name: SCIM witness (scim2-tester, independent RFC checker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+      - uses: astral-sh/setup-uv@v7
+      # Microsoft ships no runnable SCIM client — the provisioning service is a
+      # cloud service and the SCIM Validator is hosted, so neither can reach a
+      # localhost emulator. scim2-tester is an independent RFC 7643/7644 checker,
+      # which is a stronger witness than our own client driving our own server.
+      - run: python3 e2e/run.py scim
+
+  scim-outbound-e2e:
+    name: SCIM outbound witness (Microsoft's own reference server)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '8.0.x'
+      # The emulator is the SCIM *client* here, so witnessing it needs a real
+      # service provider on the other end. AzureAD/SCIMReferenceCode is the one
+      # Microsoft publishes for exactly this shape, which makes it the only
+      # Microsoft-authored witness in the SCIM cluster. It is cloned at a pinned
+      # commit and built with the .NET 8 SDK; nothing about it is patched.
+      - run: python3 e2e/run.py scim-outbound

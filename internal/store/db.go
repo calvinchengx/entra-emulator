@@ -315,6 +315,16 @@ CREATE TABLE IF NOT EXISTS directory_role_assignments (
   created_at         INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_dra_principal ON directory_role_assignments(principal_id);
+-- SCIM externalId lives beside the directory rather than on users/groups: it is
+-- the provisioning client's own identifier for the resource, not a directory
+-- attribute, and real Entra does not surface it on the Graph object.
+CREATE TABLE IF NOT EXISTS scim_external_ids (
+  resource_type TEXT NOT NULL,            -- User | Group
+  resource_id   TEXT NOT NULL,
+  external_id   TEXT NOT NULL,
+  PRIMARY KEY (resource_type, resource_id)
+);
+CREATE INDEX IF NOT EXISTS idx_scim_ext ON scim_external_ids(resource_type, external_id);
 `
 
 // Open opens (creating if needed) the SQLite store and applies migrations.

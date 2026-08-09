@@ -172,6 +172,7 @@
     "section": "SCIM 2.0 (`10-scim-provisioning`)",
     "claim": "SCIM **service provider** (inbound): `ServiceProviderConfig`, `ResourceTypes`, `Schemas`; Users + Groups CRUD, PatchOp",
     "witnesses": [
+      "ci:scim-e2e",
       "go:TestSCIMDiscoveryAndUserOps",
       "go:TestSCIMGroupMembership",
       "go:TestGoldenParitySCIM"
@@ -181,6 +182,7 @@
     "section": "SCIM 2.0 (`10-scim-provisioning`)",
     "claim": "SCIM **provisioning client** (outbound): filter-probe → create / update / `active:false` deprovision, member-correlated groups, incremental watermark",
     "witnesses": [
+      "ci:scim-outbound-e2e",
       "go:TestSCIMAuthAndDiscovery",
       "go:TestSCIMErrorPaths"
     ]
@@ -245,6 +247,7 @@
     "section": "SCIM 2.0 (`10-scim-provisioning`)",
     "claim": "`PUT /Groups/{id}`",
     "witnesses": [
+      "ci:scim-e2e",
       "go:TestSCIMReplaceGroup"
     ]
   },

@@ -86,6 +86,26 @@ def suite_graph(env):
     return run(["node", "suite.mjs"], d, env)
 
 
+def suite_scim(env):
+    """scim2-tester, an independent RFC 7643/7644 compliance checker.
+
+    Run through uv rather than a venv: the checker is only needed here, and uv
+    resolves it per-run without leaving a tree in the repo.
+    """
+    return run(["uv", "run", "--no-project", "--python", "3.12",
+                "--with", "scim2-client[httpx]", "--with", "scim2-tester", "--with", "httpx",
+                "python", "suite.py"], ROOT / "e2e" / "scim", env)
+
+
+def suite_scim_outbound(env):
+    """Microsoft's own SCIM reference server as the provisioning target.
+
+    Needs the .NET SDK (to build the pinned sample) and git (to fetch it); the
+    suite itself is stdlib-only, so it runs on the bare interpreter.
+    """
+    return run([sys.executable, "suite.py"], ROOT / "e2e" / "scim-outbound", env)
+
+
 def suite_dotnet(env):
     return run(["dotnet", "run", "-c", "Release"], ROOT / "e2e" / "dotnet", env)
 
@@ -97,6 +117,7 @@ def suite_java(env):
 SUITES = {
     "ts": suite_ts, "go": suite_go, "python": suite_python,
     "graph": suite_graph, "dotnet": suite_dotnet, "java": suite_java,
+    "scim": suite_scim, "scim-outbound": suite_scim_outbound,
 }
 
 
