@@ -108,6 +108,39 @@ reach a localhost emulator; and `AzureAD/SCIMReferenceCode` is a *server*. An
 independent third party is therefore the strongest witness available here, and
 a stronger one than our own client driving our own server.
 
+### Outbound: witnessed by Microsoft's own reference server
+
+The provisioning client is witnessed differently, because the direction is
+reversed: the emulator is the SCIM *client*, so the witness has to be a real
+service provider on the other end. Microsoft publishes one —
+[AzureAD/SCIMReferenceCode](https://github.com/AzureAD/SCIMReferenceCode) — which
+makes `e2e/scim-outbound` (job `scim-outbound-e2e`) the **only Microsoft-authored
+witness in the SCIM cluster**.
+
+It asserts the full Entra sequence end to end: filter-probe, create,
+`externalId` correlation, and `active:false` deprovision through an incremental
+sync, verified by reading the reference server's own directory back.
+
+Three things about it are deliberate and worth not "tidying":
+
+* **It targets `netcoreapp3.1`, which is out of support.** It is built with the
+  .NET 8 SDK and run with `DOTNET_ROLL_FORWARD=LatestMajor`, so no EOL runtime is
+  installed and not one line of it is patched. Its `System.IdentityModel.Tokens.Jwt`
+  5.6.0 carries a known moderate advisory
+  ([GHSA-59j7-ghrg-fj52](https://github.com/advisories/GHSA-59j7-ghrg-fj52)); it
+  is a test fixture, never shipped, and pinned.
+* **It runs Debug + `ASPNETCORE_ENVIRONMENT=Development`**, the sample's
+  documented local mode. A Release build strips the JWT bypass and requires a
+  real OIDC Authority, which no offline test can supply.
+* **It is cloned at a pinned commit**, never `master`, so the witness cannot
+  change under us.
+
+Building it is genuinely awkward and fails quietly in two different ways; the
+suite documents both at the call site. The sharpest is that on macOS the path
+must be `resolve()`d, because `/var` is a symlink to `/private/var` and MSBuild
+otherwise canonicalises the sample's `ProjectReference` to a different path than
+the one it was handed, and the build dies with `CS0234` across every namespace.
+
 ### Model boundaries the checker reports
 
 Five checks fail by design, pinned by name in `e2e/scim/suite.py` so a *new*
