@@ -19,10 +19,11 @@ key(s)** — no partial boot.
 | `PUBLIC_ORIGIN` | `publicOrigin` | URL | derived | When set, **all three** origins collapse to it (legacy single-origin). |
 | `LOGIN_ORIGIN` / `PORTAL_ORIGIN` / `GRAPH_ORIGIN` | `loginOrigin` etc. | URL | derived | Per-surface overrides; win over `PUBLIC_ORIGIN` and `ORIGIN_MODE`. |
 | `ISSUER` | `issuer` | URL | `${loginOrigin}/${tenantId}/v2.0` | Must equal discovery `issuer` and token `iss`. |
-| `DB_PATH` | `dbPath` | path | `./data/entra-emulator.db` | SQLite file. |
+| `ENTRA_DATA_DIR` | — | path | `./data` | The state directory: the SQLite file and the generated TLS material live under it. This is the family-wide `<PREFIX>_DATA_DIR` convention. Set it to the **empty string** to keep nothing — an in-memory database and a certificate generated per run; *unset* and *set-empty* differ deliberately. |
+| `DB_PATH` | `dbPath` | path | `<ENTRA_DATA_DIR>/entra-emulator.db` | SQLite file. Predates `ENTRA_DATA_DIR` and still **wins** when set, so existing deployments are unaffected. |
 | `TLS_ENABLED` | `tls.enabled` | bool | `true` | `false` → plain HTTP on loopback. |
 | `TLS_CERT` / `TLS_KEY` | `tls.certPath` / `tls.keyPath` | path | auto | Custom PEM pair; setting exactly one is a validation error. |
-| `TLS_CERT_DIR` | `tls.certDir` | path | `./data/tls` | Where the auto-generated cert/key persist. |
+| `TLS_CERT_DIR` | `tls.certDir` | path | `<ENTRA_DATA_DIR>/tls` | Where the auto-generated cert/key persist. Wins over `ENTRA_DATA_DIR` when set. |
 | `REQUIRE_PASSWORD` | `requirePassword` | bool | `false` | Password form instead of the account picker. |
 | `REQUIRE_CONSENT` | `requireConsent` | bool | `false` | Show a consent screen during authorize before issuing the code. |
 | `GRAPH_PERMISSIONS` | `graphPermissions` | bool | `false` | Gate Graph operations on the caller's permissions the way real Entra does: delegated calls need the scope in `scp`, app-only calls the role in `roles`, `Directory.*` is the superset, denials are `403 Authorization_RequestDenied`. Off by default because any valid Graph-audience token has always been accepted — turn it on to prove your app requests the permissions it needs. |

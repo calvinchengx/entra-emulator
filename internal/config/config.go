@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -123,13 +124,19 @@ func Load(getenv func(string) string) (*Config, error) {
 	var errs []string
 	fail := func(key, msg string) { errs = append(errs, fmt.Sprintf("%s: %s", key, msg)) }
 
+	// ENTRA_DATA_DIR names the directory holding this emulator's state — the
+	// SQLite file and the generated TLS material — matching <PREFIX>_DATA_DIR
+	// across the family. DB_PATH and TLS_CERT_DIR still win when set, so an
+	// existing deployment keeps working unchanged.
+	dataDir := envDataDir(getenv)
+
 	c := &Config{
 		Host:            resolveStr(getenv("HOST"), file.Host, "localhost"),
 		TenantID:        strings.ToLower(resolveStr(getenv("TENANT_ID"), file.TenantID, DefaultTenantID)),
 		OriginMode:      resolveStr(getenv("ORIGIN_MODE"), file.OriginMode, "subdomains"),
 		BaseDomain:      resolveStr(getenv("BASE_DOMAIN"), file.BaseDomain, DefaultBaseDomain),
-		DBPath:          resolveStr(getenv("DB_PATH"), file.DBPath, "./data/entra-emulator.db"),
-		TLSCertDir:      "./data/tls",
+		DBPath:          resolveStr(getenv("DB_PATH"), file.DBPath, defaultDBPath(dataDir)),
+		TLSCertDir:      defaultTLSCertDir(dataDir),
 		GraphResourceID: resolveStr(getenv("GRAPH_RESOURCE_ID"), file.GraphResourceID, "https://graph.microsoft.com"),
 		LogLevel:        resolveStr(getenv("LOG_LEVEL"), file.LogLevel, "info"),
 		// Public dev value, like the seeded secrets — documented insecure.
@@ -323,4 +330,46 @@ func ltp(t *fileTLifetimes, get func(*fileTLifetimes) *int) *int {
 		return nil
 	}
 	return get(t)
+}
+
+// DefaultDataDir is where state lands when ENTRA_DATA_DIR is not set at all.
+const DefaultDataDir = "./data"
+
+// InMemoryDB is the SQLite DSN for a store that never touches disk.
+const InMemoryDB = ":memory:"
+
+// envDataDir reads ENTRA_DATA_DIR, distinguishing UNSET from SET-EMPTY: unset
+// takes the default, while an explicit empty value means "keep nothing", the
+// same opt-out the sibling emulators spell the same way. Their compose files
+// use it so a throwaway stack leaves no SQLite file in a container layer that
+// is about to be deleted.
+func envDataDir(getenv func(string) string) string {
+	if v, ok := os.LookupEnv("ENTRA_DATA_DIR"); ok {
+		return v
+	}
+	// Honour an injected getenv (tests, config-file layering) when the real
+	// environment has nothing to say.
+	if v := getenv("ENTRA_DATA_DIR"); v != "" {
+		return v
+	}
+	return DefaultDataDir
+}
+
+// defaultDBPath is the store location derived from the data dir. An empty data
+// dir yields an in-memory database rather than a stray file in the working
+// directory, which is what a bare filepath.Join would have produced.
+func defaultDBPath(dataDir string) string {
+	if dataDir == "" {
+		return InMemoryDB
+	}
+	return filepath.Join(dataDir, "entra-emulator.db")
+}
+
+// defaultTLSCertDir mirrors defaultDBPath: empty means generate a certificate
+// per run and persist nothing.
+func defaultTLSCertDir(dataDir string) string {
+	if dataDir == "" {
+		return ""
+	}
+	return filepath.Join(dataDir, "tls")
 }

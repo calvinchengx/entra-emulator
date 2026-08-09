@@ -329,7 +329,9 @@ CREATE INDEX IF NOT EXISTS idx_scim_ext ON scim_external_ids(resource_type, exte
 
 // Open opens (creating if needed) the SQLite store and applies migrations.
 func Open(path string) (*Store, error) {
-	if dir := filepath.Dir(path); dir != "." {
+	// ":memory:" is a DSN, not a path — MkdirAll on it would create a
+	// directory of that name beside the binary.
+	if dir := filepath.Dir(path); path != ":memory:" && dir != "." {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return nil, fmt.Errorf("store: create data dir: %w", err)
 		}

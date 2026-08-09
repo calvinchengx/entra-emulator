@@ -74,6 +74,13 @@ func LoadOrCreate(dir, baseDomain string, extraDomains []string) (*Material, err
 	if err != nil {
 		return nil, err
 	}
+	// An empty dir means "keep nothing": generate a certificate for this run
+	// and skip persistence. Writing to filepath.Join("", certFile) would drop
+	// cert.pem into the working directory instead, which is the surprise this
+	// avoids.
+	if dir == "" {
+		return &Material{CertPEM: certPEM, KeyPEM: keyPEM}, nil
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("tlscert: create dir: %w", err)
 	}
