@@ -98,6 +98,7 @@
     "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
     "claim": "`password` (ROPC)",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestROPCHappyPath",
       "go:TestROPCWrongPassword"
     ]
@@ -302,6 +303,7 @@
     "section": "Microsoft Graph (`09-graph-api`)",
     "claim": "Custom role definitions",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestCustomRoleDefinitions",
       "go:TestDirectoryRoleAssignmentDrivesWids"
     ]
@@ -310,6 +312,7 @@
     "section": "Microsoft Graph (`09-graph-api`)",
     "claim": "Administrative units",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestAdministrativeUnits"
     ]
   },
@@ -317,6 +320,7 @@
     "section": "Sign-in experience",
     "claim": "B2B guest invitations",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestB2BGuestInvitations",
       "go:TestGoldenParityGraph"
     ]
@@ -325,6 +329,7 @@
     "section": "Microsoft Graph (`09-graph-api`)",
     "claim": "Sign-in logs (Graph `auditLogs/signIns`)",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestGraphSignInLogs"
     ]
   },
@@ -332,6 +337,7 @@
     "section": "Sign-in experience",
     "claim": "Password reset (Graph `authentication/passwordMethods/{id}/resetPassword`)",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestPasswordReset"
     ]
   },
@@ -355,6 +361,7 @@
     "section": "Microsoft Graph (`09-graph-api`)",
     "claim": "Custom security attributes",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestCustomSecurityAttributes",
       "go:TestGoldenParityGraph"
     ]
@@ -379,6 +386,7 @@
     "section": "Workload & platform identity",
     "claim": "Graph route for `federatedIdentityCredentials`",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestGraphFederatedIdentityCredentials"
     ]
   },
@@ -386,6 +394,7 @@
     "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
     "claim": "Token lifetime policies",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestTokenLifetimePolicy",
       "go:TestParseTimeSpanTable"
     ]
@@ -394,6 +403,7 @@
     "section": "Microsoft Graph (`09-graph-api`)",
     "claim": "Directory audit logs (Graph `auditLogs/directoryAudits`)",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestDirectoryAuditLogs"
     ]
   },
