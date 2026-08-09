@@ -169,7 +169,9 @@ func TestMSALGoGroupOverage(t *testing.T) {
 		}
 	})
 
-	// Push alice over the limit.
+	// Push alice over the limit, keeping the ids so the recovery below can be
+	// asserted by identity rather than by count.
+	var pushed []string
 	for i := 0; i < 3; i++ {
 		g := graphPost(t, emu, tok, "/groups", map[string]any{
 			"displayName": fmt.Sprintf("Overage %d", i), "mailEnabled": false,
@@ -179,6 +181,7 @@ func TestMSALGoGroupOverage(t *testing.T) {
 		graphPost(t, emu, tok, "/groups/"+gid+"/members/$ref", map[string]any{
 			"@odata.id": emu.Origin + "/graph/v1.0/directoryObjects/" + emulator.AliceOID,
 		})
+		pushed = append(pushed, gid)
 	}
 
 	t.Run("over the limit the overage payload replaces the list", func(t *testing.T) {
@@ -218,10 +221,18 @@ func TestMSALGoGroupOverage(t *testing.T) {
 		if err := json.NewDecoder(resp.Body).Decode(&recovered); err != nil {
 			t.Fatal(err)
 		}
-		if len(recovered.Value) <= 2 {
-			t.Fatalf("overage endpoint returned %d ids; alice is over a limit of 2, "+
-				"so following the pointer must yield more than the token could carry",
-				len(recovered.Value))
+		// By identity, not by count. A cardinality check ("more than 2 ids came
+		// back") passes on a response full of ids that have nothing to do with
+		// alice — it asserts the shape of the result rather than the result.
+		got := make(map[string]bool, len(recovered.Value))
+		for _, id := range recovered.Value {
+			got[id] = true
+		}
+		for _, want := range pushed {
+			if !got[want] {
+				t.Errorf("group %s is missing from the recovered list %v — the "+
+					"pointer resolved but did not return alice's groups", want, recovered.Value)
+			}
 		}
 	})
 }
