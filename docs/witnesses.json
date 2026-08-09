@@ -377,5 +377,13 @@
     "witnesses": [
       "go:TestGraphFederatedIdentityCredentials"
     ]
+  },
+  "token-lifetime-policies": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "Token lifetime policies",
+    "witnesses": [
+      "go:TestTokenLifetimePolicy",
+      "go:TestParseTimeSpanTable"
+    ]
   }
 }

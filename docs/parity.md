@@ -67,7 +67,8 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | Inline `request` parameter | Refused — and **not an Entra feature either**: the real discovery document leaves `request_parameter_supported` absent, which per OIDC means false. Implementing it would diverge, not converge | 🟢 Real |
 | PAR (pushed authorization requests) | Not implemented — and **not an Entra feature either**: the real discovery document advertises no `pushed_authorization_request_endpoint`, so this is parity, not a gap | 🟢 Real |
 | **CAE** (continuous access evaluation) | — | 🔴 Not implemented |
-| **Token-lifetime / claims-mapping policies** | — | 🔴 Not implemented |
+| Token lifetime policies | Real and load-bearing: `policies/tokenLifetimePolicies` plus the `$ref` assignment onto an application, parsed from Entra's own JSON-inside-a-string `definition` with .NET `[d.]hh:mm:ss` durations. An assigned policy (or `isOrganizationDefault`) changes the **`exp` of the tokens actually minted**, and a definition that would be silently inert is refused | 🟢 Real |
+| **Claims-mapping policies** | Not implemented as a policy resource. Per-app claim shaping is available instead through `optionalClaims`, `groupMembershipClaims`, and custom authentication extensions | 🔴 Not implemented |
 
 ## Microsoft Graph (`09-graph-api`)
 

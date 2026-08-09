@@ -206,10 +206,11 @@ func (s *Service) BuildDelegatedResponse(g DelegatedGrant) (*TokenResponse, erro
 	if err != nil {
 		return nil, err
 	}
+	accessSec, _, _ := s.lifetimesFor(g.App.ID)
 	resp := &TokenResponse{
 		TokenType:    "Bearer",
-		ExpiresIn:    s.Cfg.Lifetimes.AccessToken,
-		ExtExpiresIn: s.Cfg.Lifetimes.AccessToken,
+		ExpiresIn:    accessSec,
+		ExtExpiresIn: accessSec,
 		Scope:        strings.Join(g.Scopes, " "),
 		AccessToken:  access,
 		ClientInfo:   s.clientInfo(g.User.ID, g.TenantID),
@@ -236,9 +237,10 @@ func (s *Service) BuildDelegatedResponse(g DelegatedGrant) (*TokenResponse, erro
 func (s *Service) BuildAppOnlyResponse(app *store.App, aud string, roles []string, scopeEcho, tenantID string) (*TokenResponse, error) {
 	now := s.Store.Now()
 	tid := s.resolveTenant(tenantID)
+	appAccessSec, _, _ := s.lifetimesFor(app.ID)
 	claims := map[string]any{
 		"iss": s.issuerForTenant(tid), "sub": app.ID, "aud": aud,
-		"iat": now, "nbf": now, "exp": now + int64(s.Cfg.Lifetimes.AccessToken),
+		"iat": now, "nbf": now, "exp": now + int64(appAccessSec),
 		"tid": tid, "azp": app.ID, "appid": app.ID,
 		"roles": roles, "ver": "2.0",
 	}
@@ -247,8 +249,8 @@ func (s *Service) BuildAppOnlyResponse(app *store.App, aud string, roles []strin
 		return nil, err
 	}
 	return &TokenResponse{
-		TokenType: "Bearer", ExpiresIn: s.Cfg.Lifetimes.AccessToken,
-		ExtExpiresIn: s.Cfg.Lifetimes.AccessToken, Scope: scopeEcho, AccessToken: jwt,
+		TokenType: "Bearer", ExpiresIn: appAccessSec,
+		ExtExpiresIn: appAccessSec, Scope: scopeEcho, AccessToken: jwt,
 	}, nil
 }
 
@@ -261,11 +263,12 @@ func (s *Service) MintIDToken(g DelegatedGrant) (string, error) {
 
 func (s *Service) mintIDToken(g DelegatedGrant, now int64) (string, error) {
 	tid := s.resolveTenant(g.TenantID)
+	_, idTokenSec, _ := s.lifetimesFor(g.App.ID)
 	claims := map[string]any{
 		"iss": s.issuerForTenant(tid),
 		"sub": s.PairwiseSub(g.User.ID, g.App.ID, tid),
 		"aud": g.App.ID,
-		"iat": now, "nbf": now, "exp": now + int64(s.Cfg.Lifetimes.IDToken),
+		"iat": now, "nbf": now, "exp": now + int64(idTokenSec),
 		"tid": tid, "oid": g.User.ID,
 		"name": g.User.DisplayName, "preferred_username": g.User.UserPrincipalName,
 		"ver": "2.0",
@@ -286,12 +289,13 @@ func (s *Service) mintIDToken(g DelegatedGrant, now int64) (string, error) {
 
 func (s *Service) mintAccessDelegated(g DelegatedGrant, aud string, now int64) (string, error) {
 	tid := s.resolveTenant(g.TenantID)
+	delegatedAccessSec, _, _ := s.lifetimesFor(g.App.ID)
 	scpNames := scopeNamesOnly(g.Scopes)
 	claims := map[string]any{
 		"iss": s.issuerForTenant(tid),
 		"sub": s.PairwiseSub(g.User.ID, g.App.ID, tid),
 		"aud": aud,
-		"iat": now, "nbf": now, "exp": now + int64(s.Cfg.Lifetimes.AccessToken),
+		"iat": now, "nbf": now, "exp": now + int64(delegatedAccessSec),
 		"tid": tid, "oid": g.User.ID,
 		"azp": g.App.ID, "appid": g.App.ID,
 		"scp": strings.Join(scpNames, " "),
@@ -497,12 +501,13 @@ func verifyPKCE(challenge, method, verifier string) bool {
 // IssueRefreshToken stores the SHA-256 of a fresh opaque token and returns
 // the plaintext.
 func (s *Service) IssueRefreshToken(appID, userID string, scopes []string, resource, rotatedFrom string) (string, error) {
+	_, _, refreshSec := s.lifetimesFor(appID)
 	plain := store.NewOpaqueToken(32)
 	now := s.Store.Now()
 	err := s.Store.InsertRefreshToken(&store.RefreshToken{
 		TokenHash: store.HashToken(plain), AppID: appID, UserID: userID,
 		Scopes: strings.Join(scopes, " "), Resource: resource,
-		ExpiresAt:   now + int64(s.Cfg.Lifetimes.RefreshToken),
+		ExpiresAt:   now + int64(refreshSec),
 		RotatedFrom: rotatedFrom, CreatedAt: now,
 	})
 	if err != nil {
@@ -690,4 +695,29 @@ func scopeNamesOnly(scopes []string) []string {
 		}
 	}
 	return out
+}
+
+// lifetimesFor resolves the token lifetimes that apply to an app: a token
+// lifetime policy assigned to it (or the organization default) overrides the
+// configured defaults. Zero from the policy means "unset", so the configured
+// value stands — a policy that only sets AccessTokenLifetime must not silently
+// zero the others.
+func (s *Service) lifetimesFor(appID string) (accessSec, idSec, refreshSec int) {
+	accessSec = s.Cfg.Lifetimes.AccessToken
+	idSec = s.Cfg.Lifetimes.IDToken
+	refreshSec = s.Cfg.Lifetimes.RefreshToken
+	if s.Store == nil || appID == "" {
+		return
+	}
+	p := s.Store.EffectiveTokenLifetimes(appID)
+	if p.AccessToken > 0 {
+		accessSec = p.AccessToken
+	}
+	if p.IDToken > 0 {
+		idSec = p.IDToken
+	}
+	if p.RefreshToken > 0 {
+		refreshSec = p.RefreshToken
+	}
+	return
 }

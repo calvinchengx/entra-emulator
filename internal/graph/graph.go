@@ -50,6 +50,7 @@ func (g *Graph) Register(mux *http.ServeMux, prefix string) {
 	g.registerPasswordReset(mux, prefix)
 	g.registerCustomSecurityAttributes(mux, prefix)
 	g.registerFederatedCredentials(mux, prefix)
+	g.registerTokenLifetimePolicies(mux, prefix)
 	g.registerAuthMethods(mux, prefix)
 }
 

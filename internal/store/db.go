@@ -168,6 +168,20 @@ CREATE TABLE IF NOT EXISTS device_codes (
   expires_at  INTEGER NOT NULL,
   created_at  INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS token_lifetime_policies (
+  id                     TEXT PRIMARY KEY,
+  display_name           TEXT NOT NULL,
+  definition             TEXT NOT NULL,          -- Entra's JSON-string definition
+  is_organization_default INTEGER NOT NULL DEFAULT 0,
+  created_at             INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS app_token_lifetime_policies (
+  app_id    TEXT NOT NULL REFERENCES app_registrations(app_id) ON DELETE CASCADE,
+  policy_id TEXT NOT NULL REFERENCES token_lifetime_policies(id) ON DELETE CASCADE,
+  PRIMARY KEY (app_id, policy_id)
+);
+
 CREATE TABLE IF NOT EXISTS attribute_sets (
   id                    TEXT PRIMARY KEY,          -- the set name, e.g. "Engineering"
   description           TEXT,
