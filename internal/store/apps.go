@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"net/url"
 )
 
 const appCols = `app_id, tenant_id, display_name, is_confidential, COALESCE(app_id_uri,''),
@@ -323,4 +324,25 @@ func nullableInt64(v int64) any {
 		return nil
 	}
 	return v
+}
+
+// HasSPARedirectOrigin reports whether the app has a redirect URI registered as
+// type "spa" on the given origin. Entra enables the CORS-capable token endpoint
+// only for such registrations, so this is what gates it.
+func (s *Store) HasSPARedirectOrigin(appID, origin string) (bool, error) {
+	uris, err := s.ListRedirectURIs(appID)
+	if err != nil {
+		return false, err
+	}
+	for _, u := range uris {
+		if u.Type != "spa" {
+			continue
+		}
+		if parsed, err := url.Parse(u.URI); err == nil && parsed.Scheme != "" && parsed.Host != "" {
+			if parsed.Scheme+"://"+parsed.Host == origin {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }

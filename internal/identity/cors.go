@@ -12,32 +12,39 @@ import "net/http"
 // .NET, Java, Python) because none of them run inside a browser — it took the
 // msal-browser witness to surface it.
 //
-// Divergence worth knowing: Entra enables CORS on the TOKEN endpoint only for
-// applications with a redirect URI registered as type `spa`. The emulator
-// allows any origin, which is friendlier locally but will not reproduce the
-// "you forgot to register the redirect URI as SPA" failure. See docs/parity.md.
+// The token endpoint is gated the way Entra gates it: CORS is granted only when
+// the calling origin matches a redirect URI this application registered as type
+// `spa`. Being MORE permissive would be worse than useless — an app that works
+// locally would fail against real Entra with exactly the error the emulator
+// exists to surface early.
 
 // withCORS answers preflight and adds the response headers a browser needs.
 func withCORS(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if origin := r.Header.Get("Origin"); origin != "" {
-			h := w.Header()
-			// Reflect the origin rather than "*": a reflected origin keeps
-			// working if a client ever sends credentials, and matches what
-			// Entra returns for the token endpoint.
-			h.Set("Access-Control-Allow-Origin", origin)
-			h.Add("Vary", "Origin")
-			h.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			h.Set("Access-Control-Allow-Headers",
-				"Authorization, Content-Type, x-client-SKU, x-client-VER, x-client-OS, "+
-					"x-client-CPU, client-request-id, x-client-current-telemetry, "+
-					"x-client-last-telemetry, x-ms-lib-capability, x-app-name, x-app-ver")
-			h.Set("Access-Control-Expose-Headers", "client-request-id, x-ms-request-id")
-			h.Set("Access-Control-Max-Age", "86400")
+			setCORSHeaders(w, origin)
 		}
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return
+		}
+		next(w, r)
+	}
+}
+
+// withTokenCORS grants CORS on the token endpoint only to an origin the app
+// registered as an `spa` redirect URI, matching Entra. The client_id is in the
+// form body, so the form is parsed here — handleToken's own ParseForm then
+// returns the cached values.
+func (i *Identity) withTokenCORS(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if origin := r.Header.Get("Origin"); origin != "" {
+			_ = r.ParseForm()
+			if clientID := r.PostFormValue("client_id"); clientID != "" {
+				if ok, err := i.Store.HasSPARedirectOrigin(clientID, origin); err == nil && ok {
+					setCORSHeaders(w, origin)
+				}
+			}
 		}
 		next(w, r)
 	}
@@ -55,4 +62,19 @@ func registerCORSPreflight(mux *http.ServeMux) {
 	} {
 		mux.HandleFunc("OPTIONS "+p, withCORS(func(w http.ResponseWriter, r *http.Request) {}))
 	}
+}
+
+// setCORSHeaders reflects the caller's origin. Reflecting rather than "*" keeps
+// working if a client ever sends credentials, and matches what Entra returns.
+func setCORSHeaders(w http.ResponseWriter, origin string) {
+	h := w.Header()
+	h.Set("Access-Control-Allow-Origin", origin)
+	h.Add("Vary", "Origin")
+	h.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	h.Set("Access-Control-Allow-Headers",
+		"Authorization, Content-Type, x-client-SKU, x-client-VER, x-client-OS, "+
+			"x-client-CPU, client-request-id, x-client-current-telemetry, "+
+			"x-client-last-telemetry, x-ms-lib-capability, x-app-name, x-app-ver")
+	h.Set("Access-Control-Expose-Headers", "client-request-id, x-ms-request-id")
+	h.Set("Access-Control-Max-Age", "86400")
 }

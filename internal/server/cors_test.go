@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -61,6 +62,44 @@ func TestOIDCCORS(t *testing.T) {
 			if !containsFold(allowed, h) {
 				t.Errorf("preflight does not allow %q (got %q)", h, allowed)
 			}
+		}
+	})
+
+	// Entra grants token-endpoint CORS only to an origin registered as an `spa`
+	// redirect URI. Being more permissive would let an app work locally and fail
+	// against real Entra — the opposite of what an emulator is for.
+	t.Run("the token endpoint grants CORS only to a registered spa origin", func(t *testing.T) {
+		const spaOrigin = "http://localhost:4400"
+		if code, _ := postJSON(t, hts.URL+"/admin/api/apps/"+spaID+"/redirectUris",
+			map[string]any{"uri": spaOrigin + "/", "type": "spa"}); code != http.StatusCreated && code != http.StatusConflict {
+			t.Fatalf("register spa redirect uri: %d", code)
+		}
+
+		post := func(clientID, origin string) string {
+			req, _ := http.NewRequest(http.MethodPost, hts.URL+"/"+tenant+"/oauth2/v2.0/token",
+				strings.NewReader("grant_type=refresh_token&client_id="+clientID+"&refresh_token=x"))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			req.Header.Set("Origin", origin)
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			return resp.Header.Get("Access-Control-Allow-Origin")
+		}
+
+		// The SPA registered this origin — granted.
+		if got := post(spaID, spaOrigin); got != spaOrigin {
+			t.Errorf("registered spa origin should get CORS, got %q", got)
+		}
+		// An origin the app never registered — refused.
+		if got := post(spaID, "http://localhost:9999"); got != "" {
+			t.Errorf("unregistered origin must not get CORS, got %q", got)
+		}
+		// The confidential daemon has no spa redirect URI at all — refused.
+		// This is the assertion that makes the gate meaningful.
+		if got := post(daemonID, spaOrigin); got != "" {
+			t.Errorf("an app with no spa redirect URI must not get CORS, got %q", got)
 		}
 	})
 

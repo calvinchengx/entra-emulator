@@ -68,7 +68,7 @@ func (i *Identity) Register(mux *http.ServeMux) {
 	registerCORSPreflight(mux)
 	mux.HandleFunc("GET /{tenant}/oauth2/v2.0/authorize", i.audited("authorize", i.handleAuthorize))
 	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/authorize", i.audited("authorize", i.handleAuthorize))
-	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/token", withCORS(i.audited("token", i.handleToken)))
+	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/token", i.withTokenCORS(i.audited("token", i.handleToken)))
 	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/devicecode", i.handleDeviceAuthorization)
 	mux.HandleFunc("GET /{tenant}/oauth2/v2.0/devicecode", i.handleDeviceCodePage)
 	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/devicecode/verify", i.handleDeviceVerify)

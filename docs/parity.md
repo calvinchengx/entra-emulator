@@ -145,7 +145,7 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | Concurrency contracts (single-use codes, refresh-reuse detection, device-code approve→mint) | Real atomic SQL — not best-effort | 🟢 Real |
 | Multi-tenant | Multiple tenants exist and are isolated | 🟡 Emulated |
 | TLS with a wildcard cert over the emulator's origins | Real self-signed X.509, regenerated on SAN drift, stable fingerprint otherwise | 🟢 Real |
-| CORS on the OIDC surface | Real: discovery, JWKS, instance discovery and the token endpoint reflect the caller's `Origin`, `Vary` on it, and answer preflight with the headers MSAL.js sends — without which **no browser SPA can authenticate at all**. Divergence: Entra enables token-endpoint CORS only for a redirect URI registered as type `spa`; the emulator allows any origin, so it will not reproduce the "forgot to register it as SPA" failure | 🟢 Real |
+| CORS on the OIDC surface | Real: discovery, JWKS and instance discovery reflect the caller's `Origin` and `Vary` on it; the **token endpoint is gated exactly as Entra gates it** — CORS only for an origin the application registered as an `spa` redirect URI, so an app that works here will not fail against real Entra. Preflight answers with the telemetry headers MSAL.js sends. Without any of this, **no browser SPA can authenticate at all** | 🟢 Real |
 | Cloud-instance metadata (`tenant_region_scope`, `cloud_instance_name`, `cloud_graph_host_name`, `msgraph_host`, `rbac_url`) | Advertised in discovery, pointing at the emulator's **own** origins — a client that reads them is never sent to the real cloud | 🟢 Real |
 | **Sovereign clouds** (US Gov / China / Germany instance routing) | Single local instance only | 🔴 Not implemented |
 
