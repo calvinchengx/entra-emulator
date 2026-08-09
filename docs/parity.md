@@ -43,7 +43,7 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | Entra v2.0 claim shapes (`tid`/`oid`/`azp`/`appid`/`scp`/`roles`/`ver`/`idtyp`, pairwise `sub`) | Full | 🟢 Real |
 | `amr` (`pwd` / `fido`) | Threaded from the actual grant used | 🟢 Real |
 | `wids` (directory-role template GUIDs) | Emitted, gated on `groupMembershipClaims` | 🟢 Real |
-| Optional claims + **group overage** (`_claim_names` / `_claim_sources`) | Real Entra overage payload above the limit; protocol claims non-overridable | 🟢 Real |
+| Optional claims + **group overage** (`_claim_names` / `_claim_sources`) | Real Entra overage payload above the limit; protocol claims non-overridable. The `_claim_sources` endpoint is **live**, not decorative: `getMemberObjects` / `getMemberGroups` are served, so a client that follows the pointer really recovers the group list the token could not carry | 🟢 Real |
 | Token signing algorithm | RS256 only — which is **exactly what real Entra v2.0 advertises** (`id_token_signing_alg_values_supported: ["RS256"]`, captured in `e2e/golden/`). ES256/PS256 are absent from Entra too, so there is no gap to close: adding them would *diverge*, not converge | 🟢 Real |
 
 ## OIDC / OAuth2 endpoints (`08-oidc-endpoints`)
@@ -81,6 +81,7 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | OAuth2 permission grants (consent) | Stored **and load-bearing**: consented scopes are intersected into the token's `scp`, honouring `AllPrincipals` vs per-principal | 🟢 Real |
 | Directory roles (`roleManagement/directory`) | Full CRUD, and assignments really drive `wids` in tokens | 🟢 Real |
 | Authentication methods inventory (password / FIDO2) | Read + delete | 🟡 Emulated |
+| `getMemberObjects` / `getMemberGroups` | Served for `/users/{id}` and `/me`. This is the endpoint the group-overage `_claim_sources` points at, so it is what makes that payload recoverable rather than a dangling pointer. The directory has no nested groups, so direct membership is the transitive closure; `getMemberObjects` additionally returns directory-role template ids | 🟢 Real |
 | OData `$select` / `$filter` / `$top` / `$skiptoken` / `$count` | Supported (single `$filter` clause) | 🟢 Real |
 | Graph permission enforcement (scopes/roles gating operations) | Real gate behind `GRAPH_PERMISSIONS`: delegated calls need the scope in `scp`, app-only calls the role in `roles`, `Directory.*` acts as the superset, denials are `403 Authorization_RequestDenied`. **Off by default** — the emulator has always accepted any valid Graph-audience token, so enabling it is opt-in | 🟢 Real |
 | Separate servicePrincipal store | An app registration **is** its own SP; object `id` and `appId` are conflated | 🟡 Emulated |

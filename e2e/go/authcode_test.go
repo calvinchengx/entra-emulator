@@ -156,8 +156,17 @@ func TestMSALGoAuthCodeWithCustomAPIScope(t *testing.T) {
 	}
 	// MSAL only reports a scope as granted when the response echoed it back;
 	// anything else it treats as declined and fails the acquisition above.
-	if len(result.GrantedScopes) == 0 {
-		t.Error("MSAL reports no granted scopes")
+	// Asserted by identity: a non-empty list proves nothing if the custom API
+	// scope — the one this test exists for — is not the scope in it.
+	var granted bool
+	for _, sc := range result.GrantedScopes {
+		if sc == middleTierScope {
+			granted = true
+		}
+	}
+	if !granted {
+		t.Errorf("GrantedScopes = %v, want it to include %q",
+			result.GrantedScopes, middleTierScope)
 	}
 }
 
