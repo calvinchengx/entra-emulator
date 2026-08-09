@@ -279,9 +279,11 @@
     "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
     "claim": "`private_key_jwt` client assertion",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestClientAssertionHappyPath",
       "go:TestClientAssertionWrongKey",
-      "go:TestAdvertisedAuthMethodsAreUsable"
+      "go:TestAdvertisedAuthMethodsAreUsable",
+      "go:TestVerifyClientJWSAlgorithms"
     ]
   },
   "rp-initiated-logout-endsessionendpoint": {

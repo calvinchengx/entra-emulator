@@ -10,7 +10,8 @@ import (
 
 // VerifyClientAssertion validates a private_key_jwt client assertion
 // (roadmap #13) against an app's registered public keys. It checks the
-// signature (RS256) and the registered-client-authentication claims per
+// signature (RS256 or PS256 — MSAL Go defaults to PS256) and the
+// registered-client-authentication claims per
 // entra-docs certificate-credentials: iss == sub == clientID, aud ∈
 // acceptedAudiences, and not expired. Returns nil on success.
 func VerifyClientAssertion(assertion, clientID string, publicKeysPEM []string,
@@ -26,7 +27,7 @@ func VerifyClientAssertion(assertion, clientID string, publicKeysPEM []string,
 		if err != nil {
 			continue
 		}
-		if _, err := VerifyRS256(pub, assertion); err == nil {
+		if _, err := VerifyClientJWS(pub, assertion); err == nil {
 			verified = true
 			break
 		}
@@ -109,7 +110,7 @@ func VerifyRequestObject(object, clientID string, publicKeysPEM []string, now in
 		if err != nil {
 			continue
 		}
-		if c, err := VerifyRS256(pub, object); err == nil {
+		if c, err := VerifyClientJWS(pub, object); err == nil {
 			claims, verified = c, true
 			break
 		}
