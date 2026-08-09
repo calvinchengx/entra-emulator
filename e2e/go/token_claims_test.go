@@ -25,6 +25,9 @@ import (
 // template GUID — the same value real Entra emits in `wids`.
 const globalAdminTemplateID = "62e90394-69f5-4237-9190-012177145e10"
 
+// seedEngineeringGroupID is the group alice is seeded into (store.SeedGroupEngID).
+const seedEngineeringGroupID = "54a9d08c-889d-489e-b534-336fe19dbfce"
+
 // graphToken acquires an app-only Graph token with MSAL Go, used to drive the
 // directory setup through Graph rather than a side door.
 func graphToken(t *testing.T, emu *emulator.Emulator) string {
@@ -161,8 +164,17 @@ func TestMSALGoGroupOverage(t *testing.T) {
 	t.Run("under the limit the groups list is emitted", func(t *testing.T) {
 		claims := aliceToken(t, emu)
 		groups, _ := claims["groups"].([]any)
-		if len(groups) == 0 {
-			t.Fatal("no groups claim below the overage limit")
+		// By identity: alice is seeded into the Engineering group, so that id
+		// must be what came back. A non-empty list would pass on any ids at all.
+		var found bool
+		for _, g := range groups {
+			if g == seedEngineeringGroupID {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("groups = %v, want alice's seeded group %s",
+				groups, seedEngineeringGroupID)
 		}
 		if _, over := claims["_claim_names"]; over {
 			t.Error("overage payload emitted below the limit")
