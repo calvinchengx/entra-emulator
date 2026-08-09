@@ -134,7 +134,8 @@
     "claim": "Directory **writes** (users, groups, applications; group membership `$ref`)",
     "witnesses": [
       "go:TestAdminUserCRUD",
-      "go:TestAdminGroupCRUDAndMembers"
+      "go:TestAdminGroupCRUDAndMembers",
+      "ci:sdk-e2e"
     ]
   },
   "oauth2-permission-grants-consent": {
@@ -149,7 +150,8 @@
     "section": "Microsoft Graph (`09-graph-api`)",
     "claim": "Directory roles (`roleManagement/directory`)",
     "witnesses": [
-      "go:TestDirectoryRoleAssignmentDrivesWids"
+      "go:TestDirectoryRoleAssignmentDrivesWids",
+      "ci:sdk-e2e"
     ]
   },
   "odata-select-filter-top-skiptoken-count": {
@@ -157,7 +159,8 @@
     "claim": "OData `$select` / `$filter` / `$top` / `$skiptoken` / `$count`",
     "witnesses": [
       "go:TestGraphODataSelectFilterCount",
-      "go:TestGraphODataBoolAndNullFilter"
+      "go:TestGraphODataBoolAndNullFilter",
+      "ci:sdk-e2e"
     ]
   },
   "scim-service-provider-inbound-serviceproviderconfig-resourcetypes-schemas-users-groups-crud-patchop": {
