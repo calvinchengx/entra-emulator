@@ -76,6 +76,10 @@ func (i *Identity) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /{tenant}/oauth2/v2.0/devicecode", i.handleDeviceCodePage)
 	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/devicecode/verify", i.handleDeviceVerify)
 	mux.HandleFunc("GET /{tenant}/oauth2/v2.0/logout", i.handleLogout)
+	// SAML 2.0. Entra's own paths, so an SP configured against a real
+	// tenant is repointed by changing the host and nothing else.
+	mux.HandleFunc("GET /{tenant}/federationmetadata/2007-06/federationmetadata.xml",
+		i.audited("saml-metadata", i.handleSAMLMetadata))
 
 	// Passkey (WebAuthn) ceremonies (roadmap #11).
 	mux.HandleFunc("POST /{tenant}/webauthn/register/begin", i.handleWebAuthnRegisterBegin)
