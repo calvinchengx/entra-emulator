@@ -58,7 +58,7 @@ func newTestGraph(t *testing.T) *Graph {
 		t.Fatal(err)
 	}
 	ts := &tokens.Service{Store: st, Signer: signer, Cfg: cfg}
-	return New(cfg, st, ts, audit.New(0))
+	return New(cfg, st, ts, audit.New(0), audit.NewDirectoryRecorder(0))
 }
 
 func req(method, target string) *http.Request {

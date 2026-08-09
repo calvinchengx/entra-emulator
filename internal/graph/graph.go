@@ -15,14 +15,15 @@ import (
 )
 
 type Graph struct {
-	Cfg    *config.Config
-	Store  *store.Store
-	Tokens *tokens.Service
-	Audit  *audit.Recorder
+	Cfg      *config.Config
+	Store    *store.Store
+	Tokens   *tokens.Service
+	Audit    *audit.Recorder
+	DirAudit *audit.DirectoryRecorder
 }
 
-func New(cfg *config.Config, st *store.Store, ts *tokens.Service, au *audit.Recorder) *Graph {
-	return &Graph{Cfg: cfg, Store: st, Tokens: ts, Audit: au}
+func New(cfg *config.Config, st *store.Store, ts *tokens.Service, au *audit.Recorder, da *audit.DirectoryRecorder) *Graph {
+	return &Graph{Cfg: cfg, Store: st, Tokens: ts, Audit: au, DirAudit: da}
 }
 
 // Register mounts the Graph routes under prefix ("" on the graph host,

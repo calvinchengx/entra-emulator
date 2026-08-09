@@ -41,6 +41,7 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service, cert *tlscert.
 	// the flow audit recorder (STS records, admin reads).
 	fs := faults.New()
 	au := audit.New(0)
+	da := audit.NewDirectoryRecorder(0)
 
 	// Custom authentication extensions (roadmap #10): per-app webhooks called
 	// during delegated-token minting. The STS-side enricher is wired onto the
@@ -63,7 +64,7 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service, cert *tlscert.
 	}
 
 	id := identity.New(cfg, st, ts, fs, au)
-	gr := graph.New(cfg, st, ts, au)
+	gr := graph.New(cfg, st, ts, au, da)
 	sc := scim.New(cfg, st)
 	pv := scim.NewProvisioner(st)
 	ad := admin.New(cfg, st, ts, fs, au, ce, pv, cert, version)

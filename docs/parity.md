@@ -88,7 +88,7 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | Custom security attributes | Real: attribute sets and `String`/`Integer`/`Boolean` definitions (id is Entra's `{set}_{name}` composite), assigned onto users with the declared **type enforced** — an Integer attribute refuses a string and a scalar refuses a collection slot. Returned only on explicit `$select`, exactly as Graph does | 🟢 Real |
 | **Graph `beta` endpoint** | v1.0 only | 🔴 Not implemented |
 | Sign-in logs (Graph `auditLogs/signIns`) | Real: served over the flow recorder, so every row is an exchange that actually happened. The recorder now carries the **user each exchange resolved**, so a delegated row names `userId`/`userPrincipalName` while an app-only row is userless (correct, not missing); failures carry their concrete reason and every row has a stable id to de-duplicate on. `conditionalAccessStatus` is always `notApplied` — there is no CA engine, by design | 🟢 Real |
-| **Directory audit logs** (Graph `auditLogs/directoryAudits`) | The emulator records sign-ins, not directory mutations — so this is absent rather than served empty | 🔴 Not implemented |
+| Directory audit logs (Graph `auditLogs/directoryAudits`) | Real: every mutation through the Graph write surface is journaled with its activity, category, target resource, and the caller it is attributed to (an app-only caller reports no user, which is correct rather than missing). The emulator's own admin API is a control surface with no Entra equivalent, so its mutations are deliberately not journaled | 🟢 Real |
 
 ## SCIM 2.0 (`10-scim-provisioning`)
 

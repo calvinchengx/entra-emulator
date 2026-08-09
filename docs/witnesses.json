@@ -385,5 +385,12 @@
       "go:TestTokenLifetimePolicy",
       "go:TestParseTimeSpanTable"
     ]
+  },
+  "directory-audit-logs-graph-auditlogs-directoryaudits": {
+    "section": "Microsoft Graph (`09-graph-api`)",
+    "claim": "Directory audit logs (Graph `auditLogs/directoryAudits`)",
+    "witnesses": [
+      "go:TestDirectoryAuditLogs"
+    ]
   }
 }

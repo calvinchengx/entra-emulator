@@ -20,6 +20,7 @@ import (
 
 func (g *Graph) registerAuditLogs(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc("GET "+prefix+"/v1.0/auditLogs/signIns", g.requireBearer(g.listSignIns))
+	mux.HandleFunc("GET "+prefix+"/v1.0/auditLogs/directoryAudits", g.requireBearer(g.listDirectoryAudits))
 }
 
 // signInShape maps a recorded exchange onto Graph's signIn resource.
@@ -89,6 +90,66 @@ func (g *Graph) listSignIns(w http.ResponseWriter, r *http.Request, _ *tokens.Va
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"@odata.context": g.contextURL("auditLogs/signIns"),
+		"value":          shapes,
+	})
+}
+
+// ---- directory audits ----
+
+// recordChange journals a directory mutation with the caller from the token.
+// Called from the Graph write handlers, so the actor is always known.
+func (g *Graph) recordChange(tok *tokens.ValidatedToken, activity, category, targetType, targetID, targetName string) {
+	if g.DirAudit == nil {
+		return
+	}
+	e := audit.DirectoryEvent{
+		Time: g.Store.Now(), Activity: activity, Category: category, Result: "success",
+		TargetType: targetType, TargetID: targetID, TargetDisplayName: targetName,
+	}
+	if tok != nil {
+		if appID, _ := tok.Claims["appid"].(string); appID != "" {
+			e.InitiatedByAppID = appID
+		}
+		e.InitiatedByUser = tok.OID
+		if upn, _ := tok.Claims["preferred_username"].(string); upn != "" {
+			e.InitiatedByUPN = upn
+		}
+	}
+	g.DirAudit.Record(e)
+}
+
+func (g *Graph) directoryAuditShape(e audit.DirectoryEvent) map[string]any {
+	initiatedBy := map[string]any{}
+	if e.InitiatedByAppID != "" {
+		initiatedBy["app"] = map[string]any{"appId": e.InitiatedByAppID}
+	}
+	if e.InitiatedByUser != "" {
+		initiatedBy["user"] = map[string]any{
+			"id": e.InitiatedByUser, "userPrincipalName": nullable(e.InitiatedByUPN),
+		}
+	}
+	return map[string]any{
+		"id":                  e.EventID,
+		"activityDateTime":    e.TimeISO,
+		"activityDisplayName": e.Activity,
+		"category":            e.Category,
+		"result":              e.Result,
+		"initiatedBy":         initiatedBy,
+		"targetResources": []any{map[string]any{
+			"id": e.TargetID, "type": e.TargetType, "displayName": nullable(e.TargetDisplayName),
+		}},
+	}
+}
+
+func (g *Graph) listDirectoryAudits(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
+	top, _ := paging(r)
+	events := g.DirAudit.List(top)
+	shapes := make([]map[string]any, 0, len(events))
+	for _, e := range events {
+		shapes = append(shapes, g.directoryAuditShape(e))
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
+		"@odata.context": g.contextURL("auditLogs/directoryAudits"),
 		"value":          shapes,
 	})
 }

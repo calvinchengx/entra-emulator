@@ -118,12 +118,13 @@ func (g *Graph) createUser(w http.ResponseWriter, r *http.Request, tok *tokens.V
 		writeStoreErrGraph(w, err)
 		return
 	}
+	g.recordChange(tok, "Add user", "UserManagement", "User", u.ID, u.DisplayName)
 	shape := userShape(u)
 	shape["@odata.context"] = g.contextURL("users/$entity")
 	httpx.WriteJSON(w, http.StatusCreated, shape)
 }
 
-func (g *Graph) updateUser(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
+func (g *Graph) updateUser(w http.ResponseWriter, r *http.Request, tok *tokens.ValidatedToken) {
 	u, err := g.Store.GetUser(r.PathValue("id"))
 	if err != nil {
 		writeStoreErrGraph(w, err)
@@ -174,17 +175,19 @@ func (g *Graph) updateUser(w http.ResponseWriter, r *http.Request, _ *tokens.Val
 		writeStoreErrGraph(w, err)
 		return
 	}
+	g.recordChange(tok, "Update user", "UserManagement", "User", u.ID, u.DisplayName)
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // deleteUser soft-deletes: the user moves to directory/deletedItems (recycle
 // bin), restorable for 30 days. Permanent removal is via DELETE
 // /directory/deletedItems/{id}. See docs/20-stateful-directory.md.
-func (g *Graph) deleteUser(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
+func (g *Graph) deleteUser(w http.ResponseWriter, r *http.Request, tok *tokens.ValidatedToken) {
 	if err := g.Store.SoftDeleteUser(r.PathValue("id")); err != nil {
 		writeStoreErrGraph(w, err)
 		return
 	}
+	g.recordChange(tok, "Delete user", "UserManagement", "User", r.PathValue("id"), "")
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -213,12 +216,13 @@ func (g *Graph) createGroup(w http.ResponseWriter, r *http.Request, tok *tokens.
 		writeStoreErrGraph(w, err)
 		return
 	}
+	g.recordChange(tok, "Add group", "GroupManagement", "Group", gr.ID, gr.DisplayName)
 	shape := groupShape(gr)
 	shape["@odata.context"] = g.contextURL("groups/$entity")
 	httpx.WriteJSON(w, http.StatusCreated, shape)
 }
 
-func (g *Graph) updateGroup(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
+func (g *Graph) updateGroup(w http.ResponseWriter, r *http.Request, tok *tokens.ValidatedToken) {
 	gr, err := g.Store.GetGroup(r.PathValue("id"))
 	if err != nil {
 		writeStoreErrGraph(w, err)
@@ -238,21 +242,23 @@ func (g *Graph) updateGroup(w http.ResponseWriter, r *http.Request, _ *tokens.Va
 		writeStoreErrGraph(w, err)
 		return
 	}
+	g.recordChange(tok, "Update group", "GroupManagement", "Group", gr.ID, gr.DisplayName)
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // deleteGroup soft-deletes into the recycle bin (docs/20-stateful-directory.md).
-func (g *Graph) deleteGroup(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
+func (g *Graph) deleteGroup(w http.ResponseWriter, r *http.Request, tok *tokens.ValidatedToken) {
 	if err := g.Store.SoftDeleteGroup(r.PathValue("id")); err != nil {
 		writeStoreErrGraph(w, err)
 		return
 	}
+	g.recordChange(tok, "Delete group", "GroupManagement", "Group", r.PathValue("id"), "")
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // addGroupMember consumes the {"@odata.id": ".../directoryObjects/{userId}"}
 // reference body Graph uses for member links.
-func (g *Graph) addGroupMember(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
+func (g *Graph) addGroupMember(w http.ResponseWriter, r *http.Request, tok *tokens.ValidatedToken) {
 	var b struct {
 		ODataID string `json:"@odata.id"`
 	}
@@ -282,10 +288,11 @@ func (g *Graph) addGroupMember(w http.ResponseWriter, r *http.Request, _ *tokens
 		writeStoreErrGraph(w, err)
 		return
 	}
+	g.recordChange(tok, "Add member to group", "GroupManagement", "Group", r.PathValue("id"), "")
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (g *Graph) removeGroupMember(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
+func (g *Graph) removeGroupMember(w http.ResponseWriter, r *http.Request, tok *tokens.ValidatedToken) {
 	if _, err := g.Store.GetGroup(r.PathValue("id")); err != nil {
 		writeStoreErrGraph(w, err)
 		return
@@ -294,6 +301,7 @@ func (g *Graph) removeGroupMember(w http.ResponseWriter, r *http.Request, _ *tok
 		writeStoreErrGraph(w, err)
 		return
 	}
+	g.recordChange(tok, "Remove member from group", "GroupManagement", "Group", r.PathValue("id"), "")
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -338,10 +346,11 @@ func (g *Graph) createApplication(w http.ResponseWriter, r *http.Request, tok *t
 	}
 	shape := g.applicationDTO(app)
 	shape["@odata.context"] = g.contextURL("applications/$entity")
+	g.recordChange(tok, "Add application", "ApplicationManagement", "Application", app.ID, app.DisplayName)
 	httpx.WriteJSON(w, http.StatusCreated, shape)
 }
 
-func (g *Graph) updateApplication(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
+func (g *Graph) updateApplication(w http.ResponseWriter, r *http.Request, tok *tokens.ValidatedToken) {
 	app, err := g.Store.GetApp(r.PathValue("id"))
 	if err != nil {
 		writeStoreErrGraph(w, err)
@@ -365,14 +374,16 @@ func (g *Graph) updateApplication(w http.ResponseWriter, r *http.Request, _ *tok
 		writeStoreErrGraph(w, err)
 		return
 	}
+	g.recordChange(tok, "Update application", "ApplicationManagement", "Application", r.PathValue("id"), "")
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // deleteApplication soft-deletes into the recycle bin (docs/20-stateful-directory.md).
-func (g *Graph) deleteApplication(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
+func (g *Graph) deleteApplication(w http.ResponseWriter, r *http.Request, tok *tokens.ValidatedToken) {
 	if err := g.Store.SoftDeleteApp(r.PathValue("id")); err != nil {
 		writeStoreErrGraph(w, err)
 		return
 	}
+	g.recordChange(tok, "Delete application", "ApplicationManagement", "Application", r.PathValue("id"), "")
 	w.WriteHeader(http.StatusNoContent)
 }
