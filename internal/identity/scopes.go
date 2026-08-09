@@ -38,8 +38,16 @@ func SplitScopes(raw string) []string {
 
 // ResolvedScopes is the outcome of scope validation for delegated flows.
 type ResolvedScopes struct {
-	Granted  []string // scope values as granted (short names for resources)
+	Granted  []string // scope values as granted (short names for resources) -> scp
 	Resource string   // resolved audience; "" means the Graph default
+	// Requested is the client's own scope strings, unchanged. The token
+	// response echoes these rather than the short names: MSAL Go treats a
+	// requested scope missing from the response as DECLINED and fails the
+	// acquisition, so echoing "access_as_user" for a requested
+	// "api://<app>/access_as_user" makes the scope unusable from that SDK.
+	// The client-credentials path already echoes the requested string
+	// (identity/token.go); this is the delegated counterpart.
+	Requested []string
 }
 
 // ResolveDelegatedScopes validates a delegated scope set against the
@@ -55,7 +63,7 @@ type ResolvedScopes struct {
 // Returns nil when a resource-qualified scope refers to an unknown app or
 // unregistered scope value.
 func (i *Identity) ResolveDelegatedScopes(scopes []string) *ResolvedScopes {
-	out := &ResolvedScopes{}
+	out := &ResolvedScopes{Requested: scopes}
 	graphPrefix := i.Cfg.GraphResourceID + "/"
 	fabricPrefix := fabricResource + "/"
 	for _, sc := range scopes {
