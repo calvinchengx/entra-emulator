@@ -6,6 +6,7 @@
 [![CodeQL](https://github.com/calvinchengx/entra-emulator/actions/workflows/codeql.yml/badge.svg)](https://github.com/calvinchengx/entra-emulator/actions/workflows/codeql.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
+[![parity claims witnessed](https://img.shields.io/endpoint?url=https%3A%2F%2Fcalvinchengx.github.io%2Fentra-emulator%2Fwitnesses.json)](https://calvinchengx.github.io/entra-emulator/parity/)
 [![Flutter e2e](https://github.com/calvinchengx/entra-emulator/actions/workflows/flutter-e2e.yml/badge.svg)](https://github.com/calvinchengx/entra-emulator/actions/workflows/flutter-e2e.yml)
 
 **A local, MSAL-compatible emulator of Microsoft Entra ID (Azure AD), in a single Go

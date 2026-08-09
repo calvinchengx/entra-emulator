@@ -63,6 +63,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter entra-emulator-docs build
+      # The witness endpoint rides along with the docs site, served from
+      # this project's own origin rather than a third party. Written AFTER
+      # the Starlight build, which would otherwise wipe website/dist.
+      - name: Write the badge endpoint
+        run: python3 scripts/coverage_badges.py --out website/dist
       - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request'
         with:
