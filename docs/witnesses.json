@@ -19,6 +19,7 @@
     "section": "Token service (`07-token-service`)",
     "claim": "Signing-key rotation",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestJWKSAndVerificationKeyRoundTrip"
     ]
   },
@@ -265,6 +266,7 @@
     "section": "Token service (`07-token-service`)",
     "claim": "Token signing algorithm",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestGoldenParityOIDCDiscovery",
       "go:TestJWKSAndTokenVerify"
     ]
