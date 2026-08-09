@@ -150,6 +150,7 @@
     "section": "Microsoft Graph (`09-graph-api`)",
     "claim": "OAuth2 permission grants (consent)",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestConsentApprove",
       "go:TestConsentDeny"
     ]
@@ -310,6 +311,7 @@
     "section": "Workload & platform identity",
     "claim": "**Workload identity federation** (`federatedIdentityCredential`)",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestWorkloadIdentityFederation"
     ]
   },
