@@ -56,13 +56,25 @@ def suite_go(env):
     return run(["go", "test", "./...", "-count=1"], d, env)
 
 
+def venv_bin(venv, name):
+    """The path to an executable inside a virtualenv, on any platform.
+
+    Windows puts them in Scripts\\ with an .exe suffix; POSIX in bin/. Hard-coding
+    bin/ made this suite unrunnable on Windows even though the emulator and every
+    other suite work there.
+    """
+    if os.name == "nt":
+        return venv / "Scripts" / f"{name}.exe"
+    return venv / "bin" / name
+
+
 def suite_python(env):
     d = ROOT / "e2e" / "python"
     venv = d / ".venv"
     if not venv.exists():
         subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
-    pip = venv / "bin" / "pip"
-    py = venv / "bin" / "python"
+    pip = venv_bin(venv, "pip")
+    py = venv_bin(venv, "python")
     subprocess.run([str(pip), "install", "-q", "msal"], check=True)
     return run([str(py), "suite.py"], d, env)
 
