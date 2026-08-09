@@ -52,11 +52,12 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 |---|---|---|
 | OIDC discovery + JWKS | Full, conformance-tested against the real Entra discovery document | 🟢 Real |
 | **Instance discovery** (`/common/discovery/instance`) | Served — MSAL calls it before every token request, and a 404 fails the whole login | 🟢 Real |
+| **User realm probe** (`/common/UserRealm/{user}`) | Served, always `Managed` — the emulator holds every credential it can verify, so claiming `Federated` would send a client to an IdP that does not exist. MSAL Go probes this **before** it will attempt a username/password request and gives up on a non-200, so without it ROPC is unreachable from that SDK | 🟢 Real |
 | `authorization_code` + **PKCE** (S256/plain) | Real, with atomic single-use code consumption | 🟢 Real |
 | `refresh_token` | Real rotation, plus **family revocation on reuse** — replaying a rotated token kills the whole chain | 🟢 Real |
 | `client_credentials` | Real; `.default` only, tolerating the stray scopes MSAL-Go/azidentity send | 🟢 Real |
-| `password` (ROPC) | Real scrypt verification → `amr:["pwd"]` | 🟢 Real |
-| `urn:ietf:params:oauth:grant-type:jwt-bearer` (on-behalf-of) | Real; enforces assertion audience, rejects app-only assertions | 🟢 Real |
+| `password` (ROPC) | Real scrypt verification → `amr:["pwd"]`; the user-realm probe MSAL Go requires first is served too | 🟢 Real |
+| `urn:ietf:params:oauth:grant-type:jwt-bearer` (on-behalf-of) | Real; enforces assertion audience, rejects app-only assertions, and carries the user through to the downstream token. The response echoes the scopes **as the client asked for them** rather than the short names — MSAL Go treats a requested scope missing from the response as declined and fails the acquisition | 🟢 Real |
 | Device code (spec form **and** the bare `device_code` msal-node sends) | Real, with an atomic approve→mint step that closes the double-mint window | 🟢 Real |
 | `private_key_jwt` client assertion | Real: assertion verified against the app's registered certificate, advertised in `token_endpoint_auth_methods_supported` so a spec-driven client actually attempts it. Both **RS256 and PS256** are accepted — MSAL Go signs client assertions with PS256 by default, so RS256-only verification refuses Microsoft's own Go client. `none` and the HMAC algorithms are refused | 🟢 Real |
 | RP-initiated logout (`end_session_endpoint`) | Real: clears the SSO session and honours a **validated** `post_logout_redirect_uri` + `state`; advertised via `http_logout_supported` | 🟢 Real |

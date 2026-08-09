@@ -75,6 +75,7 @@ func (i *Identity) grantOnBehalfOf(w http.ResponseWriter, r *http.Request) {
 	noteAuditSubject(r, user.ID, user.UserPrincipalName)
 	resp, err := i.Tokens.BuildDelegatedResponse(tokens.DelegatedGrant{
 		App: app, User: user, Scopes: resolved.Granted, Resource: resolved.Resource,
+		ScopeEcho: resolved.Requested,
 	})
 	if err != nil {
 		httpx.WriteOAuthError(w, "invalid_request", "AADSTS90002: Token minting failed.")

@@ -46,7 +46,8 @@ func (i *Identity) grantResourceOwnerPassword(w http.ResponseWriter, r *http.Req
 
 	noteAuditSubject(r, user.ID, user.UserPrincipalName)
 	resp, err := i.Tokens.BuildDelegatedResponse(tokens.DelegatedGrant{
-		App: app, User: user, Scopes: resolved.Granted, Resource: resolved.Resource, AMR: "pwd",
+		App: app, User: user, Scopes: resolved.Granted, Resource: resolved.Resource,
+		ScopeEcho: resolved.Requested, AMR: "pwd",
 	})
 	if err != nil {
 		httpx.WriteOAuthError(w, "invalid_request", "AADSTS90002: Token minting failed.")

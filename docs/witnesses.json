@@ -107,6 +107,7 @@
     "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
     "claim": "`urn:ietf:params:oauth:grant-type:jwt-bearer` (on-behalf-of)",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestOnBehalfOfHappyPath",
       "go:TestOnBehalfOfRejectsWrongAudience"
     ]
@@ -417,6 +418,14 @@
     "witnesses": [
       "go:TestOIDCCORS",
       "ci:browser-e2e"
+    ]
+  },
+  "user-realm-probe-common-userrealm-user": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "**User realm probe** (`/common/UserRealm/{user}`)",
+    "witnesses": [
+      "ci:sdk-e2e",
+      "go:TestUserRealmProbe"
     ]
   }
 }

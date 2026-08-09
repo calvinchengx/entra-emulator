@@ -184,14 +184,33 @@ func (s *Service) clientInfo(userOID, tid string) string {
 type DelegatedGrant struct {
 	App      *store.App
 	User     *store.User
-	Scopes   []string // granted scope names (OIDC + short resource names)
+	Scopes   []string // granted scope names (OIDC + short resource names) -> scp claim
 	Resource string   // resolved audience ("" -> GraphResourceID)
+	// ScopeEcho is what the token RESPONSE's `scope` parameter reports, as
+	// distinct from the `scp` claim. They differ for resource scopes: `scp`
+	// carries short names ("access_as_user"), while the response echoes what
+	// the client asked for ("api://<app>/access_as_user").
+	//
+	// This is not cosmetic. MSAL Go treats any requested scope missing from the
+	// response as DECLINED and fails the acquisition outright, so echoing short
+	// names makes every custom-API scope unusable from that SDK. Empty falls
+	// back to Scopes, which is correct for OIDC-only grants.
+	ScopeEcho []string
 	Nonce    string   // echoed into the ID token when present
 	AMR      string   // authentication method reference (e.g. "fido") -> amr claim
 	TenantID string   // resolved tenant ("" -> home); drives tid/iss/signing key
 	// SkipRefreshToken suppresses issuing a fresh refresh token — used by
 	// the refresh grant, whose rotation already produced the successor.
 	SkipRefreshToken bool
+}
+
+// scopeEcho is what the response's `scope` reports: the client's own scope
+// strings when we have them, otherwise the granted short names.
+func (g DelegatedGrant) scopeEcho() []string {
+	if len(g.ScopeEcho) > 0 {
+		return g.ScopeEcho
+	}
+	return g.Scopes
 }
 
 // BuildDelegatedResponse mints access (+ID +refresh) tokens for a user grant.
@@ -211,7 +230,7 @@ func (s *Service) BuildDelegatedResponse(g DelegatedGrant) (*TokenResponse, erro
 		TokenType:    "Bearer",
 		ExpiresIn:    accessSec,
 		ExtExpiresIn: accessSec,
-		Scope:        strings.Join(g.Scopes, " "),
+		Scope:        strings.Join(g.scopeEcho(), " "),
 		AccessToken:  access,
 		ClientInfo:   s.clientInfo(g.User.ID, g.TenantID),
 	}

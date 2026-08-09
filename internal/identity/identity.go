@@ -65,6 +65,9 @@ func (i *Identity) Register(mux *http.ServeMux) {
 	// token; `common` here is a literal segment (not a tenant), so it is its own
 	// route. Real Fabric clients (fab CLI, azcopy) require this to authenticate.
 	mux.HandleFunc("GET /common/discovery/instance", withCORS(i.handleInstanceDiscovery))
+	// MSAL Go probes the user realm before it will attempt a username/password
+	// request, and gives up on a non-200 — so ROPC is unreachable without this.
+	mux.HandleFunc("GET /common/UserRealm/{user}", i.handleUserRealm)
 	registerCORSPreflight(mux)
 	mux.HandleFunc("GET /{tenant}/oauth2/v2.0/authorize", i.audited("authorize", i.handleAuthorize))
 	mux.HandleFunc("POST /{tenant}/oauth2/v2.0/authorize", i.audited("authorize", i.handleAuthorize))
