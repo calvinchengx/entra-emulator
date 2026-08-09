@@ -3,6 +3,7 @@ package identity
 import (
 	"encoding/base64"
 	"encoding/xml"
+	"fmt"
 	"net/http"
 
 	"github.com/calvinchengx/entra-emulator/internal/tokens"
@@ -51,11 +52,11 @@ type idpSSODescriptor struct {
 	ProtocolSupportEnumeration string   `xml:"protocolSupportEnumeration,attr"`
 	// Entra sets this, and some SPs refuse an IdP that does not commit to
 	// signing its assertions.
-	WantAuthnRequestsSigned bool           `xml:"WantAuthnRequestsSigned,attr"`
-	KeyDescriptor           keyDescriptor  `xml:"KeyDescriptor"`
-	NameIDFormat            []string       `xml:"NameIDFormat"`
-	SingleSignOnService     []ssoService   `xml:"SingleSignOnService"`
-	SingleLogoutService     []ssoService   `xml:"SingleLogoutService"`
+	WantAuthnRequestsSigned bool          `xml:"WantAuthnRequestsSigned,attr"`
+	KeyDescriptor           keyDescriptor `xml:"KeyDescriptor"`
+	NameIDFormat            []string      `xml:"NameIDFormat"`
+	SingleSignOnService     []ssoService  `xml:"SingleSignOnService"`
+	SingleLogoutService     []ssoService  `xml:"SingleLogoutService"`
 }
 
 type keyDescriptor struct {
@@ -117,36 +118,57 @@ func (i *Identity) handleSAMLMetadata(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	out, err := samlMetadataXML(der, i.samlEntityID(tid), i.samlSSOURL(tid))
+	if err != nil {
+		i.renderErrorPage(w, http.StatusInternalServerError, "Metadata unavailable",
+			"Could not encode metadata.")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/samlmetadata+xml")
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(out)
+}
+
+// samlMetadataXML builds the document, separately from serving it.
+//
+// Split out because the handler's failure modes were otherwise unreachable
+// from a test: a store that cannot produce a key and a marshaller that cannot
+// encode our own struct are both hard to arrange through an HTTP request, so
+// those branches would have been shipped unexecuted. Here they are ordinary
+// arguments and return values.
+func samlMetadataXML(certDER []byte, entityID, ssoURL string) ([]byte, error) {
+	if len(certDER) == 0 {
+		return nil, fmt.Errorf("saml: refusing to publish metadata with no signing certificate")
+	}
+	if entityID == "" || ssoURL == "" {
+		return nil, fmt.Errorf("saml: entityID and SSO location are both required")
+	}
 	doc := entityDescriptor{
-		EntityID: i.samlEntityID(tid),
+		EntityID: entityID,
 		IDPSSO: idpSSODescriptor{
 			ProtocolSupportEnumeration: "urn:oasis:names:tc:SAML:2.0:protocol",
 			WantAuthnRequestsSigned:    false,
 			KeyDescriptor: keyDescriptor{
 				Use: "signing",
 				KeyInfo: keyInfo{X509Data: x509Data{
-					X509Certificate: base64.StdEncoding.EncodeToString(der),
+					X509Certificate: base64.StdEncoding.EncodeToString(certDER),
 				}},
 			},
 			NameIDFormat: []string{nameIDFormatEmail},
 			SingleSignOnService: []ssoService{
-				{Binding: bindingRedirect, Location: i.samlSSOURL(tid)},
-				{Binding: bindingPOST, Location: i.samlSSOURL(tid)},
+				{Binding: bindingRedirect, Location: ssoURL},
+				{Binding: bindingPOST, Location: ssoURL},
 			},
 			SingleLogoutService: []ssoService{
-				{Binding: bindingRedirect, Location: i.samlSSOURL(tid)},
+				{Binding: bindingRedirect, Location: ssoURL},
 			},
 		},
 	}
-
-	out, err := xml.MarshalIndent(doc, "", "  ")
+	body, err := xml.MarshalIndent(doc, "", "  ")
 	if err != nil {
-		i.renderErrorPage(w, http.StatusInternalServerError, "Metadata unavailable", "Could not encode metadata.")
-		return
+		return nil, err
 	}
-	w.Header().Set("Content-Type", "application/samlmetadata+xml")
-	w.Header().Set("Cache-Control", "public, max-age=3600")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(xml.Header))
-	_, _ = w.Write(out)
+	return append([]byte(xml.Header), body...), nil
 }

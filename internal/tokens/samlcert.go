@@ -40,14 +40,8 @@ func (s *Signer) SAMLCertificate(tenantID string, createdAt int64) ([]byte, erro
 	if s == nil || s.PrivateKey == nil {
 		return nil, fmt.Errorf("tokens: no signing key for tenant %s", tenantID)
 	}
-	// The serial has to be positive, unique per key, and stable. The kid is
-	// already both unique and stable, so hash it rather than inventing a
-	// counter that would need storing.
 	sum := sha256.Sum256([]byte(s.Kid))
-	serial := new(big.Int).SetBytes(sum[:16])
-	if serial.Sign() == 0 {
-		serial = big.NewInt(1)
-	}
+	serial := serialFromDigest(sum[:16])
 
 	notBefore := time.Unix(createdAt, 0).UTC().Truncate(time.Hour)
 	tmpl := &x509.Certificate{
@@ -77,6 +71,20 @@ func (s *Signer) SAMLCertificatePEM(tenantID string, createdAt int64) ([]byte, e
 		return nil, err
 	}
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), nil
+}
+
+// serialFromDigest turns a hash prefix into a certificate serial.
+//
+// Split out from the caller so the all-zero case is reachable from a test. It
+// cannot occur in practice, since it would need SHA-256 to produce sixteen
+// leading zero bytes, but x509 rejects a non-positive serial and a branch that
+// has never once been executed is not a safety net, it is an assumption.
+func serialFromDigest(b []byte) *big.Int {
+	serial := new(big.Int).SetBytes(b)
+	if serial.Sign() == 0 {
+		return big.NewInt(1)
+	}
+	return serial
 }
 
 func samlCertCN(tenantID string) string {

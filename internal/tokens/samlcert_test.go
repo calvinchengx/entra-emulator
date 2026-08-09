@@ -116,3 +116,26 @@ func TestSAMLCertificateRefusesAnEmptySigner(t *testing.T) {
 		t.Fatal("want an error for a signer with no key, got none")
 	}
 }
+
+// The all-zero serial cannot arise from SHA-256 in practice, which is exactly
+// why the branch needs a test: an unexecuted guard is an assumption, not a
+// safety net. x509 rejects a non-positive serial outright.
+func TestSerialFromDigestNeverReturnsZero(t *testing.T) {
+	if got := serialFromDigest(make([]byte, 16)); got.Sign() <= 0 {
+		t.Fatalf("all-zero digest produced serial %v, want a positive number", got)
+	}
+	if got := serialFromDigest(nil); got.Sign() <= 0 {
+		t.Fatalf("empty digest produced serial %v, want a positive number", got)
+	}
+	// A normal digest must pass through unchanged rather than be replaced.
+	b := []byte{0x00, 0x01, 0x02, 0x03}
+	if got := serialFromDigest(b); got.Int64() != 0x00010203 {
+		t.Fatalf("serial %v, want the digest value", got)
+	}
+}
+
+func TestSAMLCertificatePEMPropagatesTheError(t *testing.T) {
+	if _, err := (&Signer{Kid: "k"}).SAMLCertificatePEM("tenant-a", 0); err == nil {
+		t.Fatal("want the underlying certificate error, got none")
+	}
+}
