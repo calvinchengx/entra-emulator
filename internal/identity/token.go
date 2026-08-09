@@ -195,20 +195,42 @@ func (i *Identity) grantAuthorizationCode(w http.ResponseWriter, r *http.Request
 		return
 	}
 	grantScopes := strings.Fields(row.Scopes)
-	// Optional narrowing on exchange.
-	if req := SplitScopes(r.PostFormValue("scope")); len(req) > 0 {
-		for _, sc := range req {
+	// Echo the authorized scopes unless the client narrows on exchange, in
+	// which case its own strings are echoed instead (see ScopeEcho).
+	scopeEcho := grantScopes
+	// Optional narrowing on exchange. The request carries scopes as the CLIENT
+	// writes them — MSAL Go sends the fully-qualified "api://<app>/scope" —
+	// while the stored grant holds the short names authorize resolved them to.
+	// Comparing the two directly rejected every resource-qualified request, so
+	// resolve first and compare like for like.
+	if raw := SplitScopes(r.PostFormValue("scope")); len(raw) > 0 {
+		resolved := i.ResolveDelegatedScopes(raw)
+		if resolved == nil {
+			httpx.WriteOAuthError(w, "invalid_scope", "AADSTS70011: A requested scope is not registered.")
+			return
+		}
+		for _, sc := range resolved.Granted {
+			// OIDC protocol scopes are not resource permissions and every MSAL
+			// appends them to the token request unconditionally
+			// (defaultScopes = openid, offline_access, profile), so treating
+			// them as "exceeding the grant" rejects the SDK's normal traffic.
+			// The client-credentials path already tolerates the same strays.
+			if oidcScopes[sc] {
+				continue
+			}
 			if !containsScope(grantScopes, sc) {
 				httpx.WriteOAuthError(w, "invalid_scope",
 					"AADSTS70011: Requested scope exceeds the authorized grant.")
 				return
 			}
 		}
-		grantScopes = req
+		grantScopes = resolved.Granted
+		scopeEcho = resolved.Requested
 	}
 	noteAuditSubject(r, user.ID, user.UserPrincipalName)
 	resp, err := i.Tokens.BuildDelegatedResponse(tokens.DelegatedGrant{
 		App: app, User: user, Scopes: grantScopes, Resource: row.Resource, Nonce: row.Nonce, AMR: row.AMR,
+		ScopeEcho: scopeEcho,
 	})
 	if err != nil {
 		httpx.WriteOAuthError(w, "invalid_request", "AADSTS90002: Token minting failed.")
@@ -229,7 +251,18 @@ func (i *Identity) grantRefreshToken(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteOAuthError(w, "invalid_request", "AADSTS900144: refresh_token is required.")
 		return
 	}
-	redeemed, err := i.Tokens.RedeemRefreshToken(rt, app.ID, SplitScopes(r.PostFormValue("scope")))
+	// Same resolution as the code exchange: the client narrows with its own
+	// scope strings, the stored grant holds short names.
+	var narrowed, scopeEcho []string
+	if raw := SplitScopes(r.PostFormValue("scope")); len(raw) > 0 {
+		resolved := i.ResolveDelegatedScopes(raw)
+		if resolved == nil {
+			httpx.WriteOAuthError(w, "invalid_scope", "AADSTS70011: A requested scope is not registered.")
+			return
+		}
+		narrowed, scopeEcho = resolved.Granted, resolved.Requested
+	}
+	redeemed, err := i.Tokens.RedeemRefreshToken(rt, app.ID, narrowed)
 	if err != nil {
 		writeRedeemErr(w, err)
 		return
@@ -242,7 +275,7 @@ func (i *Identity) grantRefreshToken(w http.ResponseWriter, r *http.Request) {
 	noteAuditSubject(r, user.ID, user.UserPrincipalName)
 	resp, err := i.Tokens.BuildDelegatedResponse(tokens.DelegatedGrant{
 		App: app, User: user, Scopes: redeemed.Scopes, Resource: redeemed.Resource,
-		SkipRefreshToken: true,
+		ScopeEcho: scopeEcho, SkipRefreshToken: true,
 	})
 	if err != nil {
 		httpx.WriteOAuthError(w, "invalid_request", "AADSTS90002: Token minting failed.")
