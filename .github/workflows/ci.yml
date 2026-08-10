@@ -237,3 +237,21 @@ jobs:
       # emulator with the gate on rather than changing what every other suite
       # depends on.
       - run: python3 e2e/run.py graph-permissions
+
+  persistence-e2e:
+    name: Persistence witness (real Graph SDK across a restart)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      # The restart is the assertion, so this suite owns the emulator lifecycle:
+      # it writes through the SDK, stops the process, starts a new one on the
+      # same database, and reads the work back. Run against the shared emulator
+      # there would be no restart, and every check would pass in memory.
+      - run: python3 e2e/run.py persistence
