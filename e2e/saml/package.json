@@ -1,0 +1,8 @@
+{
+  "name": "entra-emulator-e2e-saml",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@node-saml/node-saml": "^5.1.0"
+  }
+}

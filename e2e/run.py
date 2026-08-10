@@ -50,6 +50,14 @@ def suite_ts(env):
     return run(["node", "suite.mjs"], d, env)
 
 
+def suite_saml(env):
+    """A real SP library completing SP-initiated SSO."""
+    d = ROOT / "e2e" / "saml"
+    if not (d / "node_modules").exists():
+        subprocess.run(["npm", "install", "--silent"], cwd=d, check=True)
+    return run(["node", "suite.mjs"], d, env)
+
+
 def suite_go(env):
     d = ROOT / "e2e" / "go"
     subprocess.run(["go", "mod", "download"], cwd=d, env=env)
@@ -115,7 +123,7 @@ def suite_java(env):
 
 
 SUITES = {
-    "ts": suite_ts, "go": suite_go, "python": suite_python,
+    "ts": suite_ts, "go": suite_go, "python": suite_python, "saml": suite_saml,
     "graph": suite_graph, "dotnet": suite_dotnet, "java": suite_java,
     "scim": suite_scim, "scim-outbound": suite_scim_outbound,
 }
