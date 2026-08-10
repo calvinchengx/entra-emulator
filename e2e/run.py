@@ -30,9 +30,12 @@ TLS.check_hostname = False
 TLS.verify_mode = ssl.CERT_NONE
 
 
-def healthy():
+def healthy(origin=None):
+    # origin defaults to the shared emulator; suites that start their own pass
+    # theirs, so one probe serves both without duplicating the TLS setup.
+    origin = origin or ORIGIN
     try:
-        with urllib.request.urlopen(f"{ORIGIN}/health", context=TLS, timeout=5) as r:
+        with urllib.request.urlopen(f"{origin}/health", context=TLS, timeout=5) as r:
             return r.status == 200
     except (urllib.error.URLError, OSError):
         return False
@@ -105,6 +108,53 @@ def suite_scim(env):
                 "python", "suite.py"], ROOT / "e2e" / "scim", env)
 
 
+def suite_graph_permissions(env):
+    """Real Graph SDK against the permission gate, on its OWN emulator.
+
+    GRAPH_PERMISSIONS is config-only with no runtime toggle, and the shared
+    emulator runs with the gate off (its default). So this suite starts a second
+    emulator with the gate on, rather than changing the environment every other
+    suite depends on.
+    """
+    d = ROOT / "e2e" / "graph-permissions"
+    if not (d / "node_modules").exists():
+        subprocess.run(["npm", "install", "--silent"], cwd=d, check=True)
+
+    port = os.environ.get("GP_PORT", "9755")
+    work = Path(tempfile.mkdtemp(prefix="entra-gperm.", dir=os.environ.get("TMPDIR", "/tmp")))
+    binary = work / "entra-emulator"
+    subprocess.run(["go", "build", "-o", str(binary), "./cmd/entra-emulator"], cwd=ROOT, check=True)
+    log = open(work / "server.log", "w")
+    proc = subprocess.Popen(
+        [str(binary)], cwd=work, stdout=log, stderr=subprocess.STDOUT,
+        env={**os.environ, "PORT": port, "ORIGIN_MODE": "compat",
+             "GRAPH_PERMISSIONS": "true",
+             "DB_PATH": str(work / "gperm.db"), "TLS_CERT_DIR": str(work / "tls")})
+    try:
+        origin = f"https://localhost:{port}"
+        deadline = time.time() + 30
+        while time.time() < deadline and not healthy(origin):
+            if proc.poll() is not None:
+                print((work / "server.log").read_text()[-2000:], file=sys.stderr)
+                return False
+            time.sleep(0.2)
+        if not healthy(origin):
+            print("gate emulator did not start", file=sys.stderr)
+            print((work / "server.log").read_text()[-2000:], file=sys.stderr)
+            return False
+        cert = str(work / "tls" / "cert.pem")
+        return run(["node", "suite.mjs"], d,
+                   {**env, "GP_ORIGIN": origin, "GP_TENANT": TENANT,
+                    "EMU_CERT": cert, "NODE_EXTRA_CA_CERTS": cert})
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+        shutil.rmtree(work, ignore_errors=True)
+
+
 def suite_scim_outbound(env):
     """Microsoft's own SCIM reference server as the provisioning target.
 
@@ -126,6 +176,7 @@ SUITES = {
     "ts": suite_ts, "go": suite_go, "python": suite_python, "saml": suite_saml,
     "graph": suite_graph, "dotnet": suite_dotnet, "java": suite_java,
     "scim": suite_scim, "scim-outbound": suite_scim_outbound,
+    "graph-permissions": suite_graph_permissions,
 }
 
 

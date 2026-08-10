@@ -268,6 +268,7 @@
     "section": "Microsoft Graph (`09-graph-api`)",
     "claim": "Graph permission enforcement (scopes/roles gating operations)",
     "witnesses": [
+      "ci:graph-permissions-e2e",
       "go:TestGraphPermissionsEnforced",
       "go:TestGraphPermissionsOffByDefault"
     ]

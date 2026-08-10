@@ -218,3 +218,22 @@ jobs:
       # Microsoft-authored witness in the SCIM cluster. It is cloned at a pinned
       # commit and built with the .NET 8 SDK; nothing about it is patched.
       - run: python3 e2e/run.py scim-outbound
+
+  graph-permissions-e2e:
+    name: Graph permission gate witness (real Graph SDK, denied and allowed)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      # The gate is config-only (GRAPH_PERMISSIONS) with no runtime toggle, and
+      # the shared e2e emulator runs with it off, which is the default and
+      # matches Entra for an unconfigured tenant. So this suite starts its own
+      # emulator with the gate on rather than changing what every other suite
+      # depends on.
+      - run: python3 e2e/run.py graph-permissions
