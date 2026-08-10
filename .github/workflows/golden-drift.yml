@@ -1,0 +1,61 @@
+name: Golden drift
+
+# Checks the OIDC golden reference against Entra's LIVE discovery document.
+#
+# Deliberately NOT part of the CI gate. `golden_parity_test.go` proves the
+# emulator conforms to the golden file and runs on every push; this proves the
+# golden file still describes Entra, and depends on Microsoft being reachable.
+# Making the build depend on a third party's availability trades a real problem
+# for a worse one, so drift is reported rather than blocking.
+#
+# The exit codes are distinguished on purpose: 1 is drift (the reference is now
+# wrong), 2 is unreachable (no verdict). An outage must not read as a pass.
+
+on:
+  schedule:
+    - cron: '17 6 * * 1' # weekly, Monday 06:17 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  golden-drift:
+    name: OIDC golden vs live Entra
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Compare golden reference with Entra
+        id: drift
+        run: |
+          set +e
+          uv run --no-project --python 3.12 python scripts/check_golden_drift.py | tee drift.log
+          code=${PIPESTATUS[0]}
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Unreachable — report, do not pass silently
+        if: steps.drift.outputs.code == '2'
+        run: |
+          echo "::warning::Entra discovery document was unreachable; no verdict was reached."
+
+      - name: Open an issue on drift
+        if: steps.drift.outputs.code == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          body=$'The OIDC golden reference no longer matches Entra'"'"$'s live discovery document.\n\n```\n'"$(cat drift.log)"$'\n```\n\nThe golden file is the authority every parity row on the discovery surface rests on, so this means those rows are being measured against a stale reference.'
+          gh issue create \
+            --title "Golden reference has drifted from Entra's discovery document" \
+            --body "$body" \
+            --label "parity" || gh issue create \
+            --title "Golden reference has drifted from Entra's discovery document" \
+            --body "$body"
+
+      - name: Fail the run when the reference is wrong
+        if: steps.drift.outputs.code == '1'
+        run: exit 1
