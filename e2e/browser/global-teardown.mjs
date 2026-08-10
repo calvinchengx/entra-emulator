@@ -1,6 +1,8 @@
-// Stop the emulator globalSetup started. `go run` spawns the built binary as a
-// child, so kill the process GROUP (setup detached it to make that possible) —
-// killing only the `go run` wrapper would leave the server holding its port.
+// Stop the emulator globalSetup started. Setup runs a pre-built binary now, so
+// the recorded pid IS the server — but the group kill is kept, because it is
+// correct either way and cheap, and the previous arrangement (`go run` spawning
+// the server as a child) is exactly the shape where killing the recorded pid
+// leaves the port held.
 import { readFileSync, rmSync } from 'node:fs';
 
 export default async function globalTeardown() {

@@ -1,7 +1,7 @@
 // Boots the emulator over TLS (MSAL.js refuses a plain-http authority even on
 // localhost), then registers the witness app's origin as a redirect URI on the
 // seeded public SPA.
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, openSync, readFileSync, existsSync } from 'node:fs';
 import { request } from 'node:https';
 import { tmpdir } from 'node:os';
@@ -41,7 +41,7 @@ function json(url, { method = 'GET', body, ca } = {}) {
   });
 }
 
-async function waitFor(url, caPath, tries = 60) {
+async function waitFor(url, caPath, logPath, tries = 60) {
   for (let i = 0; i < tries; i++) {
     try {
       // The cert only exists once the emulator has generated it.
@@ -51,7 +51,12 @@ async function waitFor(url, caPath, tries = 60) {
     } catch {}
     await new Promise((r) => setTimeout(r, 500));
   }
-  throw new Error(`timed out waiting for ${url}`);
+  // Print the emulator's own output. Reporting only "timed out" discards the
+  // one piece of evidence that says WHY, and sends the next reader to reproduce
+  // locally to learn what the runner already knew.
+  let tail = '(no log)';
+  try { tail = readFileSync(logPath, 'utf8').split('\n').slice(-25).join('\n'); } catch {}
+  throw new Error(`timed out waiting for ${url}\n--- emulator log ---\n${tail}`);
 }
 
 export default async function globalSetup() {
@@ -60,7 +65,20 @@ export default async function globalSetup() {
   // pipe open forever, so `playwright test | tail` never terminates. Detach and
   // unref so the emulator never holds the runner alive either.
   const logFd = openSync(join(dir, 'emulator.log'), 'a');
-  const proc = spawn('go', ['run', './cmd/entra-emulator'], {
+
+  // BUILD FIRST, then run the binary. `go run` compiles on every start, so the
+  // health-check budget below was measuring compilation as well as startup —
+  // and a cold runner cache plus a few new dependencies pushed it over, failing
+  // a witness that had nothing wrong with it. Building separately makes the
+  // wait measure only what it claims to. It also makes teardown reliable:
+  // `go run` spawns the real server as a CHILD, so the recorded pid was the
+  // wrapper's rather than the server's.
+  const bin = join(dir, 'entra-emulator');
+  execFileSync('go', ['build', '-o', bin, './cmd/entra-emulator'], {
+    cwd: REPO, stdio: ['ignore', logFd, logFd],
+  });
+
+  const proc = spawn(bin, [], {
     cwd: REPO,
     detached: true,
     env: {
@@ -80,7 +98,7 @@ export default async function globalSetup() {
   console.log(`emulator pid ${proc.pid}, log ${join(dir, 'emulator.log')}`);
 
   const caPath = join(dir, 'tls', 'cert.pem');
-  const { body: health_body, ca } = await waitFor(`https://localhost:${EMU_PORT}/health`, caPath);
+  const { body: health_body, ca } = await waitFor(`https://localhost:${EMU_PORT}/health`, caPath, join(dir, 'emulator.log'));
 
   // Find the seeded PUBLIC client (msal-browser is a public client) rather than
   // hardcoding a GUID the seed may change.
