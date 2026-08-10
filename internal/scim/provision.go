@@ -134,7 +134,20 @@ func (p *Provisioner) Sync(mode string) (*SyncResult, error) {
 	res := &SyncResult{Mode: mode}
 	for _, u := range users {
 		// Incremental: skip users unchanged since the last sync.
-		if incremental && u.UpdatedAt <= wm {
+		//
+		// STRICTLY less-than, deliberately. The watermark is Unix SECONDS and is
+		// recorded as the moment this sync started, so a change committed in
+		// that same second — after ListUsers already read the row — lands with
+		// UpdatedAt exactly equal to the watermark. With <= it is skipped on the
+		// next sync and every sync after, because the watermark only moves
+		// forward: the change is lost, not delayed.
+		//
+		// < re-sends anything at the boundary, which costs at most one redundant
+		// request per user per sync: every send probes the target first and
+		// turns a create into an update, so provisioning is idempotent. That is
+		// at-least-once instead of at-most-once, and only one of those two has a
+		// floor on how much it can lose.
+		if incremental && u.UpdatedAt < wm {
 			res.Skipped++
 			continue
 		}

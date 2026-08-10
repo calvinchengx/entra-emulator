@@ -248,3 +248,57 @@ func TestSCIMProvisioningIncremental(t *testing.T) {
 		t.Fatalf("incremental should PATCH only Alice: %v", mock.reqs)
 	}
 }
+
+// TestSCIMProvisioningSameSecondChangeIsNotLost pins the watermark boundary.
+//
+// The watermark is Unix SECONDS, and a sync records it as the moment the sync
+// started. A change committed in that same second — after ListUsers already read
+// the row, so the sync could not have seen it — lands with UpdatedAt exactly
+// equal to the watermark. Comparing with <= then skips it on the next
+// incremental sync, and on every sync after that, because the watermark only
+// moves forward. The change is not delayed, it is lost permanently.
+//
+// The window is small in wall-clock terms and unbounded in consequence, which is
+// why it survived: a real client syncing twice inside one second silently drops
+// whatever changed between the read and the clock tick.
+//
+// The fix is at-least-once rather than at-most-once. Re-sending is harmless here
+// because every send probes the target first and turns a create into an update,
+// so the worst case is one redundant PATCH. Dropping a change has no such floor.
+func TestSCIMProvisioningSameSecondChangeIsNotLost(t *testing.T) {
+	hts, _, st := newTestServer(t)
+	mock := newMockSCIM("target-secret")
+	defer mock.Close()
+
+	// A clock that does NOT advance: every timestamp in this test is the same
+	// second, which is the boundary being tested rather than an approximation
+	// of it.
+	var clk int64 = 9_000_000_000
+	st.Now = func() int64 { return clk }
+	configureTarget(t, hts, mock.URL)
+
+	// Initial sync creates everyone and sets watermark := clk.
+	postJSON(t, hts.URL+"/admin/api/scim/sync", map[string]any{"mode": "initial"})
+	mock.reset()
+
+	// Change Alice in the SAME second the sync recorded. UpdatedAt == watermark.
+	alice, err := st.GetUser(aliceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	alice.DisplayName = "Alice Changed In The Same Second"
+	if err := st.UpdateUser(alice); err != nil {
+		t.Fatal(err)
+	}
+	if alice.UpdatedAt != clk {
+		t.Fatalf("test setup is not exercising the boundary: UpdatedAt=%d clk=%d", alice.UpdatedAt, clk)
+	}
+
+	// The change must reach the target. Asserting the count alone would pass on
+	// a PATCH to somebody else, so assert it went to Alice.
+	_, res := postJSON(t, hts.URL+"/admin/api/scim/sync", map[string]any{"mode": "incremental"})
+	if n := mock.count("PATCH /Users/target-alice@entraemulator.dev"); n != 1 {
+		t.Fatalf("a change made in the watermark's own second was lost: want 1 PATCH to Alice, got %d (sync result %v, requests %v)",
+			n, res, mock.reqs)
+	}
+}

@@ -235,12 +235,12 @@ def main() -> int:
                                 token="scim-secret-token")
             local = (listing.get("Resources") or [None])[0] if code == 200 else None
             if local:
-                # The watermark is Unix seconds and incremental sync skips
-                # users whose updated_at is <= it. The whole flow above runs
-                # well inside one second, so without this wait the disable is
-                # correctly judged "not newer than the last sync" and never
-                # pushed — the test would be measuring its own speed.
-                time.sleep(1.1)
+                # No wait here, deliberately. This used to sleep 1.1s because
+                # the watermark compared with <= against a seconds-resolution
+                # clock, so a change in the sync's own second was skipped
+                # forever. That is fixed in internal/scim/provision.go, and
+                # running with no wait is what proves it against a real SCIM
+                # server rather than only in a Go unit test.
                 req(f"{ORIGIN}/scim/v2/Users/{local['id']}", "PATCH", {
                     "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
                     "Operations": [{"op": "replace", "path": "active", "value": False}],
