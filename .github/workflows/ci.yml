@@ -169,6 +169,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: '1.25'
+          cache: true
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
@@ -180,6 +181,13 @@ jobs:
         run: |
           npm install
           npx playwright install --with-deps chromium
+      # global-setup spawns `go run ./cmd/entra-emulator`, so the module is
+      # COMPILED inside the 30s health wait (60 tries x 500ms). That wait is
+      # meant to measure startup, and on a cold cache it was measuring the
+      # build — a race the repo won until a large commit tipped it over.
+      # Compile here instead, so `go run` only has to link and listen.
+      - name: Build the emulator so the health wait is not timing a compile
+        run: go build ./cmd/entra-emulator
       - name: Run the witness
         working-directory: e2e/browser
         run: npx playwright test
