@@ -155,6 +155,78 @@ def suite_graph_permissions(env):
         shutil.rmtree(work, ignore_errors=True)
 
 
+def suite_persistence(env):
+    """Real Graph SDK across an emulator RESTART on the same database.
+
+    The restart is the whole point, so this suite owns the emulator lifecycle:
+    write through the SDK, stop the process, start a new one on the same
+    DB_PATH, and read the work back. Against the shared emulator there would be
+    no restart and every check would pass on an in-memory directory.
+    """
+    d = ROOT / "e2e" / "persistence"
+    if not (d / "node_modules").exists():
+        subprocess.run(["npm", "install", "--silent"], cwd=d, check=True)
+
+    port = os.environ.get("PERSIST_PORT", "9757")
+    work = Path(tempfile.mkdtemp(prefix="entra-persist.", dir=os.environ.get("TMPDIR", "/tmp")))
+    binary = work / "entra-emulator"
+    subprocess.run(["go", "build", "-o", str(binary), "./cmd/entra-emulator"], cwd=ROOT, check=True)
+
+    db, tls = work / "directory.db", work / "tls"
+    origin = f"https://localhost:{port}"
+
+    def boot(tag):
+        log = open(work / f"server-{tag}.log", "a")
+        p = subprocess.Popen(
+            [str(binary)], cwd=work, stdout=log, stderr=subprocess.STDOUT,
+            env={**os.environ, "PORT": port, "ORIGIN_MODE": "compat",
+                 "DB_PATH": str(db), "TLS_CERT_DIR": str(tls)})
+        deadline = time.time() + 30
+        while time.time() < deadline and not healthy(origin):
+            if p.poll() is not None:
+                print((work / f"server-{tag}.log").read_text()[-2000:], file=sys.stderr)
+                return None
+            time.sleep(0.2)
+        if not healthy(origin):
+            print(f"emulator ({tag}) did not start", file=sys.stderr)
+            p.terminate()
+            return None
+        return p
+
+    def stop(p):
+        p.terminate()
+        try:
+            p.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            p.kill()
+
+    senv = {**env, "PERSIST_ORIGIN": origin, "PERSIST_TENANT": TENANT,
+            "PERSIST_STATE": str(work / "state.json"),
+            "EMU_CERT": str(tls / "cert.pem"),
+            "NODE_EXTRA_CA_CERTS": str(tls / "cert.pem")}
+    try:
+        first = boot("write")
+        if first is None:
+            return False
+        ok = run(["node", "suite.mjs", "write"], d, senv)
+        stop(first)
+        if not ok:
+            return False
+
+        # The database file is the only thing carried across; a fresh process
+        # reads it or the claim is false.
+        print("==> emulator stopped; restarting on the same database")
+        second = boot("read")
+        if second is None:
+            return False
+        try:
+            return run(["node", "suite.mjs", "read"], d, senv)
+        finally:
+            stop(second)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 def suite_scim_outbound(env):
     """Microsoft's own SCIM reference server as the provisioning target.
 
@@ -177,6 +249,7 @@ SUITES = {
     "graph": suite_graph, "dotnet": suite_dotnet, "java": suite_java,
     "scim": suite_scim, "scim-outbound": suite_scim_outbound,
     "graph-permissions": suite_graph_permissions,
+    "persistence": suite_persistence,
 }
 
 

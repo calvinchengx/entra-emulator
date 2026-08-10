@@ -221,6 +221,7 @@
     "section": "Directory, storage & transport",
     "claim": "Persisted directory",
     "witnesses": [
+      "ci:persistence-e2e",
       "go:TestDirectoryRoundTripRestoresState"
     ]
   },
