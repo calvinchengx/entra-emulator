@@ -14,9 +14,19 @@ import (
 // JAR — JWT-Secured Authorization Requests (RFC 9101). The client passes
 // `request_uri` pointing at a signed JWT holding the authorization parameters,
 // which the emulator fetches, verifies against the app's registered keys, and
-// applies. Entra advertises request_uri_parameter_supported, so this is the
-// half of JAR that is parity; inline `request` is deliberately NOT accepted,
-// because Entra does not advertise request_parameter_supported either.
+// applies. Inline `request` is deliberately NOT accepted, matching Entra, which
+// advertises no request_parameter_supported.
+//
+// CORRECTION, measured against the live document: this comment used to say
+// "Entra advertises request_uri_parameter_supported, so this is the half of JAR
+// that is parity". It does not. Entra answers
+// request_uri_parameter_supported: FALSE (checked across common, organizations,
+// consumers and a tenant GUID). So this capability is a deliberate DIVERGENCE,
+// not parity, and the emulator advertising true means a spec-driven client
+// succeeds here and fails against Entra. Recorded in
+// e2e/golden/oidc-discovery.golden.json under emulator_divergences and watched
+// by scripts/check_golden_drift.py; the open question is whether to advertise
+// false and match, or keep this as a documented extension.
 //
 // SSRF, addressed head-on: an authorize endpoint that fetches a caller-supplied
 // URL is a server-side request forgery primitive. This one will only fetch from

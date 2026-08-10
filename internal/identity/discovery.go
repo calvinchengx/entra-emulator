@@ -11,7 +11,12 @@ import (
 
 // handleInstanceDiscovery answers MSAL's authority-validation probe
 // (GET /common/discovery/instance?api-version=1.1&authorization_endpoint=…).
-// MSAL calls this before every token request; a 404 fails the whole login. The
+// MSAL calls this before every token request *when the name resolves here*: it
+// does not ask the authority's own host, it hardcodes login.microsoftonline.com
+// and asks that about the authority. So this endpoint is on the path only in the
+// aliased setups (the e2e composes that point that name at the emulator), and a
+// client left to reach the real service will bypass it entirely. Measured, not
+// assumed: e2e/go/instance_discovery_test.go. A 404 here fails the whole login. The
 // reply names this emulator as the preferred network for the authority so MSAL
 // keeps talking to us, and points tenant discovery at our OIDC document.
 func (i *Identity) handleInstanceDiscovery(w http.ResponseWriter, r *http.Request) {

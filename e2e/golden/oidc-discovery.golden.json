@@ -79,5 +79,20 @@
     "kerberos_endpoint",
     "mtls_endpoint_aliases",
     "tls_client_certificate_bound_access_tokens"
-  ]
+  ],
+  "entra_boolean_values": {
+    "_comment": "What Entra ANSWERS for each boolean capability flag, not merely that the field exists. required_fields records presence only, which is why the emulator could advertise request_uri_parameter_supported: true against Entra's false with every test passing. Verified against the live document by scripts/check_golden_drift.py.",
+    "http_logout_supported": true,
+    "frontchannel_logout_supported": true,
+    "tls_client_certificate_bound_access_tokens": true,
+    "request_uri_parameter_supported": false
+  },
+  "emulator_divergences": {
+    "_comment": "Where the emulator KNOWINGLY answers differently from Entra. Recorded, not yet enforced: golden_parity_test.go does not assert these, because doing so would fail the build on a question that is a product decision rather than a bug. Listing them here means the next reader finds the divergence in the reference instead of rediscovering it against the live service.",
+    "request_uri_parameter_supported": {
+      "entra": false,
+      "emulator": true,
+      "why": "The emulator implements JAR by reference (RFC 9101) and advertises it. Entra does not support it. A spec-driven client therefore succeeds locally and fails in production, which is the divergence class that misleads rather than merely differing. Open question: match Entra by advertising false, or keep the capability as a documented extension."
+    }
+  }
 }
