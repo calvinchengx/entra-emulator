@@ -447,5 +447,15 @@
       "ci:sdk-e2e",
       "go:TestGraphEmittedURLsResolve"
     ]
+  },
+  "saml-2-0-sp-initiated-sso": {
+    "section": "Sign-in experience",
+    "claim": "**SAML 2.0 SP-initiated SSO**",
+    "witnesses": [
+      "ci:sdk-e2e",
+      "go:TestSAMLSSODeliversAnAssertionAnSPCanVerify",
+      "go:TestSAMLSSORefusesAnUnregisteredACS",
+      "go:TestSignedAssertionVerifiesAgainstTheAdvertisedCertificate"
+    ]
   }
 }

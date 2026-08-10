@@ -17,10 +17,15 @@
 4. **Inspectable & resettable.** Admin API to list/create/reset everything; fixed seed
    GUIDs and secrets for reproducible CI.
 
-**Non-goals**: no multi-tenant, implicit flow, ROPC, OBO, SAML, MFA/Conditional
-Access/consent, certificate client auth, or Graph writes (several are roadmap items —
-docs/10). This is a development tool — intentionally insecure (open admin API, seeded
-public secrets, self-signed TLS).
+**Non-goals**: no multi-tenant, MFA/Conditional Access, or Identity Protection.
+Those need a policy engine or a risk model, which is the line this project does
+not cross. This paragraph previously also listed implicit flow, ROPC, OBO,
+consent, certificate client auth, Graph writes and SAML; all seven have since
+shipped and are graded in docs/parity.md, so the list was describing a project
+that no longer existed.
+
+This is a development tool, intentionally insecure: open admin API, seeded
+public secrets, self-signed TLS.
 
 ## Implementation choices
 

@@ -112,7 +112,8 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 | **Identity Protection / risky users** | — | 🔴 Not implemented |
 | Password reset (Graph `authentication/passwordMethods/{id}/resetPassword`) | Real: the new password is scrypt-hashed into the directory, so the old credential immediately stops signing in and the new one works. Omitting `newPassword` returns a system-generated one in Entra's `passwordResetResponse` shape, with `202` + `Location` as Graph answers this long-running operation | 🟢 Real |
 | **Interactive SSPR** (verify by email / SMS / security questions at `passwordreset.microsoftonline.com`) | Not implemented — it is a first-party web flow, not a documented protocol, so emulating it would mean inventing a wire format rather than reproducing one | 🔴 Not implemented |
-| **SAML / WS-Federation** | — stated non-goal | 🔴 Not implemented |
+| **SAML 2.0 SP-initiated SSO** | Real: an AuthnRequest by either binding, a signed assertion posted back. The assertion is signed with the tenant's own RSA key under exclusive c14n, carries AudienceRestriction, Recipient, InResponseTo and a five-minute window, and the reply URL is validated against the app's registered `saml-acs` endpoints rather than taken from the request. IdP metadata at Entra's own path publishes the same key as an X.509 certificate | 🟢 Real |
+| **WS-Federation** | Not implemented. SAML's sibling, and reachable from the same signing path, but nothing drives it yet | 🔴 Not implemented |
 | **B2C user flows / External ID / CIAM** | — stated non-goal | 🔴 Not implemented |
 | B2B guest invitations | Real: `POST /invitations` creates an actual directory user with Entra's external shape — `#EXT#` UPN, `userType: Guest`, `externalUserState: PendingAcceptance` — and the returned redeem link flips that state to `Accepted` and redirects to the inviting app. Members keep `userType: Member` with a null external state | 🟢 Real |
 | **Cross-tenant access policies** (partner settings, inbound/outbound trust) | — | 🔴 Not implemented |
@@ -193,11 +194,20 @@ and the documented divergences it reports.
 
 ## Scope boundary: a dev-loop emulator, not an IdP
 
-The stated non-goals — SAML/WS-Fed, B2C user flows, MFA/Conditional Access,
-production hardening — are a deliberate line. Crossing it changes the project's
-character from *"the identity provider your tests run against"* to *"an identity
-provider"*, which is a different product with a different duty of care.
+The line is drawn by one question: does this need a policy engine, a risk
+model, or a tenant's compliance posture? Everything above it can be **real**,
+because none of it needs any of the three. A token this emulator signs is a
+real token; a passkey it verifies is really verified; an assertion it signs is
+signed with the same key and verifies in an unmodified service provider.
 
-What that buys: everything above the line can be **real**, because none of it
-needs a policy engine, a risk model, or a tenant's compliance posture. A token
-this emulator signs is a real token; a passkey it verifies is really verified.
+MFA, Conditional Access and Identity Protection fail that question and stay
+out. Crossing to them would change the project's character from *"the identity
+provider your tests run against"* to *"an identity provider"*, which is a
+different product with a different duty of care.
+
+**SAML was on the wrong side of this line and has moved.** It answers the
+question the same way a token does: a signed assertion needs no policy engine,
+and the emulator already had the key. The list of non-goals is not a fixed
+boundary either, which is worth saying plainly — implicit flow, ROPC, OBO,
+consent, certificate client auth and Graph writes were all once on it and are
+now green rows. What has never moved is the criterion.

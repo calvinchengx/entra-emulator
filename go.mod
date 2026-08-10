@@ -3,9 +3,11 @@ module github.com/calvinchengx/entra-emulator
 go 1.25.11
 
 require (
+	github.com/beevik/etree v1.7.0
 	github.com/brianvoe/gofakeit/v7 v7.15.0
 	github.com/descope/virtualwebauthn v1.0.5
 	github.com/go-webauthn/webauthn v0.17.4
+	github.com/russellhaering/goxmldsig v1.6.1
 	golang.org/x/crypto v0.54.0
 	modernc.org/sqlite v1.56.0
 )
@@ -18,6 +20,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/jonboulle/clockwork v0.5.0 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
