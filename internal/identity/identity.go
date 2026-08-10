@@ -80,6 +80,8 @@ func (i *Identity) Register(mux *http.ServeMux) {
 	// tenant is repointed by changing the host and nothing else.
 	mux.HandleFunc("GET /{tenant}/federationmetadata/2007-06/federationmetadata.xml",
 		i.audited("saml-metadata", i.handleSAMLMetadata))
+	mux.HandleFunc("GET /{tenant}/saml2", i.audited("saml-sso", i.handleSAMLSSO))
+	mux.HandleFunc("POST /{tenant}/saml2", i.audited("saml-sso", i.handleSAMLSSO))
 
 	// Passkey (WebAuthn) ceremonies (roadmap #11).
 	mux.HandleFunc("POST /{tenant}/webauthn/register/begin", i.handleWebAuthnRegisterBegin)
