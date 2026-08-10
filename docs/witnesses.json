@@ -70,6 +70,7 @@
     "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
     "claim": "**Instance discovery** (`/common/discovery/instance`)",
     "witnesses": [
+      "ci:sdk-e2e",
       "go:TestInstanceDiscovery"
     ]
   },
