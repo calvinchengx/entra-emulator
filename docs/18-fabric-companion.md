@@ -1,7 +1,8 @@
 # Companion: the Fabric control-plane emulator
 
 > **Status: the companion exists.** What this page originally sketched is now a
-> real sibling project, **`fabric-emulator`** (`~/calvinchengx/fabric-emulator`,
+> real sibling project, **`fabric-emulator`**
+> ([`calvinchengx/fabric-emulator`](https://github.com/calvinchengx/fabric-emulator),
 > module `github.com/calvinchengx/fabric-emulator`), with its own design doc set:
 > architecture, emulated API surface, and a P0–P3 roadmap. entra-emulator itself
 > stays an Entra ID STS; roadmap [#16](17-roadmap.md) — the Entra-layer Fabric
