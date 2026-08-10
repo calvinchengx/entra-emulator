@@ -88,9 +88,19 @@ async function signIn(authorizeUrl) {
   const resp = html.match(/name="SAMLResponse" value="([^"]+)"/);
   if (!resp) throw new Error(`no SAMLResponse:\n${html.slice(0, 400)}`);
   const relay = html.match(/name="RelayState" value="([^"]+)"/);
-  // The browser un-escapes the attribute before submitting; so must we.
-  const unescape = (s) => s.replace(/&#43;/g, '+').replace(/&amp;/g, '&')
-    .replace(/&#61;/g, '=').replace(/&#47;/g, '/').replace(/&#34;/g, '"');
+  // The browser un-escapes the attribute before submitting; so must we. ONE
+  // pass, deliberately: chained replaces re-scan their own output, so
+  // "&amp;#43;" would come out as "+" when a browser yields the literal
+  // "&#43;". Base64 is exactly where that bites, since html/template escapes
+  // its "+" as "&#43;".
+  const named = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+  const unescape = (s) => s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (whole, body) => {
+    if (body[0] !== '#') return named[body.toLowerCase()] ?? whole;
+    const code = body[1] === 'x' || body[1] === 'X'
+      ? parseInt(body.slice(2), 16)
+      : parseInt(body.slice(1), 10);
+    return Number.isFinite(code) ? String.fromCodePoint(code) : whole;
+  });
   return { SAMLResponse: unescape(resp[1]), RelayState: relay ? unescape(relay[1]) : undefined };
 }
 
