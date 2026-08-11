@@ -78,7 +78,8 @@ The image defaults to `ORIGIN_MODE=compat` and binds `0.0.0.0`; mount a volume a
 binaries (linux/darwin/windows × amd64/arm64) via GoReleaser.
 
 To run this emulator alongside its siblings — `azure-keyvault-emulator`,
-`arm-emulator`, and `fabric-emulator`, which validate the tokens this one issues —
+`arm-emulator`, `fabric-emulator` and `azure-apim-emulator`, all of which
+validate the tokens this one issues —
 see [**azure-emulators**](https://github.com/calvinchengx/azure-emulators): a
 composition-only repo with the family `docker-compose.yml` and the issuer wiring
 they share.
