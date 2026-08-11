@@ -1,0 +1,47 @@
+{
+  "$comment": [
+    "Scenarios the differential harness knows about, and what has actually been",
+    "captured from real Entra. Schema mirrors azure-apim-emulator's",
+    "e2e/differential/testdata/fixture-manifest.json so the family reads the same",
+    "way; `capturedAt` and `maxAgeDays` are additions this repo needs because its",
+    "fixtures come from a live tenant rather than a recorded service.",
+    "",
+    "status: planned  = named, nothing recorded, harness skips it loudly",
+    "        captured = a fixture exists and is diffed on every run",
+    "",
+    "A scenario is listed BEFORE it is captured on purpose. The gap between the",
+    "planned set and the captured set is the honest measure of how much",
+    "differential evidence exists, and deleting the planned rows would make an",
+    "empty harness look complete.",
+    "",
+    "`normalizations` is the contract between capture.sh and the harness: capture",
+    "folds these to placeholders, the harness is permitted to ignore exactly",
+    "these and nothing else. Widening it makes diffs pass — see the mutation",
+    "check in the harness, which exists because over-normalising fails silently."
+  ],
+  "schemaVersion": "1",
+  "capturedAt": null,
+  "maxAgeDays": 90,
+  "normalizations": [
+    "tenant-id",
+    "daemon-app-id",
+    "guids",
+    "timestamps",
+    "token-lifetimes",
+    "access-token-redacted"
+  ],
+  "scenarios": [
+    {"id": "token-client-credentials", "status": "planned", "azureRequired": true,
+     "what": "the app-only token envelope's field set"},
+    {"id": "token-claims-client-credentials", "status": "planned", "azureRequired": true,
+     "what": "JWT header + claim names + structural claim values; never the token"},
+    {"id": "token-error-invalid-client", "status": "planned", "azureRequired": true,
+     "what": "wrong client secret — envelope, error_codes, AADSTS number"},
+    {"id": "token-error-invalid-scope", "status": "planned", "azureRequired": true,
+     "what": "unregistered resource in .default"},
+    {"id": "token-error-unsupported-grant-type", "status": "planned", "azureRequired": true,
+     "what": "a grant_type Entra does not implement"},
+    {"id": "token-error-unknown-client", "status": "planned", "azureRequired": true,
+     "what": "a well-formed client_id belonging to no application"}
+  ]
+}

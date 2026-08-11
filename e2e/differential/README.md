@@ -79,6 +79,66 @@ matches, which is a false pass that no green run would reveal. Whatever consumes
 this map needs its own mutation check — feed it a deliberately wrong response
 and assert the diff fails.
 
+## `capture.sh`
+
+Records real Entra responses as fixtures under `testdata/fixtures/`, and stamps
+`testdata/fixture-manifest.json`. Guard-protected like everything else here.
+
+```sh
+az login --allow-no-subscriptions --tenant entraemulatordiff.onmicrosoft.com
+./seed.sh
+./capture.sh
+./teardown.sh
+```
+
+The tenant is also recorded as GitHub repository **variables**,
+`EMU_DIFF_DOMAIN` and `EMU_DIFF_TENANT_ID`, for a future workflow that runs
+capture on a schedule. They are variables rather than secrets deliberately:
+neither value is confidential (the domain is in this file, and unauthenticated
+OIDC discovery maps it to the GUID), and secrets are **masked in logs**, which
+would render `tenant-guard.sh`'s "expected X, signed in to Y" as `***` and
+destroy the readability the guard was designed around. Secrets are for the
+credential a scheduled run would need, not for identifiers.
+
+**Normalisation happens at capture time, not at diff time.** The identity map
+lives in `.capture-identity.json`, which is gitignored because it also holds a
+secret and two passwords — CI never has it. An id left raw in a fixture can
+therefore never be reconciled later, so the fixture is written already
+normalised and is safe to commit.
+
+**Access tokens are never recorded.** A captured JWT is a live credential until
+it expires. The envelope keeps `access_token` as `{redacted-jwt}`; a separate
+scenario records the token's header, its claim NAMES and the few structural
+claim values, which is the part an emulator has to get right.
+
+The first scenarios are the token endpoint: the app-only envelope, and four
+error envelopes. Errors first because they are the richest differential surface
+and carry no secrets — `error_codes`, the AADSTS number, `trace_id` and
+`correlation_id` are exactly what a from-the-docs implementation omits, and no
+local test can tell us we omitted them.
+
+## Checking, which is separate from capturing
+
+`internal/server/differential_test.go` replays the fixtures against the
+emulator and diffs. It is **offline** — no Azure, no credentials, no network —
+so it runs in the ordinary `go test` gate. Capture is the privileged step;
+checking is not.
+
+Three properties it deliberately has:
+
+- **It skips loudly.** With nothing captured, the comparison skips but the
+  manifest test logs that there is no differential evidence at all. A silent
+  skip would read as a pass.
+- **It fails STALE rather than passing** once a fixture is older than
+  `maxAgeDays`, per the rule below. Age is measured per fixture, not from the
+  manifest, because a partial recapture leaves the manifest looking current.
+- **It mutation-checks the normaliser**, which is the risk the section above
+  names. `TestDifferentialNormaliserDoesNotHideDifferences` feeds it differences
+  that must be caught (a missing field, an extra field, a wrong error code, a
+  wrong AADSTS number) and differences it must absorb (a new trace id, a new
+  timestamp). Verified by breaking the normaliser on purpose and confirming the
+  test fails with its own message rather than a build error.
+
 ## What differential evidence will and will not mean
 
 For the recorded interactions, at the capture date, against that API version,
