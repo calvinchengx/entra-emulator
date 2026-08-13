@@ -207,6 +207,29 @@ jobs:
         working-directory: e2e/passkey
         run: npx playwright test
 
+  implicit-e2e:
+    name: Implicit / hybrid witness (Chromium front-channel redirect)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      # msal-browser never emits response_type=id_token or code id_token.
+      # This suite drives those authorize redirects in Chromium itself.
+      - name: Install
+        working-directory: e2e/implicit
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+      - name: Run the witness
+        working-directory: e2e/implicit
+        run: npx playwright test
+
   scim-e2e:
     name: SCIM witness (scim2-tester, independent RFC checker)
     runs-on: ubuntu-latest
