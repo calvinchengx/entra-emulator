@@ -7,8 +7,15 @@ client accepted our responses" — never "our responses matched Entra's".
 
 The first six token-endpoint scenarios are captured (app-only envelope, claim
 names, four error envelopes) and checked offline by
-`internal/server/differential_test.go`. Recapture with `./seed.sh &&
-./capture.sh && ./teardown.sh` when the fixtures go stale (90 days).
+`internal/server/differential_test.go`. Envelope field sets are an exact
+normalised match. The claims fixture is a **structural** comparison — `ver`,
+header `alg`/`typ`, `tid`, `azp`, issuer path `/{tid}/v2.0`, and protocol claim
+*names* — not an exact JWT. Entra telemetry (`aio`, `rh`, `uti`, …), the local
+issuer host, `oid` on app-only tokens, and `aud` as GUID vs App ID URI are
+recorded divergences, not silent skips.
+
+Recapture with `./seed.sh && ./capture.sh && ./teardown.sh` when the fixtures
+go stale (90 days).
 
 ## The capture tenant
 
