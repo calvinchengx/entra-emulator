@@ -1,0 +1,18 @@
+{
+  "scenario": "token-error-invalid-scope",
+  "capturedAt": "2026-08-13T21:24:29Z",
+  "response": {
+    "status": 400,
+    "body": {
+      "error": "invalid_resource",
+      "error_description": "AADSTS500011: The resource principal named api://not-a-registered-resource was not found in the tenant named {tenant-id}. This can happen if the application has not been installed by the administrator of the tenant or consented to by any user in the tenant. You might have sent your authentication request to the wrong tenant. Trace ID: {guid} Correlation ID: {guid} Timestamp: {timestamp}",
+      "error_codes": [
+        500011
+      ],
+      "timestamp": "{timestamp}",
+      "trace_id": "{guid}",
+      "correlation_id": "{guid}",
+      "error_uri": "https://login.microsoftonline.com/error?code=500011"
+    }
+  }
+}

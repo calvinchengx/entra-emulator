@@ -1,0 +1,17 @@
+{
+  "scenario": "token-error-unknown-client",
+  "capturedAt": "2026-08-13T21:24:30Z",
+  "response": {
+    "status": 400,
+    "body": {
+      "error": "unauthorized_client",
+      "error_description": "AADSTS700038: {guid} is not a valid application identifier. Trace ID: {guid} Correlation ID: {guid} Timestamp: {timestamp}",
+      "error_codes": [
+        700038
+      ],
+      "timestamp": "{timestamp}",
+      "trace_id": "{guid}",
+      "correlation_id": "{guid}"
+    }
+  }
+}

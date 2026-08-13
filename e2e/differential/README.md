@@ -5,8 +5,10 @@ diffing against **real Azure**, rather than by witnessing locally against real
 clients. Everything graded 🟢 in `docs/parity.md` today means "an unmodified
 client accepted our responses" — never "our responses matched Entra's".
 
-Nothing here captures anything yet. This is the tenant it will capture from,
-and the scripts that make that tenant reproducible.
+The first six token-endpoint scenarios are captured (app-only envelope, claim
+names, four error envelopes) and checked offline by
+`internal/server/differential_test.go`. Recapture with `./seed.sh &&
+./capture.sh && ./teardown.sh` when the fixtures go stale (90 days).
 
 ## The capture tenant
 

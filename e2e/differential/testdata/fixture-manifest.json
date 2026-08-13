@@ -20,7 +20,7 @@
     "check in the harness, which exists because over-normalising fails silently."
   ],
   "schemaVersion": "1",
-  "capturedAt": null,
+  "capturedAt": "2026-08-13T21:24:30Z",
   "maxAgeDays": 90,
   "normalizations": [
     "tenant-id",
@@ -31,17 +31,47 @@
     "access-token-redacted"
   ],
   "scenarios": [
-    {"id": "token-client-credentials", "status": "planned", "azureRequired": true,
-     "what": "the app-only token envelope's field set"},
-    {"id": "token-claims-client-credentials", "status": "planned", "azureRequired": true,
-     "what": "JWT header + claim names + structural claim values; never the token"},
-    {"id": "token-error-invalid-client", "status": "planned", "azureRequired": true,
-     "what": "wrong client secret — envelope, error_codes, AADSTS number"},
-    {"id": "token-error-invalid-scope", "status": "planned", "azureRequired": true,
-     "what": "unregistered resource in .default"},
-    {"id": "token-error-unsupported-grant-type", "status": "planned", "azureRequired": true,
-     "what": "a grant_type Entra does not implement"},
-    {"id": "token-error-unknown-client", "status": "planned", "azureRequired": true,
-     "what": "a well-formed client_id belonging to no application"}
+    {
+      "id": "token-client-credentials",
+      "status": "captured",
+      "azureRequired": true,
+      "what": "the app-only token envelope's field set",
+      "fixture": "token-client-credentials.json"
+    },
+    {
+      "id": "token-claims-client-credentials",
+      "status": "captured",
+      "azureRequired": true,
+      "what": "JWT header + claim names + structural claim values; never the token",
+      "fixture": "token-claims-client-credentials.json"
+    },
+    {
+      "id": "token-error-invalid-client",
+      "status": "captured",
+      "azureRequired": true,
+      "what": "wrong client secret — envelope, error_codes, AADSTS number",
+      "fixture": "token-error-invalid-client.json"
+    },
+    {
+      "id": "token-error-invalid-scope",
+      "status": "captured",
+      "azureRequired": true,
+      "what": "unregistered resource in .default",
+      "fixture": "token-error-invalid-scope.json"
+    },
+    {
+      "id": "token-error-unsupported-grant-type",
+      "status": "captured",
+      "azureRequired": true,
+      "what": "a grant_type Entra does not implement",
+      "fixture": "token-error-unsupported-grant-type.json"
+    },
+    {
+      "id": "token-error-unknown-client",
+      "status": "captured",
+      "azureRequired": true,
+      "what": "a well-formed client_id belonging to no application",
+      "fixture": "token-error-unknown-client.json"
+    }
   ]
 }

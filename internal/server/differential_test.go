@@ -12,6 +12,8 @@ import (
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/calvinchengx/entra-emulator/internal/store"
 )
 
 // Differential harness: compare the emulator's response with one RECORDED FROM
@@ -380,19 +382,23 @@ func TestDifferentialTokenScenarios(t *testing.T) {
 	replays := map[string]url.Values{
 		"token-client-credentials": {
 			"grant_type": {"client_credentials"}, "client_id": {daemonID},
-			"client_secret": {"daemon-secret"}, "scope": {"https://graph.microsoft.com/.default"},
+			"client_secret": {store.SeedDaemonSecret}, "scope": {"api://" + daemonID + "/.default"},
 		},
 		"token-error-invalid-client": {
 			"grant_type": {"client_credentials"}, "client_id": {daemonID},
 			"client_secret": {"deliberately-wrong"}, "scope": {"https://graph.microsoft.com/.default"},
 		},
+		"token-error-invalid-scope": {
+			"grant_type": {"client_credentials"}, "client_id": {daemonID},
+			"client_secret": {store.SeedDaemonSecret}, "scope": {"api://not-a-registered-resource/.default"},
+		},
 		"token-error-unsupported-grant-type": {
 			"grant_type": {"no_such_grant"}, "client_id": {daemonID},
-			"client_secret": {"daemon-secret"}, "scope": {"https://graph.microsoft.com/.default"},
+			"client_secret": {store.SeedDaemonSecret}, "scope": {"https://graph.microsoft.com/.default"},
 		},
 		"token-error-unknown-client": {
 			"grant_type": {"client_credentials"}, "client_id": {"00000000-0000-0000-0000-000000000000"},
-			"client_secret": {"daemon-secret"}, "scope": {"https://graph.microsoft.com/.default"},
+			"client_secret": {store.SeedDaemonSecret}, "scope": {"https://graph.microsoft.com/.default"},
 		},
 	}
 

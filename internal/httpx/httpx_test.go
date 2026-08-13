@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -81,8 +82,14 @@ func TestWriteOAuthError_KnownCode(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &e); err != nil {
 		t.Fatalf("body not JSON: %v", err)
 	}
-	if e.Error != "invalid_client" || e.ErrorDescription != "bad secret" {
+	if e.Error != "invalid_client" || !strings.HasPrefix(e.ErrorDescription, "bad secret Trace ID:") {
 		t.Fatalf("body = %+v", e)
+	}
+	if !strings.Contains(e.ErrorDescription, "Correlation ID:") || !strings.Contains(e.ErrorDescription, "Timestamp:") {
+		t.Fatalf("description missing Entra suffix: %q", e.ErrorDescription)
+	}
+	if e.ErrorURI != "https://login.microsoftonline.com/error?code=7000215" {
+		t.Fatalf("error_uri = %q", e.ErrorURI)
 	}
 	if len(e.ErrorCodes) != 1 || e.ErrorCodes[0] != 7000215 {
 		t.Fatalf("error_codes = %v, want [7000215]", e.ErrorCodes)
