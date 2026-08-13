@@ -54,7 +54,24 @@ jobs:
       # present on the runner.
       - name: Install GNU Make (Windows only)
         if: runner.os == 'Windows'
-        run: choco install make --no-progress -y
+        shell: pwsh
+        run: |
+          # Chocolatey's community *search* index 404s under GitHub-runner
+          # load ("package was not found") even when the nupkg is there.
+          # Fetch the pinned package by URL and install that file.
+          $nupkg = Join-Path $env:RUNNER_TEMP 'make.4.4.1.nupkg'
+          $url = 'https://community.chocolatey.org/api/v2/package/make/4.4.1'
+          foreach ($i in 1..4) {
+            try {
+              Invoke-WebRequest -Uri $url -OutFile $nupkg -UseBasicParsing
+              choco install $nupkg --no-progress -y
+              if ($LASTEXITCODE -eq 0) { exit 0 }
+            } catch {
+              Write-Host "attempt $i failed: $_"
+            }
+            Start-Sleep -Seconds (15 * $i)
+          }
+          throw 'could not install GNU Make 4.4.1 from the Chocolatey nupkg'
 
       # Deliberately the runner's DEFAULT shell — PowerShell on Windows. This is
       # the one step that reproduces how a Windows user actually invokes make,
