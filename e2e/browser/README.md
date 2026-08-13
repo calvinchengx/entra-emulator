@@ -50,9 +50,9 @@ JWKS or the token endpoint, and *no browser SPA could authenticate at all*.
 ## What this harness cannot witness
 
 - **Implicit / hybrid flow.** msal-browser is authorization-code + PKCE only;
-  it never emits `response_type=id_token` or `code id_token`, which is what the
-  emulator implements. There is no msal path to this claim, so it keeps its Go
-  witness rather than gaining a misleading one.
+  it never emits `response_type=id_token` or `code id_token`. The browser path
+  is [`e2e/implicit`](../implicit): Chromium follows those authorize redirects
+  itself.
 - **Passkey / WebAuthn.** WebAuthn pins the ceremony to the origin of the page
   that calls `navigator.credentials`, and the emulator sets `RPOrigins` to its
   own origin (`internal/identity/webauthn.go`). This SPA therefore cannot

@@ -54,7 +54,23 @@ jobs:
       # present on the runner.
       - name: Install GNU Make (Windows only)
         if: runner.os == 'Windows'
-        run: choco install make --no-progress -y
+        shell: pwsh
+        run: |
+          # chocolatey.org is behind Cloudflare and returns an HTML 404
+          # (plus a JS challenge) to GitHub-hosted runners, so `choco
+          # install make` cannot work from CI today. Fetch a pinned GNU
+          # Make 4.4.1 exe from GitHub instead.
+          $dir = Join-Path $env:RUNNER_TEMP 'gnumake'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $exe = Join-Path $dir 'make.exe'
+          $url = 'https://raw.githubusercontent.com/mbuilov/gnumake-windows/2a2989816aece7c191c0015bff30d104ef31f52a/gnumake-4.4.1-x64.exe'
+          Invoke-WebRequest -Uri $url -OutFile $exe -UseBasicParsing
+          $mz = [System.IO.File]::ReadAllBytes($exe)[0..1]
+          if ($mz[0] -ne 0x4D -or $mz[1] -ne 0x5A) {
+            throw "downloaded make.exe is not a PE binary (Cloudflare/HTML?)"
+          }
+          $dir | Out-File -FilePath $env:GITHUB_PATH -Append
+          & $exe --version
 
       # Deliberately the runner's DEFAULT shell — PowerShell on Windows. This is
       # the one step that reproduces how a Windows user actually invokes make,
