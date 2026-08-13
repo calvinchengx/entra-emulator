@@ -28,7 +28,8 @@ Two knobs make custom authorities work in every Microsoft SDK:
 |---|---|---|---|
 | TypeScript | `@azure/msal-node` | client credentials, auth code + PKCE, refresh, device code | cookie-jar HTTPS sequence against the sign-in/approval pages |
 | TypeScript (Graph) | `@microsoft/microsoft-graph-client` + `@azure/msal-node` | stateful directory: user/group/app writes incl. `$ref` membership, OData `$select`/`$top`/`$filter`/`$skiptoken`, role assignment + custom role definitions, administrative units, custom security attributes, consent grants, `federatedIdentityCredentials`, token lifetime policies, B2B invitation + redemption, password reset proved by ROPC sign-in, `auditLogs/signIns` + `directoryAudits`, soft-delete → recycle bin → restore → purge (docs/19) | Graph SDK request pipeline against `/graph` |
-| TypeScript (browser) | `@azure/msal-browser` | auth code + PKCE, cached account, RP-initiated logout, front-channel logout (the OP's hidden iframe is really fetched), post-logout redirect validation | Playwright headless Chromium (opt-in, heavier) |
+| TypeScript (browser) | `@azure/msal-browser` | auth code + PKCE, cached account, RP-initiated logout, front-channel logout (the OP's hidden iframe is really fetched), post-logout redirect validation, ID token `amr:["pwd"]` | Playwright headless Chromium (opt-in, heavier) |
+| Chromium (WebAuthn) | `navigator.credentials` + CDP virtual authenticator | passkey register → assert on the emulator origin; SSO authorize; ID token `amr:["fido"]` | Playwright headless Chromium (`e2e/passkey`) |
 | Go | `microsoft-authentication-library-for-go` + `azidentity` | client credentials (both layers), device code | HTTP approval sequence |
 | Python | `msal` (+ optional `azure-identity`) | client credentials, device code | HTTP approval sequence in a thread |
 | C# / .NET | `Microsoft.Identity.Client` (MSAL.NET) | client credentials (+ token-cache hit) | — (no interactive flow) |

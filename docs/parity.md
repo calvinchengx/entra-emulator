@@ -179,6 +179,7 @@ discovery disabled per-SDK, and TLS trust injected per-SDK.
 | OpenFGA · SpiceDB · Keto · Permify · Casbin · OPA · Cedar | The PDP port against real engines | 🟢 CI `pdp-compat` (7-way matrix) |
 | Flutter (`http`, `flutter_appauth`) | Device code on real Android/iOS | 🟡 Nightly, not a PR gate; the auth-code leg is a manual screen |
 | **`@azure/msal-browser`** | Real browser (Playwright + Chromium) completing the auth-code + PKCE redirect flow against the emulator | 🟢 CI `browser-e2e` |
+| Chromium `navigator.credentials` | Passkey register + assert on the emulator origin (CDP virtual authenticator); ID token `amr:["fido"]` | 🟢 CI `passkey-e2e` |
 
 ### Contract conformance: golden references as witnesses
 

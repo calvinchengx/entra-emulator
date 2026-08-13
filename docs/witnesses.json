@@ -35,6 +35,8 @@
     "section": "Token service (`07-token-service`)",
     "claim": "`amr` (`pwd` / `fido`)",
     "witnesses": [
+      "ci:passkey-e2e",
+      "ci:browser-e2e",
       "go:TestPasskeyRegisterAssertAndAMR"
     ]
   },
@@ -196,6 +198,7 @@
     "section": "Sign-in experience",
     "claim": "Passkey / WebAuthn sign-in",
     "witnesses": [
+      "ci:passkey-e2e",
       "go:TestPasskeyRegisterAssertAndAMR",
       "go:TestWebAuthnCredentials"
     ]

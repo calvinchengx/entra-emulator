@@ -39,6 +39,9 @@ test('msal-browser completes the redirect flow and caches the account', async ({
   expect(claims.tid).toBe(cfg.tenantId);
   expect(claims.aud).toBe(cfg.clientId);
   expect(claims.ver).toBe('2.0');
+  // Account-picker sign-in is the password method. The fido half lives in
+  // e2e/passkey — together they witness amr-pwd-fido from a real browser.
+  expect(claims.amr).toEqual(['pwd']);
 
   // Reloading finds the cached account rather than signing in again — proof
   // MSAL accepted and stored what the emulator issued.
