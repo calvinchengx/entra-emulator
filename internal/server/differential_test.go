@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -409,7 +411,7 @@ func TestDifferentialTokenScenarios(t *testing.T) {
 		}
 		form, ok := replays[s.ID]
 		if !ok {
-			continue // claims scenarios are compared separately; nothing to POST
+			continue // claims: TestDifferentialTokenClaims, not an HTTP envelope
 		}
 		s := s
 		t.Run(s.ID, func(t *testing.T) {
@@ -430,5 +432,144 @@ func TestDifferentialTokenScenarios(t *testing.T) {
 	}
 	if ran == 0 {
 		t.Skip("no captured token fixtures yet — run e2e/differential/capture.sh")
+	}
+}
+
+// capturedClaims is the shape capture.sh writes for token-claims-*. The token
+// itself is never stored; only header fields, claim NAMES, and a handful of
+// structural values.
+type capturedClaims struct {
+	Scenario   string         `json:"scenario"`
+	CapturedAt string         `json:"capturedAt"`
+	Header     map[string]any `json:"header"`
+	ClaimNames []string       `json:"claimNames"`
+	Structural map[string]any `json:"structural"`
+}
+
+func loadClaimsFixture(t *testing.T, name string) capturedClaims {
+	t.Helper()
+	raw, err := os.ReadFile(differentialPath("testdata", "fixtures", name))
+	if err != nil {
+		t.Fatalf("read claims fixture %s: %v", name, err)
+	}
+	var fx capturedClaims
+	if err := json.Unmarshal(raw, &fx); err != nil {
+		t.Fatalf("parse claims fixture %s: %v", name, err)
+	}
+	return fx
+}
+
+func decodeJWTHeader(t *testing.T, jwt string) map[string]any {
+	t.Helper()
+	parts := strings.Split(jwt, ".")
+	if len(parts) != 3 {
+		t.Fatalf("not a JWT: %q", jwt)
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var hdr map[string]any
+	if err := json.Unmarshal(raw, &hdr); err != nil {
+		t.Fatal(err)
+	}
+	return hdr
+}
+
+// entraTelemetryClaims are request-scoped or Microsoft-internal fields Entra
+// puts on an access token. Requiring them would make the emulator copy
+// telemetry, not the protocol. azpacr is the client-auth method (secret vs
+// cert); present on Entra, not claimed here yet.
+var entraTelemetryClaims = map[string]bool{
+	"aio": true, "rh": true, "uti": true, "xms_ftd": true, "azpacr": true,
+}
+
+// entraAppOnlyOmissions are Entra claims this emulator deliberately does not
+// emit on client-credentials tokens. oid is the service principal's object
+// id; TestClientCredentials asserts app-only tokens are userless. Do not
+// promote these to required without changing that contract.
+var entraAppOnlyOmissions = map[string]bool{
+	"oid": true,
+}
+
+// TestDifferentialTokenClaims compares the emulator's app-only JWT against
+// the captured Entra claims fixture. It is NOT an exact match:
+//
+//   - header alg/typ must equal Entra; kid must be present (value is per-key)
+//   - ver, tid, azp must equal (tid/azp after normalisation)
+//   - iss must end in /{tenant-id}/v2.0; the host is local, not login.microsoftonline.com
+//   - every Entra protocol claim name must be present; telemetry and the
+//     documented omissions above may be absent; extra emulator claims (appid,
+//     roles) are allowed
+//   - aud VALUE is not compared: Entra returned the app GUID for
+//     api://{appId}/.default, the emulator returns the App ID URI. That is a
+//     recorded divergence, not a silent skip of the claim's presence.
+//
+// An exact claimNames / iss / aud equality would fail on origin and telemetry
+// and read as "no Azure evidence" while hiding the protocol agreement.
+func TestDifferentialTokenClaims(t *testing.T) {
+	m := loadManifest(t)
+	var fixture string
+	for _, s := range m.Scenarios {
+		if s.ID == "token-claims-client-credentials" && s.Status == "captured" {
+			fixture = s.Fixture
+			break
+		}
+	}
+	if fixture == "" {
+		t.Skip("token-claims-client-credentials is not captured — run e2e/differential/capture.sh")
+	}
+
+	fx := loadClaimsFixture(t, fixture)
+	hts, _, _ := newTestServer(t)
+	resp, body := postForm(t, http.DefaultClient, hts.URL+"/"+tenant+"/oauth2/v2.0/token", url.Values{
+		"grant_type":    {"client_credentials"},
+		"client_id":     {daemonID},
+		"client_secret": {store.SeedDaemonSecret},
+		"scope":         {"api://" + daemonID + "/.default"},
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("emulator token mint: %d %v", resp.StatusCode, body)
+	}
+	jwt, _ := body["access_token"].(string)
+	if jwt == "" {
+		t.Fatalf("emulator returned no access_token: %v", body)
+	}
+
+	hdr := decodeJWTHeader(t, jwt)
+	if hdr["alg"] != fx.Header["alg"] {
+		t.Errorf("header.alg: Entra %#v, emulator %#v", fx.Header["alg"], hdr["alg"])
+	}
+	if hdr["typ"] != fx.Header["typ"] {
+		t.Errorf("header.typ: Entra %#v, emulator %#v", fx.Header["typ"], hdr["typ"])
+	}
+	if kid, _ := hdr["kid"].(string); kid == "" {
+		t.Error("header.kid: emulator token has no kid")
+	}
+
+	claims := decodeJWTPayload(t, jwt)
+	got := normaliseValue(claims, tenant, daemonID).(map[string]any)
+
+	if got["ver"] != fx.Structural["ver"] {
+		t.Errorf("ver: Entra %#v, emulator %#v", fx.Structural["ver"], got["ver"])
+	}
+	if got["tid"] != "{tenant-id}" {
+		t.Errorf("tid: want {tenant-id} after normalisation, got %#v", got["tid"])
+	}
+	if got["azp"] != "{daemon-app-id}" {
+		t.Errorf("azp: want {daemon-app-id} after normalisation, got %#v", got["azp"])
+	}
+	iss, _ := got["iss"].(string)
+	if !strings.HasSuffix(iss, "/{tenant-id}/v2.0") {
+		t.Errorf("iss: want suffix /{tenant-id}/v2.0 (host is local), got %#v", iss)
+	}
+
+	for _, name := range fx.ClaimNames {
+		if entraTelemetryClaims[name] || entraAppOnlyOmissions[name] {
+			continue
+		}
+		if _, ok := got[name]; !ok {
+			t.Errorf("missing protocol claim %q (Entra sent it; not telemetry)", name)
+		}
 	}
 }
