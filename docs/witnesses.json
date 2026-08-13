@@ -216,6 +216,7 @@
     "section": "Workload & platform identity",
     "claim": "Fabric-audience tokens + workspace identity (app reg + SP + managed credential, state machine, cascade delete)",
     "witnesses": [
+      "ci:fabric-e2e",
       "go:TestFabricClientCredentialsAudience",
       "go:TestWorkspaceIdentities"
     ]
