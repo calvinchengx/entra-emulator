@@ -77,13 +77,6 @@ The image defaults to `ORIGIN_MODE=compat` and binds `0.0.0.0`; mount a volume a
 `/app/data` to persist the store and cert. Tagged releases also publish cross-platform
 binaries (linux/darwin/windows × amd64/arm64) via GoReleaser.
 
-To run this emulator alongside its siblings — `azure-keyvault-emulator`,
-`arm-emulator`, `fabric-emulator` and `azure-apim-emulator`, all of which
-validate the tokens this one issues —
-see [**azure-emulators**](https://github.com/calvinchengx/azure-emulators): a
-composition-only repo with the family `docker-compose.yml` and the issuer wiring
-they share.
-
 ### Homebrew
 
 macOS and Linux (Intel/Apple Silicon), from the tap:
@@ -224,6 +217,16 @@ Dependencies: `modernc.org/sqlite` (pure-Go SQLite, no cgo) and `golang.org/x/cr
 Protocol surface, claim shapes, and error bodies follow Microsoft's published
 Entra ID v2.0 behavior. Internals: Go stdlib `net/http`, hand-rolled RS256 JWS,
 SQLite via a pure-Go driver, and a Svelte portal embedded with `go:embed`.
+
+## Emulator family
+
+`entra-emulator` is the STS the rest of the family validates against:
+`azure-keyvault-emulator`, `arm-emulator`, `fabric-emulator` and
+`azure-apim-emulator` all verify the tokens this one issues.
+
+To run them together, see [**azure-emulators**](https://github.com/calvinchengx/azure-emulators): a
+composition-only repo holding the family `docker-compose.yml`, the shared
+issuer wiring, and the pinned image versions the members are tested against.
 
 ## Disclaimer
 
