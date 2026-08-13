@@ -90,3 +90,8 @@ enforcement — a **control-plane contract emulator**, not a Fabric runtime.
 - For Go integration tests it *may* import this repo's public
   [`emulator`](../emulator) package to run both in one process — an ergonomics
   option, not a coupling requirement.
+
+CI job `fabric-e2e` (`e2e/fabric`) clones fabric-emulator at a pinned commit,
+replaces the entra module with this tree, and runs the handshake + cascade-delete
+tests. That is the third-party witness for the Fabric-audience / workspace-identity
+row — fabric is the consumer of the seam, so the proof lives on that side.
