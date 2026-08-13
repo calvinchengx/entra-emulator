@@ -31,6 +31,7 @@ Two knobs make custom authorities work in every Microsoft SDK:
 | TypeScript (browser) | `@azure/msal-browser` | auth code + PKCE, cached account, RP-initiated logout, front-channel logout (the OP's hidden iframe is really fetched), post-logout redirect validation, ID token `amr:["pwd"]` | Playwright headless Chromium (opt-in, heavier) |
 | Chromium (WebAuthn) | `navigator.credentials` + CDP virtual authenticator | passkey register → assert on the emulator origin; SSO authorize; ID token `amr:["fido"]` | Playwright headless Chromium (`e2e/passkey`) |
 | Fabric companion | fabric-emulator handshake tests (pinned) | Fabric-audience `client_credentials`; workspace-identity provision → mint → rename → deprovision → cascade delete | `e2e/fabric/run.py` (CI `fabric-e2e`) |
+| Chromium (implicit / hybrid) | raw `/authorize` (not msal-browser) | `response_type=id_token` and `code id_token` front-channel redirects; hybrid code exchange; query-mode refusal | Playwright headless Chromium (`e2e/implicit`) |
 | Go | `microsoft-authentication-library-for-go` + `azidentity` | client credentials (both layers), device code | HTTP approval sequence |
 | Python | `msal` (+ optional `azure-identity`) | client credentials, device code | HTTP approval sequence in a thread |
 | C# / .NET | `Microsoft.Identity.Client` (MSAL.NET) | client credentials (+ token-cache hit) | — (no interactive flow) |

@@ -368,6 +368,7 @@
     "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
     "claim": "Implicit / hybrid flow",
     "witnesses": [
+      "ci:implicit-e2e",
       "go:TestImplicitAndHybridFlows",
       "go:TestGoldenParityOIDCDiscovery"
     ]

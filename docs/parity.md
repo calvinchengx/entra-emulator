@@ -181,6 +181,7 @@ discovery disabled per-SDK, and TLS trust injected per-SDK.
 | **`@azure/msal-browser`** | Real browser (Playwright + Chromium) completing the auth-code + PKCE redirect flow against the emulator | 🟢 CI `browser-e2e` |
 | Chromium `navigator.credentials` | Passkey register + assert on the emulator origin (CDP virtual authenticator); ID token `amr:["fido"]` | 🟢 CI `passkey-e2e` |
 | fabric-emulator (workspace-identity handshake) | Provision / mint / rename / deprovision / cascade-delete against this entra via `go.mod` replace | 🟢 CI `fabric-e2e` |
+| Chromium implicit / hybrid | Front-channel `id_token` and `code id_token` redirects (msal-browser cannot emit these) | 🟢 CI `implicit-e2e` |
 
 ### Contract conformance: golden references as witnesses
 
