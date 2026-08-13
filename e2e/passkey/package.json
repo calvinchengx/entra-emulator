@@ -1,0 +1,11 @@
+{
+  "name": "entra-emulator-e2e-passkey",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
+  }
+}

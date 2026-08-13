@@ -184,6 +184,29 @@ jobs:
         working-directory: e2e/browser
         run: npx playwright test
 
+  passkey-e2e:
+    name: Passkey / WebAuthn witness (Chromium + CDP virtual authenticator)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      # WebAuthn pins the RP to the page origin, so this suite drives
+      # navigator.credentials on the emulator itself — not the msal-browser SPA.
+      - name: Install
+        working-directory: e2e/passkey
+        run: |
+          npm install
+          npx playwright install --with-deps chromium
+      - name: Run the witness
+        working-directory: e2e/passkey
+        run: npx playwright test
+
   scim-e2e:
     name: SCIM witness (scim2-tester, independent RFC checker)
     runs-on: ubuntu-latest

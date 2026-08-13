@@ -113,6 +113,10 @@ header, this works on any origin the emulator serves — a
 [trusted certificate](05-tls-and-origins.md) is the prerequisite, since
 `navigator.credentials` requires a secure context on non-`localhost` origins.
 
+CI drives that path in [`e2e/passkey`](../e2e/passkey): Playwright Chromium on
+the emulator origin, with CDP `WebAuthn.addVirtualAuthenticator`. The
+msal-browser harness cannot — WebAuthn would pin the RP to the SPA's origin.
+
 ---
 
 Reference: [Passkey / WebAuthn ceremonies](08-oidc-endpoints.md) · implemented as

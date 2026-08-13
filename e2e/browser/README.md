@@ -55,8 +55,8 @@ JWKS or the token endpoint, and *no browser SPA could authenticate at all*.
   witness rather than gaining a misleading one.
 - **Passkey / WebAuthn.** WebAuthn pins the ceremony to the origin of the page
   that calls `navigator.credentials`, and the emulator sets `RPOrigins` to its
-  own origin (`internal/identity/webauthn.go`). A page served from this app's
-  origin therefore cannot complete a ceremony against it — and the emulator
-  serves no passkey UI of its own, so today its WebAuthn endpoints have **no
-  browser path at all**. Reaching this claim means adding passkey sign-in to the
-  emulator's own sign-in page first; that is a feature, not a test.
+  own origin (`internal/identity/webauthn.go`). This SPA therefore cannot
+  complete a ceremony against it. The browser path is
+  [`e2e/passkey`](../passkey): Chromium on the emulator origin, with a CDP
+  virtual authenticator. This harness still witnesses the password half of
+  `amr` (`["pwd"]`) after the account-picker click.
