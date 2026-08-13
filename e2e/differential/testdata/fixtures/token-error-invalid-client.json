@@ -1,0 +1,18 @@
+{
+  "scenario": "token-error-invalid-client",
+  "capturedAt": "2026-08-13T21:24:29Z",
+  "response": {
+    "status": 401,
+    "body": {
+      "error": "invalid_client",
+      "error_description": "AADSTS7000215: Invalid client secret provided. Ensure the secret being sent in the request is the client secret value, not the client secret ID, for a secret added to app '{daemon-app-id}'. Trace ID: {guid} Correlation ID: {guid} Timestamp: {timestamp}",
+      "error_codes": [
+        7000215
+      ],
+      "timestamp": "{timestamp}",
+      "trace_id": "{guid}",
+      "correlation_id": "{guid}",
+      "error_uri": "https://login.microsoftonline.com/error?code=7000215"
+    }
+  }
+}

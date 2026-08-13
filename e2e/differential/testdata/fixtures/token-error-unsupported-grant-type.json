@@ -1,0 +1,17 @@
+{
+  "scenario": "token-error-unsupported-grant-type",
+  "capturedAt": "2026-08-13T21:24:30Z",
+  "response": {
+    "status": 400,
+    "body": {
+      "error": "unsupported_grant_type",
+      "error_description": "AADSTS70003: The app requested an unsupported grant type 'no_such_grant'. Trace ID: {guid} Correlation ID: {guid} Timestamp: {timestamp}",
+      "error_codes": [
+        70003
+      ],
+      "timestamp": "{timestamp}",
+      "trace_id": "{guid}",
+      "correlation_id": "{guid}"
+    }
+  }
+}

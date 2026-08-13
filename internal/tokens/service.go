@@ -159,7 +159,7 @@ type TokenResponse struct {
 	TokenType    string `json:"token_type"`
 	ExpiresIn    int    `json:"expires_in"`
 	ExtExpiresIn int    `json:"ext_expires_in"`
-	Scope        string `json:"scope"`
+	Scope        string `json:"scope,omitempty"`
 	AccessToken  string `json:"access_token"`
 	IDToken      string `json:"id_token,omitempty"`
 	RefreshToken string `json:"refresh_token,omitempty"`
@@ -208,9 +208,9 @@ type DelegatedGrant struct {
 	// names makes every custom-API scope unusable from that SDK. Empty falls
 	// back to Scopes, which is correct for OIDC-only grants.
 	ScopeEcho []string
-	Nonce    string   // echoed into the ID token when present
-	AMR      string   // authentication method reference (e.g. "fido") -> amr claim
-	TenantID string   // resolved tenant ("" -> home); drives tid/iss/signing key
+	Nonce     string // echoed into the ID token when present
+	AMR       string // authentication method reference (e.g. "fido") -> amr claim
+	TenantID  string // resolved tenant ("" -> home); drives tid/iss/signing key
 	// SkipRefreshToken suppresses issuing a fresh refresh token — used by
 	// the refresh grant, whose rotation already produced the successor.
 	SkipRefreshToken bool

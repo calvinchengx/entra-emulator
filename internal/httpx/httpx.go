@@ -4,6 +4,7 @@ package httpx
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -35,20 +36,33 @@ type OAuthError struct {
 	Timestamp        string `json:"timestamp"`
 	TraceID          string `json:"trace_id"`
 	CorrelationID    string `json:"correlation_id"`
+	ErrorURI         string `json:"error_uri,omitempty"`
 }
 
 // aadstsCodes maps OAuth error codes to best-effort AADSTS numerics.
+// Numbers that came off a captured Entra envelope are marked; the rest are
+// from the docs and have not been differentially confirmed.
 var aadstsCodes = map[string]int{
 	"invalid_request":        900144,
-	"invalid_client":         7000215,
+	"invalid_client":         7000215, // captured 2026-08-14
 	"invalid_grant":          70008,
 	"invalid_scope":          70011,
-	"unsupported_grant_type": 70003,
+	"invalid_resource":       500011, // captured 2026-08-14
+	"unauthorized_client":    700038, // captured 2026-08-14
+	"unsupported_grant_type": 70003,  // captured 2026-08-14
 	"authorization_pending":  70016,
 	"access_denied":          65004,
 	"expired_token":          70020,
 	"authorization_declined": 70018, // device-code: user denied (entra-docs name)
 	"bad_verification_code":  70019, // device-code: unknown device_code (entra-docs name)
+}
+
+// errorURICodes are the AADSTS numbers Entra attached error_uri to in the
+// 2026-08-14 token capture. 70003 and 700038 were captured without it, so
+// this is an observed set, not "every AADSTS number".
+var errorURICodes = map[int]bool{
+	7000215: true,
+	500011:  true,
 }
 
 // oauthStatus maps error codes to HTTP status.
@@ -65,6 +79,10 @@ func oauthStatus(code string) int {
 	}
 }
 
+// entraTimestamp is the layout Entra puts in both the timestamp field and
+// the "Timestamp: …" suffix of error_description (space, not RFC3339's T).
+const entraTimestamp = "2006-01-02 15:04:05Z"
+
 // WriteOAuthError emits the canonical OAuth error JSON with no-store headers.
 func WriteOAuthError(w http.ResponseWriter, code, description string) {
 	w.Header().Set("Cache-Control", "no-store")
@@ -75,13 +93,25 @@ func WriteOAuthError(w http.ResponseWriter, code, description string) {
 	if n := aadstsCodes[code]; n != 0 {
 		codes = []int{n}
 	}
+	traceID := store.NewGUID()
+	corrID := store.NewGUID()
+	ts := time.Now().UTC().Format(entraTimestamp)
+	if len(codes) > 0 {
+		description = fmt.Sprintf("%s Trace ID: %s Correlation ID: %s Timestamp: %s",
+			description, traceID, corrID, ts)
+	}
+	var uri string
+	if len(codes) > 0 && errorURICodes[codes[0]] {
+		uri = fmt.Sprintf("https://login.microsoftonline.com/error?code=%d", codes[0])
+	}
 	WriteJSON(w, oauthStatus(code), OAuthError{
 		Error:            code,
 		ErrorDescription: description,
 		ErrorCodes:       codes,
-		Timestamp:        time.Now().UTC().Format(time.RFC3339),
-		TraceID:          store.NewGUID(),
-		CorrelationID:    store.NewGUID(),
+		Timestamp:        ts,
+		TraceID:          traceID,
+		CorrelationID:    corrID,
+		ErrorURI:         uri,
 	})
 }
 

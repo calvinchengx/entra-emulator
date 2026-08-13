@@ -72,6 +72,55 @@ def green_claims():
             yield section, cells[0], key_for(cells[0])
 
 
+def grade_counts() -> dict[str, int]:
+    """Capability-row grades, using the same skip list as green_claims."""
+    counts = {"🟢": 0, "🟡": 0, "🟠": 0, "🔴": 0}
+    section = None
+    for line in PARITY.read_text().splitlines():
+        if line.startswith("## "):
+            section = line[3:].strip()
+            continue
+        if not line.startswith("| ") or section is None or section in SKIP_SECTIONS:
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 3:
+            continue
+        if cells[0] in ("Entra feature", "Capability", "Feature") or set(cells[0]) <= set("-"):
+            continue
+        last = cells[-1]
+        for g in counts:
+            if g in last:
+                counts[g] += 1
+                break
+    return counts
+
+
+README = ROOT / "README.md"
+# The glance table in README.md. A hardcoded count here is how the table went
+# stale last time; the checker compares these labels to grade_counts().
+GLANCE_LABELS = (
+    ("🟢", "Real"),
+    ("🟡", "Emulated"),
+    ("🟠", "Bring-your-own-engine"),
+    ("🔴", "Not implemented"),
+)
+
+
+def readme_glance_drift(counts: dict[str, int]) -> list[str]:
+    """README glance numbers that disagree with docs/parity.md."""
+    text = README.read_text() if README.exists() else ""
+    drift = []
+    for emoji, label in GLANCE_LABELS:
+        m = re.search(rf"\| {re.escape(emoji)} \*\*{re.escape(label)}\*\* \| (\d+) \|", text)
+        if not m:
+            drift.append(f"README glance missing {emoji} **{label}**")
+            continue
+        got, want = int(m.group(1)), counts[emoji]
+        if got != want:
+            drift.append(f"README glance {label}: {got}, parity.md {want}")
+    return drift
+
+
 def ci_job_ids() -> set:
     return set(re.findall(r"^  ([a-z0-9-]+):$", CI.read_text(), re.M))
 
@@ -120,6 +169,17 @@ def main() -> int:
     print(f"  not yet identified (TODO)                 : {len(todo)}")
     print(f"  absent from the manifest                  : {len(missing)}")
 
+    grades = grade_counts()
+    print(
+        f"ledger grades: 🟢 {grades['🟢']}  🟡 {grades['🟡']}  "
+        f"🟠 {grades['🟠']}  🔴 {grades['🔴']}"
+    )
+    glance = readme_glance_drift(grades)
+    if glance:
+        print("\nREADME glance disagrees with docs/parity.md:")
+        for g in glance:
+            print(f"  {g}")
+
     heavy = sorted(((w, c) for w, c in shared.items() if len(c) > 3),
                    key=lambda x: -len(x[1]))
     if heavy:
@@ -136,8 +196,10 @@ def main() -> int:
         for d in dangling:
             print(f"  {d}")
 
-    if strict and (missing or dangling or todo):
+    if strict and (missing or dangling or todo or glance):
         print("\nFAIL: every 🟢 claim needs an identified, existing witness.")
+        if glance:
+            print("FAIL: README glance must match docs/parity.md grade counts.")
         return 1
     return 0
 

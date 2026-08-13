@@ -45,10 +45,14 @@ echo "  app      ${PREFIX}-daemon  appId=$DAEMON_APPID"
 
 # The App ID URI has to exist before scopes can be addressed as api://<id>/<name>.
 az ad app update --id "$DAEMON_APPID" --identifier-uris "api://$DAEMON_APPID" >/dev/null
+# requestedAccessTokenVersion: 2 is load-bearing. The default (null/1) makes
+# Entra mint v1 tokens (`ver: "1.0"`, `iss: https://sts.windows.net/{tid}/`)
+# even at the v2 endpoint. This emulator is a v2.0 STS, so the capture app
+# has to accept v2 or the claims fixture certifies the wrong token shape.
 az rest --method PATCH --url "https://graph.microsoft.com/v1.0/applications/$DAEMON_OBJID" \
   --headers 'Content-Type=application/json' --body "$(jq -nc \
     --arg sid "$SCOPE_ID" --arg rid "$ROLE_ID" '{
-    api: { oauth2PermissionScopes: [{
+    api: { requestedAccessTokenVersion: 2, oauth2PermissionScopes: [{
       id: $sid, value: "access_as_user", type: "User", isEnabled: true,
       adminConsentDisplayName: "Access as the signed-in user",
       adminConsentDescription: "Allows the app to act as the signed-in user.",
@@ -61,7 +65,7 @@ az rest --method PATCH --url "https://graph.microsoft.com/v1.0/applications/$DAE
       displayName: "Read all tasks", description: "Read all tasks."
     }]
   }')" >/dev/null
-echo "           + scope access_as_user, + app role Tasks.Read.All"
+echo "           + scope access_as_user, + app role Tasks.Read.All, + requestedAccessTokenVersion=2"
 
 # A service principal is what actually receives role assignments and consent;
 # an application alone is only a registration.

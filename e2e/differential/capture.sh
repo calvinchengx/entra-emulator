@@ -40,6 +40,9 @@ DAEMON_SECRET=$(jq -r .azure.daemon.secret "$IDENTITY_FILE")
 TOKEN_URL="$AUTHORITY/$TENANT_ID/oauth2/v2.0/token"
 
 mkdir -p "$FIXTURES"
+# A recapture replaces the previous token fixtures rather than mixing dates
+# (a leftover 401 "happy path" from a raced secret must not survive).
+rm -f "$FIXTURES"/token-*.json
 
 # normalise: fold every volatile or tenant-identifying value into a stable
 # placeholder. The list here MUST stay in step with `normalizations` in the
@@ -92,12 +95,41 @@ echo "capturing from $EXPECTED_DOMAIN"
 # ---- the happy path ------------------------------------------------------
 # Records the envelope's field set. The claim comparison is a separate scenario
 # because it needs the token decoded, and the token itself is never stored.
-post_token \
-  --data-urlencode "grant_type=client_credentials" \
-  --data-urlencode "client_id=$DAEMON_APPID" \
-  --data-urlencode "client_secret=$DAEMON_SECRET" \
-  --data-urlencode "scope=https://graph.microsoft.com/.default"
-record "token-client-credentials" "$HTTP_STATUS" "$HTTP_BODY"
+#
+# A newly-reset client secret is not immediately valid: Entra answers
+# AADSTS7000215 for a few seconds after `az ad app credential reset`. Poll
+# until the happy path is actually happy, otherwise this scenario records the
+# same envelope as token-error-invalid-client and the claims fixture is never
+# written — which is what the first capture run did.
+# Graph's .default, requested at the v2 endpoint, still mints a *v1* token
+# (`ver: "1.0"`, `iss: https://sts.windows.net/{tid}/`, a pile of `xms_*`
+# claims). This emulator is a v2.0 STS, so the happy-path resource is the
+# daemon's own API — the envelope field set is the same, and the claims
+# fixture is something the emulator actually claims to implement.
+happy_scope="api://${DAEMON_APPID}/.default"
+HTTP_STATUS=""
+HTTP_BODY=""
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  post_token \
+    --data-urlencode "grant_type=client_credentials" \
+    --data-urlencode "client_id=$DAEMON_APPID" \
+    --data-urlencode "client_secret=$DAEMON_SECRET" \
+    --data-urlencode "scope=$happy_scope"
+  if [ "$HTTP_STATUS" = "200" ]; then
+    echo "  secret replicated on attempt $attempt"
+    break
+  fi
+  echo "  happy path HTTP $HTTP_STATUS (attempt $attempt) — waiting for secret replication"
+  sleep 3
+done
+if [ "$HTTP_STATUS" != "200" ]; then
+  echo "error: client_credentials against $happy_scope never returned 200 (last HTTP $HTTP_STATUS)" >&2
+  echo "$HTTP_BODY" >&2
+  echo "refusing to record a 401 as the happy-path fixture; error scenarios still follow" >&2
+  HAPPY_FAILED=1
+else
+  record "token-client-credentials" "$HTTP_STATUS" "$HTTP_BODY"
+fi
 
 # The access token's header and claim NAMES, which is what an emulator has to
 # get right and what our own tests cannot tell us we got wrong. Values are
@@ -125,7 +157,12 @@ if [ "$HTTP_STATUS" = "200" ]; then
         --argjson header "$(printf '%s' "$hdr" | jq '{alg, typ, kid: (if .kid then "{kid}" else null end), x5t: (if .x5t then "{x5t}" else null end)}')" \
         --argjson claimNames "$(printf '%s' "$pay" | jq -c '[keys[]] | sort')" \
         --argjson structural "$(printf '%s' "$pay" | jq --arg t "$TENANT_ID" --arg a "$DAEMON_APPID" \
-            '{ver, iss: (.iss | gsub($t; "{tenant-id}")), aud, tid: (if .tid == $t then "{tenant-id}" else .tid end), appid: (if .appid == $a then "{daemon-app-id}" else .appid end), idtyp}')" \
+            '{ver,
+              iss: (.iss | gsub($t; "{tenant-id}") | gsub($a; "{daemon-app-id}")),
+              aud: (.aud | tostring | gsub($t; "{tenant-id}") | gsub($a; "{daemon-app-id}")),
+              tid: (if .tid == $t then "{tenant-id}" else .tid end),
+              appid: (if .appid == $a then "{daemon-app-id}" else .appid end),
+              idtyp}')" \
     '{scenario: "token-claims-client-credentials", capturedAt: $capturedAt,
       note: "Claim NAMES and structural values only. The token itself is never stored.",
       header: $header, claimNames: $claimNames, structural: $structural}' \
@@ -170,13 +207,28 @@ record "token-error-unknown-client" "$HTTP_STATUS" "$HTTP_BODY"
 # capturedAt drives the staleness rule: the harness reports STALE rather than
 # passing once a fixture ages out, so an old recording cannot silently certify
 # behaviour that has since drifted.
+#
+# Only mark a scenario captured when its fixture file exists. The first run
+# stamped token-claims-client-credentials captured after a 401 happy path
+# skipped the claims write, and the harness then failed "claimed fixture
+# which does not exist".
+ids_json=$(find "$FIXTURES" -name '*.json' -type f -exec basename {} .json \; \
+  | jq -R . | jq -s .)
 tmp=$(mktemp)
-jq --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+jq --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson ids "$ids_json" '
   .capturedAt = $at
   | .scenarios = (.scenarios | map(
-      if (.id | test("^token-")) then .status = "captured" | .fixture = (.id + ".json") else . end))
+      .id as $sid |
+      if ($ids | index($sid)) != null
+        then .status = "captured" | .fixture = ($sid + ".json")
+        elif ($sid | startswith("token-"))
+        then .status = "planned" | del(.fixture)
+        else . end))
 ' "$MANIFEST" > "$tmp" && mv "$tmp" "$MANIFEST"
 
 echo
 echo "wrote $(find "$FIXTURES" -name '*.json' -type f | wc -l | tr -d ' ') fixture(s) to $FIXTURES"
 echo "these are normalised and safe to commit; .capture-identity.json is not"
+if [ "${HAPPY_FAILED:-0}" = "1" ]; then
+  exit 1
+fi

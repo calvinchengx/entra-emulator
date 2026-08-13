@@ -52,8 +52,9 @@ func (i *Identity) handleToken(w http.ResponseWriter, r *http.Request) {
 	case "urn:ietf:params:oauth:grant-type:device_code", "device_code":
 		i.grantDeviceCode(w, r)
 	default:
+		grant := r.PostFormValue("grant_type")
 		httpx.WriteOAuthError(w, "unsupported_grant_type",
-			"AADSTS70003: The grant type is not supported.")
+			"AADSTS70003: The app requested an unsupported grant type '"+grant+"'.")
 	}
 }
 
@@ -89,8 +90,8 @@ func (i *Identity) authenticateClient(r *http.Request) (*store.App, *httpx.OAuth
 	}
 	app, err := i.Store.GetApp(clientID)
 	if err != nil {
-		return nil, &httpx.OAuthError{Error: "invalid_client",
-			ErrorDescription: "AADSTS700016: Application not found in the directory."}
+		return nil, &httpx.OAuthError{Error: "unauthorized_client",
+			ErrorDescription: "AADSTS700038: " + clientID + " is not a valid application identifier."}
 	}
 	if assertion != "" {
 		// Client AUTHENTICATION uses RFC 7523 §2.2's URN. This is distinct from
@@ -129,7 +130,7 @@ func (i *Identity) authenticateClient(r *http.Request) (*store.App, *httpx.OAuth
 		ok, err := i.Store.VerifyAppSecret(app.ID, secret)
 		if err != nil || !ok {
 			return nil, &httpx.OAuthError{Error: "invalid_client",
-				ErrorDescription: "AADSTS7000215: Invalid client secret provided."}
+				ErrorDescription: "AADSTS7000215: Invalid client secret provided. Ensure the secret being sent in the request is the client secret value, not the client secret ID, for a secret added to app '" + app.ID + "'."}
 		}
 	} else if secret != "" {
 		return nil, &httpx.OAuthError{Error: "invalid_client",
@@ -346,8 +347,8 @@ func (i *Identity) grantClientCredentials(w http.ResponseWriter, r *http.Request
 	default:
 		resourceApp := i.findResourceApp(resource)
 		if resourceApp == nil {
-			httpx.WriteOAuthError(w, "invalid_scope",
-				"AADSTS500011: The resource principal was not found in the tenant.")
+			httpx.WriteOAuthError(w, "invalid_resource",
+				"AADSTS500011: The resource principal named "+resource+" was not found in the tenant named "+i.Cfg.TenantID+". This can happen if the application has not been installed by the administrator of the tenant or consented to by any user in the tenant. You might have sent your authentication request to the wrong tenant.")
 			return
 		}
 		if resourceApp.AppIDURI == resource {
@@ -369,7 +370,7 @@ func (i *Identity) grantClientCredentials(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	resp, err := i.Tokens.BuildAppOnlyResponse(app, aud, roles, scopes[0], app.TenantID)
+	resp, err := i.Tokens.BuildAppOnlyResponse(app, aud, roles, "", app.TenantID)
 	if err != nil {
 		httpx.WriteOAuthError(w, "invalid_request", "AADSTS90002: Token minting failed.")
 		return
