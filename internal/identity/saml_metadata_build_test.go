@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"encoding/base64"
 	"encoding/xml"
 	"strings"
 	"testing"
@@ -45,5 +46,36 @@ func TestSAMLMetadataXMLEmitsADeclarationAndParses(t *testing.T) {
 	}
 	if probe.EntityID != "https://idp.example/t/" {
 		t.Fatalf("entityID %q", probe.EntityID)
+	}
+}
+
+// Test Budget: 5 walking-skeleton behaviors × 2 = 10. This is behavior 1
+// (FederationMetadata names a WS-Fed STS at /{tid}/wsfed).
+func TestSAMLMetadataXMLEmitsWSFedRoleDescriptor(t *testing.T) {
+	cert := []byte{0x30, 0x82, 0x01}
+	out, err := samlMetadataXML(cert, "https://idp.example/t/", "https://idp.example/t/saml2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(out)
+	if !strings.Contains(body, "RoleDescriptor") {
+		t.Fatal("FederationMetadata has no WS-Fed RoleDescriptor")
+	}
+	if !strings.Contains(body, "SecurityTokenServiceType") {
+		t.Fatalf("RoleDescriptor is not SecurityTokenServiceType:\n%s", body)
+	}
+	wantSTS := "https://idp.example/t/wsfed"
+	if !strings.Contains(body, "PassiveRequestorEndpoint") || !strings.Contains(body, wantSTS) {
+		t.Fatalf("missing PassiveRequestorEndpoint %s:\n%s", wantSTS, body)
+	}
+	if !strings.Contains(body, "SecurityTokenServiceEndpoint") {
+		t.Fatalf("missing SecurityTokenServiceEndpoint:\n%s", body)
+	}
+	if !strings.Contains(body, "IDPSSODescriptor") {
+		t.Fatal("growing WS-Fed RoleDescriptor removed IDPSSODescriptor")
+	}
+	certB64 := base64.StdEncoding.EncodeToString(cert)
+	if strings.Count(body, certB64) < 2 {
+		t.Fatal("WS-Fed RoleDescriptor must publish the same signing certificate as IDPSSODescriptor")
 	}
 }

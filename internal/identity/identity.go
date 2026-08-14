@@ -82,6 +82,8 @@ func (i *Identity) Register(mux *http.ServeMux) {
 		i.audited("saml-metadata", i.handleSAMLMetadata))
 	mux.HandleFunc("GET /{tenant}/saml2", i.audited("saml-sso", i.handleSAMLSSO))
 	mux.HandleFunc("POST /{tenant}/saml2", i.audited("saml-sso", i.handleSAMLSSO))
+	mux.HandleFunc("GET /{tenant}/wsfed", i.audited("wsfed", i.handleWSFed))
+	mux.HandleFunc("POST /{tenant}/wsfed", i.audited("wsfed", i.handleWSFed))
 
 	// Passkey (WebAuthn) ceremonies (roadmap #11).
 	mux.HandleFunc("POST /{tenant}/webauthn/register/begin", i.handleWebAuthnRegisterBegin)

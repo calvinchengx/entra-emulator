@@ -583,6 +583,35 @@ func TestRedirectURIs(t *testing.T) {
 	}
 }
 
+// HasRedirectURI ignores type; a saml-acs or web URI must not be a valid
+// wreply. This is the type-aware check WS-Fed uses instead.
+func TestHasRedirectURIOfTypeMatchesOnlyThatType(t *testing.T) {
+	st := newTestStore(t)
+	app := mustApp(t, st, "wsfed-redir")
+	if _, err := st.AddRedirectURI(app.ID, "https://rp.example.test/signin-wsfed", "wsfed-reply"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.AddRedirectURI(app.ID, "https://rp.example.test/acs", "saml-acs"); err != nil {
+		t.Fatal(err)
+	}
+
+	ok, err := st.HasRedirectURIOfType(app.ID, "https://rp.example.test/signin-wsfed", "wsfed-reply")
+	if err != nil || !ok {
+		t.Fatalf("registered wsfed-reply should match: %v %v", err, ok)
+	}
+	ok, err = st.HasRedirectURIOfType(app.ID, "https://rp.example.test/acs", "wsfed-reply")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Fatal("saml-acs URI must not match as wsfed-reply")
+	}
+	ok, _ = st.HasRedirectURIOfType(app.ID, "https://rp.example.test/signin-wsfed", "web")
+	if ok {
+		t.Fatal("wsfed-reply URI must not match as web")
+	}
+}
+
 // ---- Secrets ----
 
 func TestSecrets(t *testing.T) {
@@ -1403,6 +1432,8 @@ func TestClosedStoreErrors(t *testing.T) {
 	wantErr("DeleteRedirectURI", st.DeleteRedirectURI("x", 1))
 	_, err = st.HasRedirectURI("x", "u")
 	wantErr("HasRedirectURI", err)
+	_, err = st.HasRedirectURIOfType("x", "u", "wsfed-reply")
+	wantErr("HasRedirectURIOfType", err)
 
 	// Secrets.
 	_, err = st.ListSecrets("x")

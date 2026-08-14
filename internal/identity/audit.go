@@ -50,6 +50,14 @@ func (i *Identity) audited(flow string, next http.HandlerFunc) http.HandlerFunc 
 			OK:        cw.status < 400,
 		}
 		ev.UserID, ev.UserPrincipalName = subj.UserID, subj.UPN
+		// WS-Fed names the app with wtrealm, not client_id. The field is
+		// OIDC-era; handlers may also stash the URI via noteAuditClientID
+		// because the picker POST does not repeat wtrealm.
+		if subj.ClientID != "" {
+			ev.ClientID = subj.ClientID
+		} else if ev.ClientID == "" {
+			ev.ClientID = r.FormValue("wtrealm")
+		}
 		// Token errors are JSON with error/error_description.
 		if cw.status >= 400 && cw.body.Len() > 0 {
 			var oerr struct {
@@ -94,7 +102,7 @@ func extractQueryParam(rawurl, key string) string {
 // The audit middleware records AFTER the handler returns, but only the handler
 // knows which user an exchange resolved. It therefore places a mutable holder
 // in the request context and handlers fill it in via noteAuditSubject.
-type auditSubject struct{ UserID, UPN string }
+type auditSubject struct{ UserID, UPN, ClientID string }
 
 type auditSubjectKey struct{}
 
@@ -103,5 +111,13 @@ type auditSubjectKey struct{}
 func noteAuditSubject(r *http.Request, userID, upn string) {
 	if s, ok := r.Context().Value(auditSubjectKey{}).(*auditSubject); ok {
 		s.UserID, s.UPN = userID, upn
+	}
+}
+
+// noteAuditClientID records the application this exchange was for when the
+// wire parameter is not client_id (WS-Fed wtrealm).
+func noteAuditClientID(r *http.Request, clientID string) {
+	if s, ok := r.Context().Value(auditSubjectKey{}).(*auditSubject); ok {
+		s.ClientID = clientID
 	}
 }
