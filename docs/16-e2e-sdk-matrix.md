@@ -63,6 +63,10 @@ Notes per language:
   then fetches OIDC discovery + JWKS and validates the JWT the same way JwtBearer
   does — including a tampered-signature refusal and a rotate-with-grace check.
   Built and run with `dotnet run`.
+- **.NET WS-Fed** (`e2e/wsfed/`): unmodified `AddWsFederation` against the existing
+  FederationMetadata URL and `Wtrealm=api://tasks-api`. Sibling of `e2e/saml`, not
+  an extension of `e2e/dotnet`. Drives the account picker, then lets the middleware
+  verify the SAML 2.0 `wresult`. `python3 e2e/run.py wsfed`.
 - **Java** (`e2e/java/`): `ConfidentialClientApplication.builder(...)
   .authority(authority).validateAuthority(false).instanceDiscovery(false)`; the suite
   loads `EMU_CERT` into a fresh trust store and sets it as the default `SSLContext` so
