@@ -1,12 +1,15 @@
 package server
 
 import (
+	"crypto/x509"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/beevik/etree"
+	dsig "github.com/russellhaering/goxmldsig"
 
 	"github.com/calvinchengx/entra-emulator/internal/store"
 )
@@ -552,5 +555,210 @@ func TestDisabledUserIsNotListedAsSelectable(t *testing.T) {
 	}
 	if !strings.Contains(page, "Alice Example") {
 		t.Fatalf("enabled accounts missing from picker:\n%s", page)
+	}
+}
+
+// Test Budget: 6 remaining US-04 behaviors × 2 = 12.
+// HTTP driving-port tests below: 6. XML builder unit tests live in
+// internal/identity/wsfedresponse_test.go. Total ≤ 12.
+
+const (
+	samlV2TokenTypeURI = "http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.1#SAMLV2.0"
+	persistentNameID   = "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent"
+	nsSAML20Assertion  = "urn:oasis:names:tc:SAML:2.0:assertion"
+	nsSAML11Assertion  = "urn:oasis:names:tc:SAML:1.1:assertion"
+	nsSAML10Assertion  = "urn:oasis:names:tc:SAML:1.0:assertion"
+)
+
+var (
+	wresultFieldRe = regexp.MustCompile(`name="wresult" value="([^"]*)"`)
+	wctxFieldRe    = regexp.MustCompile(`name="wctx" value="([^"]*)"`)
+)
+
+func completeTasksAPIWSFedSignIn(t *testing.T, base, tenant, wctx string) string {
+	t.Helper()
+	q := url.Values{
+		"wa":      {"wsignin1.0"},
+		"wtrealm": {testTasksAppIDURI},
+		"wreply":  {testTasksWSFedReply},
+	}
+	if wctx != "" {
+		q.Set("wctx", wctx)
+	}
+	c := samlClient(t)
+	resp, err := c.Get(base + "/" + tenant + "/wsfed?" + q.Encode())
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := readAll(t, resp)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("challenge returned %d:\n%s", resp.StatusCode, page)
+	}
+	form := url.Values{
+		"__ee_state": {firstMatch(t, stateFieldRe, page, "signed state")},
+		"__ee_user":  {firstMatch(t, userFieldRe, page, "an account to pick")},
+	}
+	post, err := c.PostForm(base+"/"+tenant+"/wsfed", form)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := readAll(t, post)
+	if post.StatusCode != http.StatusOK {
+		t.Fatalf("account choice returned %d:\n%s", post.StatusCode, out)
+	}
+	return out
+}
+
+func postedWresult(t *testing.T, page string) *etree.Element {
+	t.Helper()
+	raw := htmlUnescape(firstMatch(t, wresultFieldRe, page, "wresult"))
+	doc := etree.NewDocument()
+	if err := doc.ReadFromString(raw); err != nil {
+		t.Fatalf("wresult is not XML: %v\n%s", err, raw)
+	}
+	if doc.Root() == nil {
+		t.Fatal("wresult has no RequestSecurityTokenResponse")
+	}
+	return doc.Root()
+}
+
+func rstrAssertion(t *testing.T, rstr *etree.Element) *etree.Element {
+	t.Helper()
+	a := rstr.FindElement(".//saml:Assertion")
+	if a == nil {
+		t.Fatal("RequestedSecurityToken has no SAML assertion")
+	}
+	return a
+}
+
+func elementXML(t *testing.T, el *etree.Element) string {
+	t.Helper()
+	doc := etree.NewDocument()
+	doc.SetRoot(el.Copy())
+	s, err := doc.WriteToString()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+func federationEntityID(t *testing.T, body []byte) string {
+	t.Helper()
+	id := strings.TrimSpace(parseFederationMetadata(t, body).SelectAttrValue("entityID", ""))
+	if id == "" {
+		t.Fatal("FederationMetadata has no entityID")
+	}
+	return id
+}
+
+func TestTokenAudienceMatchesApplicationIDURI(t *testing.T) {
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+
+	out := completeTasksAPIWSFedSignIn(t, hts.URL, cfg.TenantID, testWSFedWctx)
+	assertion := rstrAssertion(t, postedWresult(t, out))
+	aud := assertion.FindElement(".//saml:Audience")
+	if aud == nil || strings.TrimSpace(aud.Text()) != testTasksAppIDURI {
+		t.Fatalf("assertion Audience is not %s:\n%s", testTasksAppIDURI, elementXML(t, assertion))
+	}
+}
+
+func TestIssuerMatchesFederationMetadata(t *testing.T) {
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+
+	entityID := federationEntityID(t, fetchMetadata(t, hts.URL, cfg.TenantID))
+	out := completeTasksAPIWSFedSignIn(t, hts.URL, cfg.TenantID, testWSFedWctx)
+	assertion := rstrAssertion(t, postedWresult(t, out))
+	issuer := assertion.FindElement("./saml:Issuer")
+	if issuer == nil || strings.TrimSpace(issuer.Text()) != entityID {
+		got := ""
+		if issuer != nil {
+			got = strings.TrimSpace(issuer.Text())
+		}
+		t.Fatalf("assertion Issuer %q does not equal FederationMetadata entityID %q:\n%s",
+			got, entityID, elementXML(t, assertion))
+	}
+
+	cert := metadataCertificate(t, hts.URL, cfg.TenantID)
+	ctx := dsig.NewDefaultValidationContext(&dsig.MemoryX509CertificateStore{
+		Roots: []*x509.Certificate{cert},
+	})
+	if _, err := ctx.Validate(assertion); err != nil {
+		t.Fatalf("assertion does not verify under the FederationMetadata certificate: %v", err)
+	}
+}
+
+func TestContextIsEchoedUnchanged(t *testing.T) {
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+
+	out := completeTasksAPIWSFedSignIn(t, hts.URL, cfg.TenantID, testWSFedWctx)
+	got := htmlUnescape(firstMatch(t, wctxFieldRe, out, "wctx"))
+	if got != testWSFedWctx {
+		t.Fatalf("wctx came back %q, want %q", got, testWSFedWctx)
+	}
+}
+
+func TestOmittedContextStaysOmitted(t *testing.T) {
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+
+	out := completeTasksAPIWSFedSignIn(t, hts.URL, cfg.TenantID, "")
+	if !strings.Contains(out, `name="wresult"`) {
+		t.Fatalf("token POST missing wresult:\n%s", out)
+	}
+	if wctxFieldRe.FindStringSubmatch(out) != nil {
+		t.Fatalf("token POST invented a wctx the RP never sent:\n%s", out)
+	}
+}
+
+func TestAssertionVersionIsSAML20ForThisWitness(t *testing.T) {
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+
+	out := completeTasksAPIWSFedSignIn(t, hts.URL, cfg.TenantID, testWSFedWctx)
+	rstr := postedWresult(t, out)
+	tokenType := rstr.FindElement("./t:TokenType")
+	if tokenType == nil {
+		tokenType = rstr.FindElement(".//t:TokenType")
+	}
+	if tokenType == nil || !strings.HasSuffix(strings.TrimSpace(tokenType.Text()), "#SAMLV2.0") {
+		got := ""
+		if tokenType != nil {
+			got = strings.TrimSpace(tokenType.Text())
+		}
+		t.Fatalf("TokenType %q is not SAML 2.0 ending in #SAMLV2.0:\n%s", got, elementXML(t, rstr))
+	}
+	if strings.TrimSpace(tokenType.Text()) != samlV2TokenTypeURI {
+		t.Fatalf("TokenType %q, want %s", strings.TrimSpace(tokenType.Text()), samlV2TokenTypeURI)
+	}
+
+	assertion := rstrAssertion(t, rstr)
+	if assertion.SelectAttrValue("Version", "") != "2.0" {
+		t.Fatalf("inner assertion Version is %q, want 2.0:\n%s",
+			assertion.SelectAttrValue("Version", ""), elementXML(t, assertion))
+	}
+	raw := elementXML(t, assertion)
+	if strings.Contains(raw, nsSAML11Assertion) || strings.Contains(raw, nsSAML10Assertion) {
+		t.Fatalf("assertion is SAML 1.1:\n%s", raw)
+	}
+	ns := assertion.SelectAttrValue("xmlns:saml", "")
+	if ns != nsSAML20Assertion {
+		t.Fatalf("assertion namespace %q, want SAML 2.0 %s:\n%s", ns, nsSAML20Assertion, raw)
+	}
+}
+
+func TestNameIDFormatIsPersistent(t *testing.T) {
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+
+	out := completeTasksAPIWSFedSignIn(t, hts.URL, cfg.TenantID, testWSFedWctx)
+	nameID := rstrAssertion(t, postedWresult(t, out)).FindElement(".//saml:NameID")
+	if nameID == nil {
+		t.Fatal("assertion has no NameID")
+	}
+	if got := nameID.SelectAttrValue("Format", ""); got != persistentNameID {
+		t.Fatalf("NameID format %q, want persistent %s", got, persistentNameID)
 	}
 }

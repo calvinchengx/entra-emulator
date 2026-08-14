@@ -44,9 +44,14 @@ func TestRSTRWrapsSAML20AssertionForTheRealm(t *testing.T) {
 		"api://tasks-api",
 		persistentNameID,
 		`<saml:Issuer>https://idp.example/t/</saml:Issuer>`,
+		nsAssertion,
 	} {
 		if !strings.Contains(s, want) {
 			t.Fatalf("RSTR is missing %s\n%s", want, s)
 		}
+	}
+	if strings.Contains(s, "urn:oasis:names:tc:SAML:1.1:assertion") ||
+		strings.Contains(s, "urn:oasis:names:tc:SAML:1.0:assertion") {
+		t.Fatalf("RSTR wrapped a SAML 1.1 assertion:\n%s", s)
 	}
 }
