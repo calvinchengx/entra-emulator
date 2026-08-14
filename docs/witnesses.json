@@ -471,5 +471,15 @@
       "go:TestSAMLSSORefusesAnUnregisteredACS",
       "go:TestSignedAssertionVerifiesAgainstTheAdvertisedCertificate"
     ]
+  },
+  "ws-federation": {
+    "section": "Sign-in experience",
+    "claim": "**WS-Federation**",
+    "witnesses": [
+      "ci:sdk-e2e",
+      "go:TestPriyaCompletesTasksAPIWSFedSignIn",
+      "go:TestUnregisteredWreplyDoesNotReceiveAToken",
+      "go:TestUnsolicitedWresultIsRefused"
+    ]
   }
 }
