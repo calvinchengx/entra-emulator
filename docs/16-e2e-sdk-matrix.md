@@ -36,6 +36,7 @@ Two knobs make custom authorities work in every Microsoft SDK:
 | Go | `microsoft-authentication-library-for-go` + `azidentity` | client credentials (both layers), device code | HTTP approval sequence |
 | Python | `msal` (+ optional `azure-identity`) | client credentials, device code | HTTP approval sequence in a thread |
 | C# / .NET | `Microsoft.Identity.Client` (MSAL.NET) + Wilson (`Microsoft.IdentityModel.Protocols.OpenIdConnect`) | client credentials (+ token-cache hit); JwtBearer-stack validation of the resulting JWT (discovery, JWKS, tamper, key rotation) | — (no interactive flow) |
+| C# / .NET (WS-Fed) | `Microsoft.AspNetCore.Authentication.WsFederation` | FederationMetadata + `wa=wsignin1.0`; SAML 2.0 `wresult` verified by unmodified middleware | cookie-jar HTTPS against the account picker (`e2e/wsfed`) |
 | Java | `com.microsoft.azure:msal4j` (MSAL4J) | client credentials | — (no interactive flow) |
 | Flutter/Dart | Dart `http` (automated) + `flutter_appauth` (manual screen) | device code end-to-end on-device; auth code + PKCE manually | `integration_test` on Android emulator / iOS simulator — **nightly, not PR gate** |
 
