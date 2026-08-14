@@ -240,6 +240,11 @@ def suite_dotnet(env):
     return run(["dotnet", "run", "-c", "Release"], ROOT / "e2e" / "dotnet", env)
 
 
+def suite_wsfed(env):
+    """Unmodified Microsoft.AspNetCore.Authentication.WsFederation (KPI-1)."""
+    return run(["dotnet", "run", "-c", "Release"], ROOT / "e2e" / "wsfed", env)
+
+
 def suite_java(env):
     return run(["mvn", "-q", "-B", "compile", "exec:java"], ROOT / "e2e" / "java", env)
 
@@ -247,6 +252,7 @@ def suite_java(env):
 SUITES = {
     "ts": suite_ts, "go": suite_go, "python": suite_python, "saml": suite_saml,
     "graph": suite_graph, "dotnet": suite_dotnet, "java": suite_java,
+    "wsfed": suite_wsfed,
     "scim": suite_scim, "scim-outbound": suite_scim_outbound,
     "graph-permissions": suite_graph_permissions,
     "persistence": suite_persistence,

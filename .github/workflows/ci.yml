@@ -78,7 +78,7 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
-      - run: python3 e2e/run.py ts graph go python dotnet java saml
+      - run: python3 e2e/run.py ts graph go python dotnet java saml wsfed
 
   docker-smoke:
     name: Docker image smoke test

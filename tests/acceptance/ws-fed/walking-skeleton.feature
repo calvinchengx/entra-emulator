@@ -9,8 +9,8 @@
 #   browser auto-POST wresult to registered wsfed-reply
 #   e2e/wsfed unmodified Microsoft.AspNetCore.Authentication.WsFederation (KPI-1)
 #
-# WS-1 (clean), WS-2 (with-pre-commit), and WS-3 (with-stale-config) are enabled.
-# KPI-1 stranger remains @pending until DELIVER US-05.
+# WS-1 (clean), WS-2 (with-pre-commit), WS-3 (with-stale-config), and KPI-1
+# (e2e/wsfed unmodified WsFederation) are enabled.
 
 Feature: Point a WS-Fed relying party at the local STS
 
@@ -58,10 +58,10 @@ Feature: Point a WS-Fed relying party at the local STS
     Then the browser POSTs wresult to "https://rp.example.test/signin-wsfed"
     And the emulator never POSTs wresult to the web-only redirect
 
-  @pending @walking_skeleton @kpi @real-io @driving_adapter @driving_port @US-05 @KPI-1
+  @walking_skeleton @kpi @real-io @driving_adapter @driving_port @US-05 @KPI-1
   Scenario: Priya's unmodified WsFederation middleware completes sign-in
     # Driving port: e2e/wsfed stranger — unmodified Microsoft.AspNetCore.Authentication.WsFederation
-    # Witness is pending until DELIVER US-05. See e2e/wsfed/README.md.
+    # Witness: python3 e2e/run.py wsfed. See e2e/wsfed/README.md.
     Given Priya pointed MetadataAddress and Wtrealm at the emulator
     And she did not modify Microsoft.AspNetCore.Authentication.WsFederation
     And she changed only host and TLS knobs versus Entra

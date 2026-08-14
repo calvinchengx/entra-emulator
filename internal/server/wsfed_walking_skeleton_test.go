@@ -67,7 +67,7 @@ func wsfedChallengeURL(base, tenant string) string {
 }
 
 // TestPriyaCompletesTasksAPIWSFedSignIn is the first walking-skeleton scenario
-// (environment: clean). WS-2 and WS-3 follow; KPI-1 stays skipped.
+// (environment: clean). WS-2 and WS-3 follow; KPI-1 is e2e/wsfed.
 func TestPriyaCompletesTasksAPIWSFedSignIn(t *testing.T) {
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPI(t, st, cfg.TenantID)
@@ -228,7 +228,7 @@ func TestPriyaCompletesWSFedSignInAfterRegisteringReplyOnStaleDirectory(t *testi
 }
 
 func TestUnmodifiedWsFederationCompletesSignIn(t *testing.T) {
-	t.Skip("pending: KPI-1 e2e/wsfed stranger — see e2e/wsfed/README.md (DELIVER US-05)")
+	t.Skip("KPI-1 witness is e2e/wsfed (python3 e2e/run.py wsfed); see e2e/wsfed/README.md")
 }
 
 // Test Budget: 4 US-06 behaviors × 2 = 8. HTTP driving-port tests below: 2 ≤ 8.
