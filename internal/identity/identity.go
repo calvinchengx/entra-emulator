@@ -82,6 +82,9 @@ func (i *Identity) Register(mux *http.ServeMux) {
 		i.audited("saml-metadata", i.handleSAMLMetadata))
 	mux.HandleFunc("GET /{tenant}/saml2", i.audited("saml-sso", i.handleSAMLSSO))
 	mux.HandleFunc("POST /{tenant}/saml2", i.audited("saml-sso", i.handleSAMLSSO))
+	// WS-Federation passive profile. Entra's path; GET and POST both accept
+	// wa=wsignin1.0 (some RPs POST the challenge, as with SAML POST vs Redirect).
+	// Account choice POSTs back to the same path.
 	mux.HandleFunc("GET /{tenant}/wsfed", i.audited("wsfed", i.handleWSFed))
 	mux.HandleFunc("POST /{tenant}/wsfed", i.audited("wsfed", i.handleWSFed))
 

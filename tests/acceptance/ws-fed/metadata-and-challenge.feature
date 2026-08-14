@@ -4,7 +4,7 @@
 #   GET|POST /{tid}/wsfed  (wa=wsignin1.0)
 #
 # US-01 remaining scenarios are enabled after the walking skeleton (01-01).
-# US-02 POST challenge stays @pending until 01-03.
+# US-02 POST challenge and omitted wctx are enabled in 01-03.
 
 Feature: FederationMetadata names the WS-Fed STS and the challenge reaches it
 
@@ -47,7 +47,7 @@ Feature: FederationMetadata names the WS-Fed STS and the challenge reaches it
     Then the WS-Fed RoleDescriptor is on that document
     And she is not required to set MetadataAddress to /wsfed/metadata
 
-  @pending @driving_port @real-io @US-02
+  @driving_port @real-io @US-02
   Scenario: POST as well as GET can start sign-in
     # Driving port: POST /{tid}/wsfed wa=wsignin1.0
     Given the Tasks API app is registered with Application ID URI "api://tasks-api"
@@ -56,7 +56,7 @@ Feature: FederationMetadata names the WS-Fed STS and the challenge reaches it
     Then the response is not 404
     And unauthenticated callers still see sign-in, not a wresult
 
-  @pending @driving_port @real-io @US-02
+  @driving_port @real-io @US-02
   Scenario: Optional context is accepted on the challenge
     # Driving port: GET /{tid}/wsfed wa=wsignin1.0
     Given the Finance RP challenges without wctx

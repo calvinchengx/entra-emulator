@@ -346,7 +346,73 @@ func (s signOutForbiddenTrip) RoundTrip(req *http.Request) (*http.Response, erro
 }
 
 func TestPOSTAsWellAsGETCanStartSignIn(t *testing.T) {
-	t.Skip("pending: US-02 POST /{tid}/wsfed")
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+
+	c := samlClient(t)
+	resp, err := c.PostForm(hts.URL+"/"+cfg.TenantID+"/wsfed", url.Values{
+		"wa":      {"wsignin1.0"},
+		"wtrealm": {testTasksAppIDURI},
+		"wreply":  {testTasksWSFedReply},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := readAll(t, resp)
+	if resp.StatusCode == http.StatusNotFound {
+		t.Fatalf("POST /{tid}/wsfed wa=wsignin1.0 returned 404; the challenge must be login HTML")
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("POST /{tid}/wsfed returned %d, want 200 login HTML:\n%s", resp.StatusCode, page)
+	}
+	if strings.Contains(page, "wresult") || strings.Contains(page, "RequestSecurityTokenResponse") {
+		t.Fatal("unauthenticated POST challenge posted a wresult; want login HTML")
+	}
+	if !strings.Contains(page, "LOCAL EMULATOR") || !strings.Contains(page, "Pick an account") {
+		t.Fatalf("POST challenge is not sign-in:\n%s", page)
+	}
+}
+
+func TestOmittedContextIsAcceptedOnTheChallenge(t *testing.T) {
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+
+	q := url.Values{
+		"wa":      {"wsignin1.0"},
+		"wtrealm": {testTasksAppIDURI},
+		"wreply":  {testTasksWSFedReply},
+	}
+	c := samlClient(t)
+	resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := readAll(t, resp)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("challenge without wctx returned %d:\n%s", resp.StatusCode, page)
+	}
+	if !strings.Contains(page, "LOCAL EMULATOR") || !strings.Contains(page, "Pick an account") {
+		t.Fatalf("challenge without wctx is not sign-in:\n%s", page)
+	}
+
+	form := url.Values{
+		"__ee_state": {firstMatch(t, stateFieldRe, page, "signed state")},
+		"__ee_user":  {firstMatch(t, userFieldRe, page, "an account to pick")},
+	}
+	post, err := c.PostForm(hts.URL+"/"+cfg.TenantID+"/wsfed", form)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := readAll(t, post)
+	if post.StatusCode != http.StatusOK {
+		t.Fatalf("account choice returned %d:\n%s", post.StatusCode, out)
+	}
+	if !strings.Contains(out, `name="wresult"`) {
+		t.Fatalf("later token POST missing wresult:\n%s", out)
+	}
+	if strings.Contains(out, `name="wctx"`) {
+		t.Fatalf("token POST invented a wctx the RP never sent:\n%s", out)
+	}
 }
 
 func TestPasswordRequiredModeStaysTheExistingForm(t *testing.T) {

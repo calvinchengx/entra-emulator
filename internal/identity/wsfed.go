@@ -23,7 +23,7 @@ type wsfedState struct {
 	Tenant  string `json:"tenant"`
 	Wtrealm string `json:"wtrealm"`
 	Wreply  string `json:"wreply"`
-	Wctx    string `json:"wctx"`
+	Wctx    string `json:"wctx,omitempty"`
 }
 
 // wsfedPostForm is the WS-Fed equivalent of the SAML HTTP-POST binding: a
@@ -59,9 +59,9 @@ func (i *Identity) handleWSFed(w http.ResponseWriter, r *http.Request) {
 
 	st := wsfedState{
 		Kind: "wsfed", Tenant: tid,
-		Wtrealm: r.FormValue("wtrealm"),
-		Wreply:  r.FormValue("wreply"),
-		Wctx:    r.FormValue("wctx"),
+		Wtrealm: wsfedChallengeValue(r, "wtrealm"),
+		Wreply:  wsfedChallengeValue(r, "wreply"),
+		Wctx:    wsfedChallengeValue(r, "wctx"),
 	}
 	noteAuditClientID(r, st.Wtrealm)
 	if _, err := i.resolveWSFedRelyingParty(st.Wtrealm, st.Wreply); err != nil {

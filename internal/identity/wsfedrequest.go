@@ -2,9 +2,20 @@ package identity
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/calvinchengx/entra-emulator/internal/store"
 )
+
+// wsfedChallengeValue reads a WS-Fed parameter from the binding that carried
+// it: query string on GET, form body on POST. wctx is optional; a missing
+// field is empty and stays empty — the STS does not invent one.
+func wsfedChallengeValue(r *http.Request, key string) string {
+	if r.Method == http.MethodPost {
+		return r.PostFormValue(key)
+	}
+	return r.URL.Query().Get(key)
+}
 
 // resolveWSFedRelyingParty maps wtrealm onto a registered app and decides
 // where the RSTR may be delivered.
