@@ -2,6 +2,7 @@ package server
 
 import (
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/url"
@@ -295,12 +296,74 @@ func TestGraphSignInsIdentifyTasksAPIAsInteractive(t *testing.T) {
 	auditJSONMustOmitTokenBody(t, row)
 }
 
+// Test Budget: 2 distinct behaviors × 2 = 4. HTTP driving-port tests below: 2 ≤ 4.
+// Gherkin: tests/acceptance/ws-fed/guardrail-saml-oidc.feature
+// In-process analog of e2e/saml and the existing OIDC authorize suite (driveAuthCode).
+
 func TestExistingSAMLSignInStillCompletesAfterWSFedMetadataGrowth(t *testing.T) {
-	t.Skip("pending: guardrail e2e/saml after FederationMetadata growth")
+	hts, cfg, st := newTestServer(t)
+	registerSAMLApp(t, st, cfg.TenantID)
+
+	entity := parseFederationMetadata(t, fetchMetadata(t, hts.URL, cfg.TenantID))
+	if entity.FindElement("./RoleDescriptor") == nil {
+		t.Fatal("FederationMetadata has no WS-Fed RoleDescriptor; guardrail is not on a grown document")
+	}
+	idp := entity.FindElement("./IDPSSODescriptor")
+	if idp == nil {
+		t.Fatal("growing WS-Fed RoleDescriptor removed IDPSSODescriptor")
+	}
+	wantSSO := hts.URL + "/" + cfg.TenantID + "/saml2"
+	var sso int
+	for _, el := range idp.FindElements("./SingleSignOnService") {
+		sso++
+		if loc := el.SelectAttrValue("Location", ""); loc != wantSSO {
+			t.Fatalf("SAML SSO Location %q, want %s", loc, wantSSO)
+		}
+	}
+	if sso == 0 {
+		t.Fatal("IDPSSODescriptor has no SingleSignOnService")
+	}
+
+	body := signInOverSAML(t, &httptestServer{URL: hts.URL}, cfg.TenantID, "")
+	if got := firstMatch(t, actionRe, body, "form action"); got != testSPACS {
+		t.Fatalf("SAML form posts to %q, want the registered ACS %q", got, testSPACS)
+	}
+	raw, err := base64.StdEncoding.DecodeString(
+		htmlUnescape(firstMatch(t, responseRe, body, "SAMLResponse")))
+	if err != nil {
+		t.Fatalf("SAMLResponse is not base64: %v", err)
+	}
+	doc := etree.NewDocument()
+	if err := doc.ReadFromBytes(raw); err != nil {
+		t.Fatalf("SAMLResponse is not XML: %v\n%s", err, raw)
+	}
+	assertion := doc.Root().FindElement("./saml:Assertion")
+	if assertion == nil {
+		t.Fatalf("no assertion in the SAML response:\n%s", raw)
+	}
+	cert := metadataCertificate(t, hts.URL, cfg.TenantID)
+	ctx := dsig.NewDefaultValidationContext(&dsig.MemoryX509CertificateStore{
+		Roots: []*x509.Certificate{cert},
+	})
+	if _, err := ctx.Validate(assertion); err != nil {
+		t.Fatalf("SAML assertion does not verify under the published certificate: %v", err)
+	}
 }
 
 func TestExistingOIDCSignInStillCompletes(t *testing.T) {
-	t.Skip("pending: guardrail existing OIDC e2e")
+	hts, cfg, _ := newTestServer(t)
+	if parseFederationMetadata(t, fetchMetadata(t, hts.URL, cfg.TenantID)).FindElement("./RoleDescriptor") == nil {
+		t.Fatal("WS-Fed is not advertised; OIDC guardrail is not on the same grown emulator")
+	}
+
+	body := driveAuthCode(t, hts, "verifier-supercalifragilistic-0123456789")
+	if body["id_token"] == nil || body["access_token"] == nil {
+		t.Fatalf("OIDC sign-in did not complete: %v", body)
+	}
+	idc := decodeJWTPayload(t, body["id_token"].(string))
+	if idc["aud"] != spaID || idc["oid"] != aliceID || idc["ver"] != "2.0" {
+		t.Fatalf("OIDC tokens are not the existing SPA sign-in: %v", idc)
+	}
 }
 
 // Test Budget: 5 remaining US-01 behaviors × 2 = 10.
