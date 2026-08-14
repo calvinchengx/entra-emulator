@@ -66,8 +66,8 @@ func wsfedChallengeURL(base, tenant string) string {
 	return base + "/" + tenant + "/wsfed?" + q.Encode()
 }
 
-// TestPriyaCompletesTasksAPIWSFedSignIn is the first (enabled) walking-skeleton
-// scenario. Later scenarios in this file are t.Skip until this one is green.
+// TestPriyaCompletesTasksAPIWSFedSignIn is the first walking-skeleton scenario
+// (environment: clean). WS-2 and WS-3 follow; KPI-1 stays skipped.
 func TestPriyaCompletesTasksAPIWSFedSignIn(t *testing.T) {
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPI(t, st, cfg.TenantID)
@@ -143,12 +143,88 @@ func TestPriyaCompletesTasksAPIWSFedSignIn(t *testing.T) {
 	}
 }
 
+// Test Budget: 4 WS-2/WS-3 behaviors × 2 = 8. HTTP driving-port tests below: 2 ≤ 8.
+// Gherkin: tests/acceptance/ws-fed/walking-skeleton.feature (WS-2 with-pre-commit, WS-3 with-stale-config).
+
 func TestPriyaCompletesWSFedSignInAlongsideOIDCAndSAML(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (environment with-pre-commit)")
+	hts, cfg, st := newTestServer(t)
+	registerSAMLApp(t, st, cfg.TenantID)
+	registerTasksAPI(t, st, cfg.TenantID)
+
+	out := completeTasksAPIWSFedSignInAs(t, hts.URL, cfg.TenantID, testWSFedWctx, store.SeedUserAliceID)
+	action := firstMatch(t, actionRe, out, "auto-POST form action")
+	if action != testTasksWSFedReply {
+		t.Fatalf("Tasks API wresult POSTs to %q, want registered reply %q", action, testTasksWSFedReply)
+	}
+	rstr := postedWresult(t, out)
+	tokenType := rstr.FindElement("./t:TokenType")
+	if tokenType == nil {
+		tokenType = rstr.FindElement(".//t:TokenType")
+	}
+	if tokenType == nil || !strings.HasSuffix(strings.TrimSpace(tokenType.Text()), "#SAMLV2.0") {
+		t.Fatalf("Tasks API did not receive a SAML 2.0 wresult:\n%s", out)
+	}
+	if rstrAssertion(t, rstr).SelectAttrValue("Version", "") != "2.0" {
+		t.Fatalf("wresult assertion is not SAML 2.0:\n%s", out)
+	}
+
+	oidc := driveAuthCode(t, hts, "verifier-supercalifragilistic-0123456789")
+	if oidc["id_token"] == nil || oidc["access_token"] == nil {
+		t.Fatalf("OIDC sign-in did not complete on the same emulator: %v", oidc)
+	}
+	idc := decodeJWTPayload(t, oidc["id_token"].(string))
+	if idc["aud"] != spaID || idc["oid"] != aliceID || idc["ver"] != "2.0" {
+		t.Fatalf("OIDC tokens are not the existing SPA sign-in: %v", idc)
+	}
+
+	saml := signInOverSAML(t, &httptestServer{URL: hts.URL}, cfg.TenantID, "")
+	if got := firstMatch(t, actionRe, saml, "SAML form action"); got != testSPACS {
+		t.Fatalf("SAML form posts to %q, want the registered ACS %q", got, testSPACS)
+	}
+	if _, err := base64.StdEncoding.DecodeString(
+		htmlUnescape(firstMatch(t, responseRe, saml, "SAMLResponse"))); err != nil {
+		t.Fatalf("SAML sign-in did not complete on the same emulator: %v\n%s", err, saml)
+	}
 }
 
 func TestPriyaCompletesWSFedSignInAfterRegisteringReplyOnStaleDirectory(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (environment with-stale-config)")
+	hts, cfg, st := newTestServer(t)
+	registerSAMLApp(t, st, cfg.TenantID)
+	app := &store.App{
+		ID: testTasksAppID, TenantID: cfg.TenantID,
+		DisplayName: "Tasks API", AppIDURI: testTasksAppIDURI,
+	}
+	if err := st.CreateApp(app); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.AddRedirectURI(app.ID, testWebOnlyReply, "web"); err != nil {
+		t.Fatal(err)
+	}
+
+	code, _ := postJSON(t, hts.URL+"/admin/api/apps/"+app.ID+"/redirectUris", map[string]any{
+		"uri": testTasksWSFedReply, "type": "wsfed-reply",
+	})
+	if code != http.StatusCreated {
+		t.Fatalf("registering wsfed-reply returned %d, want 201", code)
+	}
+
+	out := completeTasksAPIWSFedSignInAs(t, hts.URL, cfg.TenantID, testWSFedWctx, store.SeedUserAliceID)
+	if got := firstMatch(t, actionRe, out, "auto-POST form action"); got != testTasksWSFedReply {
+		t.Fatalf("browser POSTs wresult to %q, want registered wsfed-reply %q", got, testTasksWSFedReply)
+	}
+
+	q := url.Values{
+		"wa":      {"wsignin1.0"},
+		"wtrealm": {testTasksAppIDURI},
+		"wreply":  {testWebOnlyReply},
+	}
+	c := samlClient(t)
+	resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := readAll(t, resp)
+	assertWSFedRefusedOnEmulator(t, resp, page, testWebOnlyReply)
 }
 
 func TestUnmodifiedWsFederationCompletesSignIn(t *testing.T) {

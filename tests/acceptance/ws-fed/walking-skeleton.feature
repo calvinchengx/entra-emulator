@@ -9,7 +9,8 @@
 #   browser auto-POST wresult to registered wsfed-reply
 #   e2e/wsfed unmodified Microsoft.AspNetCore.Authentication.WsFederation (KPI-1)
 #
-# First scenario is enabled. Remaining scenarios are @pending (one-at-a-time).
+# WS-1 (clean), WS-2 (with-pre-commit), and WS-3 (with-stale-config) are enabled.
+# KPI-1 stranger remains @pending until DELIVER US-05.
 
 Feature: Point a WS-Fed relying party at the local STS
 
@@ -36,7 +37,7 @@ Feature: Point a WS-Fed relying party at the local STS
     And wctx is "tasks-return-state-7"
     And NameID format is persistent
 
-  @pending @walking_skeleton @real-io @driving_adapter @driving_port @US-01 @US-05
+  @walking_skeleton @real-io @driving_adapter @driving_port @US-01 @US-05
   Scenario: Priya completes Tasks API WS-Fed sign-in alongside existing OIDC and SAML
     # Driving port: GET /{tid}/federationmetadata/2007-06/federationmetadata.xml
     # Driving port: GET|POST /{tid}/wsfed wa=wsignin1.0
@@ -47,7 +48,7 @@ Feature: Point a WS-Fed relying party at the local STS
     Then the Tasks API receives a SAML 2.0 wresult at its registered reply
     And existing OIDC and SAML sign-in still complete on the same emulator
 
-  @pending @walking_skeleton @real-io @driving_adapter @driving_port @US-01 @US-07
+  @walking_skeleton @real-io @driving_adapter @driving_port @US-01 @US-07
   Scenario: Priya completes Tasks API WS-Fed sign-in after registering a reply on a stale directory
     # Driving port: GET|POST /{tid}/wsfed wa=wsignin1.0
     # Environment: with-stale-config
