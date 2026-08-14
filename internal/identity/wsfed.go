@@ -182,10 +182,16 @@ func (i *Identity) deliverWSFedResponse(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
+	writeWSFedPost(w, st, string(body))
+}
+
+// writeWSFedPost is the WS-Fed HTTP-POST binding: the RSTR cannot travel on a
+// redirect, so it is a form the browser submits to the registered wreply.
+func writeWSFedPost(w http.ResponseWriter, st wsfedState, wresult string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusOK)
 	_ = wsfedPostForm.Execute(w, struct {
 		Reply, Wresult, Wctx string
-	}{Reply: st.Wreply, Wresult: string(body), Wctx: st.Wctx})
+	}{Reply: st.Wreply, Wresult: wresult, Wctx: st.Wctx})
 }

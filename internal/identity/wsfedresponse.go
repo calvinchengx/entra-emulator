@@ -17,6 +17,9 @@ const (
 	nsWSTrust = "http://schemas.xmlsoap.org/ws/2005/02/trust"
 	nsWSU     = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
 	nsWSP     = "http://schemas.xmlsoap.org/ws/2004/09/policy"
+
+	wsfedRequestTypeIssue = "http://schemas.xmlsoap.org/ws/2005/02/trust/Issue"
+	wsfedKeyTypeNoProof   = "http://schemas.xmlsoap.org/ws/2005/05/identity/NoProofKey"
 )
 
 type rstrInput struct {
@@ -73,8 +76,8 @@ func buildRSTR(signedAssertion *etree.Element, in rstrInput) ([]byte, error) {
 	rst.AddChild(signedAssertion.Copy())
 
 	rstr.CreateElement("t:TokenType").SetText(samlV2TokenType)
-	rstr.CreateElement("t:RequestType").SetText("http://schemas.xmlsoap.org/ws/2005/02/trust/Issue")
-	rstr.CreateElement("t:KeyType").SetText("http://schemas.xmlsoap.org/ws/2005/05/identity/NoProofKey")
+	rstr.CreateElement("t:RequestType").SetText(wsfedRequestTypeIssue)
+	rstr.CreateElement("t:KeyType").SetText(wsfedKeyTypeNoProof)
 
 	return doc.WriteToBytes()
 }

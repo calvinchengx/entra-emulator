@@ -207,6 +207,15 @@ func attachWSFedRoleDescriptor(metadata []byte, certDER []byte, wsfedURL string)
 	rd.CreateAttr("xsi:type", "fed:SecurityTokenServiceType")
 	rd.CreateAttr("protocolSupportEnumeration", nsFed)
 
+	addWSFedSigningKey(rd, certDER)
+	addWSFedEndpoint(rd, "SecurityTokenServiceEndpoint", wsfedURL)
+	// Sign-out is advertised on this same PassiveRequestorEndpoint; this cut
+	// does not witness wsignout1.0.
+	addWSFedEndpoint(rd, "PassiveRequestorEndpoint", wsfedURL)
+	return doc.WriteToBytes()
+}
+
+func addWSFedSigningKey(rd *etree.Element, certDER []byte) {
 	kd := rd.CreateElement("KeyDescriptor")
 	kd.CreateAttr("use", "signing")
 	ki := kd.CreateElement("KeyInfo")
@@ -214,12 +223,6 @@ func attachWSFedRoleDescriptor(metadata []byte, certDER []byte, wsfedURL string)
 	ki.CreateElement("X509Data").
 		CreateElement("X509Certificate").
 		SetText(base64.StdEncoding.EncodeToString(certDER))
-
-	addWSFedEndpoint(rd, "SecurityTokenServiceEndpoint", wsfedURL)
-	// Sign-out is advertised on this same PassiveRequestorEndpoint; this cut
-	// does not witness wsignout1.0.
-	addWSFedEndpoint(rd, "PassiveRequestorEndpoint", wsfedURL)
-	return doc.WriteToBytes()
 }
 
 func addWSFedEndpoint(rd *etree.Element, local, address string) {
