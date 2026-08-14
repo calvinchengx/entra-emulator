@@ -1,0 +1,334 @@
+schema_version: 1
+ssot: feature-wave-copy
+canonical_path: docs/product/journeys/ws-fed-sign-in.yaml
+discuss_copy: docs/feature/ws-fed/discuss/journey-ws-fed-sign-in.yaml
+jtbd_analysis: skipped
+traces_to: docs/feature/ws-fed/discover/problem-validation.md
+
+journey:
+  name: Point a WS-Fed RP at the local STS
+  feature_id: ws-fed
+  goal: >
+    Unmodified Microsoft.AspNetCore.Authentication.WsFederation completes
+    FederationMetadata fetch and /wsfed sign-in against the emulator using the
+    same MetadataAddress and Wtrealm Priya already uses against Entra.
+  persona: >
+    Priya Chen, backend engineer maintaining an ASP.NET Core Tasks API that
+    already uses AddWsFederation. Developer-as-user, not a SharePoint operator.
+  witness: Microsoft.AspNetCore.Authentication.WsFederation
+  medium: protocol-plus-existing-account-picker
+
+  emotional_arc:
+    pattern: Problem Relief
+    start: Frustrated (404 on /wsfed; FederationMetadata is SAML-only)
+    middle: Hopeful then focused and familiar (metadata names /wsfed; same Pick an account page)
+    end: Relieved then satisfied (wresult accepted; session at the Tasks API RP)
+
+steps:
+  - id: 1
+    name: Point MetadataAddress and Wtrealm at the emulator
+    command: >
+      Configure AddWsFederation MetadataAddress to the existing FederationMetadata
+      URL and Wtrealm to api://tasks-api. Host and TLS knobs only versus Entra.
+    tui_mockup: |
+      options.MetadataAddress =
+        "${login_origin}/${tid}/federationmetadata/2007-06/federationmetadata.xml";
+      options.Wtrealm = "api://tasks-api";
+      // ${wreply} = https://rp.example.test/signin-wsfed (registered)
+    shared_artifacts:
+      - name: tid
+        source: emulator workforce tenant
+        displayed_as: "${tid}"
+        consumers: ["metadata URL", "wsfed URL", "assertion issuer path"]
+      - name: wtrealm
+        source: app Application ID URI
+        displayed_as: "${wtrealm}"
+        consumers: ["Wtrealm option", "wa=wsignin1.0 query", "assertion Audience"]
+      - name: wreply
+        source: registered reply URL for the Tasks API app
+        displayed_as: "${wreply}"
+        consumers: ["wreply query", "browser POST target"]
+      - name: metadata_url
+        source: existing FederationMetadata path on login origin
+        displayed_as: "${metadata_url}"
+        consumers: ["MetadataAddress", "step 2 GET"]
+    emotional_state:
+      entry: Frustrated — she already pointed this RP at Entra; the emulator 404s
+      exit: Determined — config matches Entra shape; waiting to see if metadata works
+    integration_checkpoint: |
+      ${wtrealm} equals the app Application ID URI api://tasks-api.
+      ${wreply} is registered for that app. MetadataAddress is the existing
+      FederationMetadata URL, not a second path.
+    failure_modes:
+      - App has no Application ID URI matching wtrealm
+      - Reply URL not registered
+      - Operator points MetadataAddress at a new /wsfed/metadata path (rejected)
+    gherkin: |
+      Scenario: Priya points the Tasks API at the emulator the same way she points it at Entra
+        Given Priya Chen maintains an ASP.NET Core Tasks API that already uses AddWsFederation
+        And the emulator directory has an app whose Application ID URI is "api://tasks-api"
+        And that app has a registered reply URL "https://rp.example.test/signin-wsfed"
+        When Priya sets MetadataAddress to "${login_origin}/${tid}/federationmetadata/2007-06/federationmetadata.xml"
+        And she sets Wtrealm to "api://tasks-api"
+        Then the relying party is configured to use the existing FederationMetadata URL
+        And shared artifact "${wtrealm}" is "api://tasks-api"
+        And shared artifact "${wreply}" is "https://rp.example.test/signin-wsfed"
+
+  - id: 2
+    name: Fetch FederationMetadata and find the WS-Fed STS
+    command: GET ${metadata_url}
+    tui_mockup: |
+      EntityDescriptor entityID="${entity_id}"
+        IDPSSODescriptor KeyDescriptor = ${signing_cert}
+        RoleDescriptor (WS-Fed STS)
+          KeyDescriptor = ${signing_cert}
+          PassiveRequestorEndpoint     = ${wsfed_url}
+          SecurityTokenServiceEndpoint = ${wsfed_url}
+    shared_artifacts:
+      - name: entity_id
+        source: FederationMetadata entityID (emulator login origin allowed)
+        displayed_as: "${entity_id}"
+        consumers: ["metadata entityID", "assertion Issuer"]
+      - name: signing_cert
+        source: tenant signing certificate already published on IDPSSODescriptor
+        displayed_as: "${signing_cert}"
+        consumers: ["IDPSSODescriptor", "WS-Fed RoleDescriptor", "assertion signature"]
+      - name: wsfed_url
+        source: PassiveRequestorEndpoint (and SecurityTokenServiceEndpoint)
+        displayed_as: "${wsfed_url}"
+        consumers: ["TokenEndpoint", "step 3 challenge"]
+    emotional_state:
+      entry: Anxious — today this document is SAML-only
+      exit: Hopeful — middleware can name TokenEndpoint and a cert
+    integration_checkpoint: |
+      PassiveRequestorEndpoint and SecurityTokenServiceEndpoint both equal
+      ${login_origin}/${tid}/wsfed. Signing cert bytes match IDPSSODescriptor.
+      Sign-out is advertised on the same PassiveRequestorEndpoint. Library maps
+      PassiveRequestorEndpoint to TokenEndpoint. Hostname sts.windows.net is
+      not required. Assertion Issuer must equal this entityID.
+    failure_modes:
+      - Document remains IDPSSODescriptor-only (today)
+      - WS-Fed section publishes a different cert than SAML
+      - Only one of PassiveRequestorEndpoint / SecurityTokenServiceEndpoint present
+      - Second metadata URL invented
+    gherkin: |
+      Scenario: Priya's relying party finds the sign-in endpoint in federation metadata
+        Given the emulator already serves FederationMetadata at
+          "${login_origin}/${tid}/federationmetadata/2007-06/federationmetadata.xml"
+        When the Tasks API fetches that document as MetadataAddress
+        Then the document includes a WS-Fed RoleDescriptor
+        And PassiveRequestorEndpoint is "${login_origin}/${tid}/wsfed"
+        And SecurityTokenServiceEndpoint is "${login_origin}/${tid}/wsfed"
+        And the WS-Fed signing certificate matches the SAML signing certificate
+        And the sign-out URL is advertised on the same PassiveRequestorEndpoint
+        And shared artifact "${wsfed_url}" matches PassiveRequestorEndpoint
+
+  - id: 3
+    name: Challenge reaches /wsfed
+    command: >
+      GET ${wsfed_url}?wa=wsignin1.0&wtrealm=api://tasks-api
+      &wreply=https://rp.example.test/signin-wsfed&wctx=tasks-return-state-7
+    tui_mockup: |
+      GET /{tid}/wsfed?wa=wsignin1.0&wtrealm=api://tasks-api
+        &wreply=https://rp.example.test/signin-wsfed
+        &wctx=tasks-return-state-7
+      HTTP 200 HTML "Sign in — Entra Emulator"
+      (not wresult; not 404)
+    shared_artifacts:
+      - name: wctx
+        source: relying party opaque context on the challenge
+        displayed_as: "${wctx}"
+        consumers: ["challenge query", "POST body echo at step 5"]
+      - name: wsfed_url
+        source: metadata TokenEndpoint
+        displayed_as: "${wsfed_url}"
+        consumers: ["challenge URL"]
+    emotional_state:
+      entry: Focused — metadata named this URL
+      exit: Reassured — no 404; login HTML, not a premature token
+    integration_checkpoint: |
+      wa is wsignin1.0. Unauthenticated GET returns login HTML (HTTP 200),
+      not a wresult. ${wctx} is retained for echo. Do not bounce errors to an
+      unowned wreply.
+    failure_modes:
+      - Route unrouted (404) — today
+      - Unknown wtrealm
+      - Missing or unregistered wreply
+      - Unsolicited POST of wresult (step 3 never happened)
+    gherkin: |
+      Scenario: Priya's sign-in challenge reaches the emulator instead of a 404
+        Given FederationMetadata names PassiveRequestorEndpoint as "${login_origin}/${tid}/wsfed"
+        And the Tasks API app is registered with Application ID URI "api://tasks-api"
+        And reply URL "https://rp.example.test/signin-wsfed" is registered
+        When the browser requests GET /{tid}/wsfed with wa=wsignin1.0,
+          wtrealm=api://tasks-api, wreply=https://rp.example.test/signin-wsfed,
+          and wctx=tasks-return-state-7
+        Then the response is not 404
+        And the response is login HTML, not a wresult
+        And shared artifact "${wctx}" is "tasks-return-state-7"
+
+  - id: 4
+    name: Same sign-in as OIDC and SAML
+    command: Choose Alex Rivera on the existing Pick an account page
+    tui_mockup: |
+      LOCAL EMULATOR
+      Pick an account
+        Alex Rivera
+        alex.rivera@workforce.example.test
+        Jordan Blake
+        jordan.blake@workforce.example.test
+      Not for production use. Never enter a real password.
+    shared_artifacts:
+      - name: account
+        source: enabled user in the emulator directory
+        displayed_as: "${account}"
+        consumers: ["picker row", "assertion subject"]
+    emotional_state:
+      entry: Familiar — same chrome as OIDC and SAML
+      exit: Confident — no second login product
+    integration_checkpoint: |
+      The page is the same sign-in the emulator already uses for OIDC and SAML
+      (LOCAL EMULATOR badge, Pick an account). Challenge parameters survive
+      account selection. No WS-Fed-specific login UI.
+    failure_modes:
+      - A second WS-Fed-only login page appears
+      - Challenge parameters dropped after picker POST
+      - Disabled user listed as selectable
+    gherkin: |
+      Scenario: Priya signs in with the same account picker she already uses
+        Given the browser is on the emulator sign-in after a WS-Fed challenge
+        And Alex Rivera is an enabled user in the workforce tenant
+        When Priya chooses Alex Rivera
+        Then she sees the same Pick an account chrome the emulator uses for OIDC and SAML
+        And the sign-in continues with the same wtrealm, wreply, and wctx
+        And shared artifact "${account}" is Alex Rivera
+
+  - id: 5
+    name: POST wresult to the registered reply
+    command: Browser POST to ${wreply} with wa, wresult, wctx
+    tui_mockup: |
+      POST https://rp.example.test/signin-wsfed
+        wa=wsignin1.0
+        wresult=RSTR TokenType …#SAMLV2.0 assertion Version="2.0"
+          Audience=api://tasks-api Issuer=${entity_id}
+        wctx=tasks-return-state-7
+    shared_artifacts:
+      - name: wresult
+        source: STS after successful sign-in
+        displayed_as: "${wresult}"
+        consumers: ["POST body to RP", "middleware verification"]
+      - name: audience
+        source: wtrealm
+        displayed_as: "${audience}"
+        consumers: ["assertion Audience"]
+      - name: wctx
+        source: challenge query
+        displayed_as: "${wctx}"
+        consumers: ["POST echo"]
+      - name: entity_id
+        source: metadata entityID
+        displayed_as: "${entity_id}"
+        consumers: ["assertion Issuer"]
+      - name: signing_cert
+        source: tenant cert in metadata
+        displayed_as: "${signing_cert}"
+        consumers: ["assertion signature"]
+    emotional_state:
+      entry: Hopeful — picker succeeded
+      exit: Relieved — token landed on the URL she registered
+    integration_checkpoint: |
+      Audience equals wtrealm. Issuer equals metadata entityID. Inner assertion
+      is SAML 2.0 (TokenType …#SAMLV2.0, Version="2.0"). wctx echoed unchanged.
+      POST target is the registered wreply, not a caller-supplied untrusted URL.
+      SharePoint SAML 1.1 is out of this journey.
+    failure_modes:
+      - SAML 1.1 assertion minted (wrong RP class)
+      - Audience not equal to wtrealm
+      - Issuer does not match metadata entityID
+      - wctx dropped or rewritten
+      - POST to an unregistered wreply
+    gherkin: |
+      Scenario: The Tasks API receives a SAML 2.0 token at its registered reply URL
+        Given Priya chose Alex Rivera after a challenge with
+          wtrealm=api://tasks-api, wreply=https://rp.example.test/signin-wsfed,
+          and wctx=tasks-return-state-7
+        When the emulator completes sign-in
+        Then the browser POSTs to https://rp.example.test/signin-wsfed
+        And the POST includes wa=wsignin1.0
+        And wresult is a RequestSecurityTokenResponse wrapping a SAML 2.0 assertion
+        And the assertion Audience is "api://tasks-api"
+        And the assertion Issuer equals metadata entityID
+        And wctx is "tasks-return-state-7"
+        And shared artifact "${audience}" matches "${wtrealm}"
+
+  - id: 6
+    name: Unmodified middleware completes sign-in
+    command: WsFederation validates wresult; Tasks API session established
+    tui_mockup: |
+      Microsoft.AspNetCore.Authentication.WsFederation
+        verifies signature, audience, issuer, lifetime
+      Priya has an authenticated session at the Tasks API
+    shared_artifacts:
+      - name: wresult
+        source: step 5 POST
+        displayed_as: "${wresult}"
+        consumers: ["WsFederation TokenHandlers"]
+    emotional_state:
+      entry: Tense — will the stranger reject it
+      exit: Satisfied — unmodified library, host and TLS only
+    integration_checkpoint: |
+      Unmodified Microsoft.AspNetCore.Authentication.WsFederation completes
+      sign-in. No gallery, Graph, MFA, CA, or B2C required. Unsolicited
+      wresult POSTs are refused. wsignout1.0 is not driven.
+    failure_modes:
+      - Library rejects metadata, RSTR, or assertion
+      - Sign-in requires a gallery or policy feature
+      - Unsolicited login accepted
+    gherkin: |
+      Scenario: Priya's unmodified WsFederation middleware completes sign-in
+        Given Priya pointed MetadataAddress and Wtrealm at the emulator
+        And she did not modify Microsoft.AspNetCore.Authentication.WsFederation
+        When Alex Rivera completes the emulator sign-in for the Tasks API
+        Then the middleware accepts the token
+        And Priya has an authenticated session at https://rp.example.test
+        And shared artifact "${wresult}" was verified against metadata signing cert
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: wtrealm
+      must_match_across: [1, 3, 5]
+      failure_message: Wtrealm, challenge wtrealm, and assertion Audience diverged
+    - artifact: wreply
+      must_match_across: [1, 3, 5]
+      failure_message: Registered reply URL and POST target diverged
+    - artifact: wctx
+      must_match_across: [3, 5]
+      failure_message: wctx was not echoed unchanged
+    - artifact: wsfed_url
+      must_match_across: [2, 3]
+      failure_message: Metadata TokenEndpoint and challenge URL diverged
+    - artifact: entity_id
+      must_match_across: [2, 5]
+      failure_message: Metadata entityID and assertion Issuer diverged
+    - artifact: signing_cert
+      must_match_across: [2, 5]
+      failure_message: Metadata cert and assertion signature key diverged
+    - artifact: audience
+      must_match_across: [1, 5]
+      failure_message: Audience did not equal wtrealm
+
+out_of_journey_v0_8_0:
+  - SOAP / active WS-Trust
+  - /common/wsfed
+  - IdP-initiated / AllowUnsolicitedLogins
+  - SharePoint / SAML 1.1
+  - Portal gallery UX, Graph, MFA/CA/B2C
+  - Token encryption
+  - Witnessing wsignout1.0
+
+changelog:
+  - date: "2026-08-14"
+    feature: ws-fed
+    change: >
+      Initial DISCUSS journey. Spike locked S3b (SAML 2.0 in wresult) and H2
+      (PassiveRequestorEndpoint plus SecurityTokenServiceEndpoint).

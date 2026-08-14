@@ -5,7 +5,10 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/beevik/etree"
 
 	"github.com/calvinchengx/entra-emulator/internal/tokens"
 )
@@ -25,17 +28,24 @@ import (
 //
 //	/{tenant}/federationmetadata/2007-06/federationmetadata.xml
 //	/{tenant}/saml2                      (SSO, Redirect and POST bindings)
+//	/{tenant}/wsfed                      (WS-Federation passive, advertised on the same metadata document)
 
 const (
 	nsMetadata  = "urn:oasis:names:tc:SAML:2.0:metadata"
 	nsAssertion = "urn:oasis:names:tc:SAML:2.0:assertion"
 	nsDSig      = "http://www.w3.org/2000/09/xmldsig#"
+	nsXSI       = "http://www.w3.org/2001/XMLSchema-instance"
+	nsFed       = "http://docs.oasis-open.org/wsfed/federation/200706"
+	nsWSA       = "http://www.w3.org/2005/08/addressing"
 
 	bindingRedirect = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"
 	bindingPOST     = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
 
 	// Entra issues NameID in this format by default for SAML apps.
 	nameIDFormatEmail = "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
+	// WS-Fed wresult for an app-registration Wtrealm uses persistent NameID
+	// (object id), not the email format SAML SSO defaults to.
+	nameIDFormatPersistent = "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent"
 )
 
 // entityDescriptor is the IdP half of SAML metadata. Only the elements a
@@ -170,5 +180,54 @@ func samlMetadataXML(certDER []byte, entityID, ssoURL string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return append([]byte(xml.Header), body...), nil
+	// RoleDescriptor is grown onto the existing document rather than a second
+	// metadata URL. encoding/xml mangles xsi:type namespaces, so the STS
+	// descriptor is attached with etree after the SAML half is marshalled.
+	wsfedURL := strings.TrimRight(entityID, "/") + "/wsfed"
+	return attachWSFedRoleDescriptor(append([]byte(xml.Header), body...), certDER, wsfedURL)
+}
+
+// attachWSFedRoleDescriptor adds the WS-Federation STS advertisement the
+// ASP.NET WsFederation library reads: xsi:type SecurityTokenServiceType,
+// both PassiveRequestorEndpoint and SecurityTokenServiceEndpoint (sign-in
+// and advertised sign-out share that same PassiveRequestorEndpoint), same
+// signing cert as IDPSSODescriptor. IDPSSODescriptor is left in place.
+func attachWSFedRoleDescriptor(metadata []byte, certDER []byte, wsfedURL string) ([]byte, error) {
+	doc := etree.NewDocument()
+	if err := doc.ReadFromBytes(metadata); err != nil {
+		return nil, fmt.Errorf("saml: metadata is not well-formed XML: %w", err)
+	}
+	entity := doc.Root()
+	if entity == nil {
+		return nil, fmt.Errorf("saml: metadata has no EntityDescriptor")
+	}
+	rd := entity.CreateElement("RoleDescriptor")
+	rd.CreateAttr("xmlns:xsi", nsXSI)
+	rd.CreateAttr("xmlns:fed", nsFed)
+	rd.CreateAttr("xsi:type", "fed:SecurityTokenServiceType")
+	rd.CreateAttr("protocolSupportEnumeration", nsFed)
+
+	addWSFedSigningKey(rd, certDER)
+	addWSFedEndpoint(rd, "SecurityTokenServiceEndpoint", wsfedURL)
+	// Sign-out is advertised on this same PassiveRequestorEndpoint; this cut
+	// does not witness wsignout1.0.
+	addWSFedEndpoint(rd, "PassiveRequestorEndpoint", wsfedURL)
+	return doc.WriteToBytes()
+}
+
+func addWSFedSigningKey(rd *etree.Element, certDER []byte) {
+	kd := rd.CreateElement("KeyDescriptor")
+	kd.CreateAttr("use", "signing")
+	ki := kd.CreateElement("KeyInfo")
+	ki.CreateAttr("xmlns", nsDSig)
+	ki.CreateElement("X509Data").
+		CreateElement("X509Certificate").
+		SetText(base64.StdEncoding.EncodeToString(certDER))
+}
+
+func addWSFedEndpoint(rd *etree.Element, local, address string) {
+	ep := rd.CreateElement("fed:" + local)
+	epr := ep.CreateElement("EndpointReference")
+	epr.CreateAttr("xmlns", nsWSA)
+	epr.CreateElement("Address").SetText(address)
 }

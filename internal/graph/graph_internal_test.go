@@ -1132,3 +1132,32 @@ func TestRegisterRoutes(t *testing.T) {
 	mux2 := http.NewServeMux()
 	g.Register(mux2, "/graph")
 }
+
+func TestAppDisplayNameResolvesGUIDThenURIThenUnknown(t *testing.T) {
+	g := newTestGraph(t)
+	if got := g.appDisplayName(spaID); got != "Sample SPA" {
+		t.Fatalf("GUID %s = %q, want Sample SPA", spaID, got)
+	}
+	if got := g.appDisplayName("api://"+spaID); got != "Sample SPA" {
+		t.Fatalf("URI api://%s = %q, want Sample SPA", spaID, got)
+	}
+	if got := g.appDisplayName("no-such-app"); got != "" {
+		t.Fatalf("unknown ClientID = %q, want empty", got)
+	}
+}
+
+func TestSignInShapeTreatsWSFedAsInteractive(t *testing.T) {
+	g := newTestGraph(t)
+	row := g.signInShape(audit.Event{
+		Time: 1, Flow: "wsfed", ClientID: "api://" + spaID, OK: true, Status: 200,
+	})
+	if row["isInteractive"] != true {
+		t.Fatalf("wsfed isInteractive = %v, want true", row["isInteractive"])
+	}
+	if row["appDisplayName"] != "Sample SPA" {
+		t.Fatalf("wsfed appDisplayName = %v, want Sample SPA", row["appDisplayName"])
+	}
+	if _, ok := row["createdDateTime"].(string); !ok || row["createdDateTime"] == "" {
+		t.Fatalf("empty TimeISO should fall back to Time, got %v", row["createdDateTime"])
+	}
+}

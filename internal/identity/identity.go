@@ -82,6 +82,13 @@ func (i *Identity) Register(mux *http.ServeMux) {
 		i.audited("saml-metadata", i.handleSAMLMetadata))
 	mux.HandleFunc("GET /{tenant}/saml2", i.audited("saml-sso", i.handleSAMLSSO))
 	mux.HandleFunc("POST /{tenant}/saml2", i.audited("saml-sso", i.handleSAMLSSO))
+	// WS-Federation passive profile. Entra's path; GET and POST both accept
+	// wa=wsignin1.0 (some RPs POST the challenge, as with SAML POST vs Redirect).
+	// Account choice POSTs back to the same path. A token-shaped POST (wresult)
+	// without this STS's signed Kind is unsolicited and is refused; there is
+	// no flag to allow IdP-initiated login.
+	mux.HandleFunc("GET /{tenant}/wsfed", i.audited("wsfed", i.handleWSFed))
+	mux.HandleFunc("POST /{tenant}/wsfed", i.audited("wsfed", i.handleWSFed))
 
 	// Passkey (WebAuthn) ceremonies (roadmap #11).
 	mux.HandleFunc("POST /{tenant}/webauthn/register/begin", i.handleWebAuthnRegisterBegin)
@@ -144,6 +151,22 @@ func (i *Identity) currentSession(r *http.Request) (*store.Session, *store.User)
 		return nil, nil
 	}
 	return sess, user
+}
+
+// enabledDirectoryAccounts is the Pick an account roster: disabled users are
+// not selectable.
+func (i *Identity) enabledDirectoryAccounts() ([]*store.User, error) {
+	users, _, err := i.Store.ListUsers(100, 0, "")
+	if err != nil {
+		return nil, err
+	}
+	enabled := users[:0]
+	for _, u := range users {
+		if u.AccountEnabled {
+			enabled = append(enabled, u)
+		}
+	}
+	return enabled, nil
 }
 
 // createSession persists a session row and sets ee_session as the FIRST

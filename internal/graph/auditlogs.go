@@ -37,13 +37,10 @@ func (g *Graph) signInShape(e audit.Event) map[string]any {
 	if created == "" {
 		created = time.Unix(e.Time, 0).UTC().Format(time.RFC3339)
 	}
-	appName := ""
-	if app, err := g.Store.GetApp(e.ClientID); err == nil {
-		appName = app.DisplayName
-	}
-	// Interactive means a human was at the keyboard: the authorize leg, not a
-	// back-channel token exchange.
-	interactive := e.Flow == "authorize"
+	appName := g.appDisplayName(e.ClientID)
+	// Interactive means a human was at the keyboard: authorize or WS-Fed
+	// passive sign-in, not a back-channel token exchange.
+	interactive := e.Flow == "authorize" || e.Flow == "wsfed"
 
 	return map[string]any{
 		"id":                      e.ID(),
@@ -60,6 +57,19 @@ func (g *Graph) signInShape(e audit.Event) map[string]any {
 		"conditionalAccessStatus": "notApplied", // no CA engine — see docs/parity.md
 		"status":                  status,
 	}
+}
+
+// appDisplayName is the Graph appDisplayName for a recorded ClientID.
+// OIDC stores the app GUID; WS-Fed stores wtrealm (the identifier URI).
+func (g *Graph) appDisplayName(clientID string) string {
+	app, err := g.Store.GetApp(clientID)
+	if err != nil {
+		app, err = g.Store.GetAppByIDURI(clientID)
+	}
+	if err != nil {
+		return ""
+	}
+	return app.DisplayName
 }
 
 // clientAppUsed reports the grant in Graph's vocabulary where one maps, so the

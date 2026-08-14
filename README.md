@@ -105,10 +105,10 @@ binaries, `go install`, source — is in
 
 | | Rows | Meaning |
 |---|---|---|
-| 🟢 **Real** | 54 | Genuine work — real RS256 signatures, real ceremonies, real directory state |
+| 🟢 **Real** | 55 | Genuine work — real RS256 signatures, real ceremonies, real directory state |
 | 🟡 **Emulated** | 5 | Faithful API contract and persisted state, but no engine behind it |
 | 🟠 **Bring-your-own-engine** | 3 | Real when you attach a real engine or companion; a toy stands in otherwise |
-| 🔴 **Not implemented** | 17 | Mostly the policy engine (Conditional Access, MFA, Identity Protection) — what would turn a dev-loop emulator into an IdP |
+| 🔴 **Not implemented** | 16 | Mostly the policy engine (Conditional Access, MFA, Identity Protection) — what would turn a dev-loop emulator into an IdP |
 
 Real MSAL in five languages, the Graph SDK and a SCIM connector drive it as
 borrowed oracles. Full detail: [parity map](docs/parity.md).

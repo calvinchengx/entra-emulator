@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"html"
 	"net/http"
 	"strings"
 
@@ -50,15 +51,27 @@ func (i *Identity) audited(flow string, next http.HandlerFunc) http.HandlerFunc 
 			OK:        cw.status < 400,
 		}
 		ev.UserID, ev.UserPrincipalName = subj.UserID, subj.UPN
-		// Token errors are JSON with error/error_description.
+		// WS-Fed names the app with wtrealm, not client_id. The field is
+		// OIDC-era; handlers may also stash the URI via noteAuditClientID
+		// because the picker POST does not repeat wtrealm.
+		if subj.ClientID != "" {
+			ev.ClientID = subj.ClientID
+		} else if ev.ClientID == "" {
+			ev.ClientID = r.FormValue("wtrealm")
+		}
+		// Token errors are JSON with error/error_description. WS-Fed (and
+		// other HTML STS pages) put the concrete reason in a .error div.
 		if cw.status >= 400 && cw.body.Len() > 0 {
 			var oerr struct {
 				Error string `json:"error"`
 				Desc  string `json:"error_description"`
 			}
-			if json.Unmarshal(cw.body.Bytes(), &oerr) == nil {
+			if json.Unmarshal(cw.body.Bytes(), &oerr) == nil && (oerr.Error != "" || oerr.Desc != "") {
 				ev.Error = oerr.Error
 				ev.Reason = oerr.Desc
+			}
+			if ev.Reason == "" {
+				ev.Reason = htmlErrorMessage(cw.body.String())
 			}
 		}
 		// Authorize can deliver an error via a redirect (302 with error=...).
@@ -91,10 +104,24 @@ func extractQueryParam(rawurl, key string) string {
 	return ""
 }
 
+func htmlErrorMessage(body string) string {
+	const open = `<div class="error">`
+	i := strings.Index(body, open)
+	if i < 0 {
+		return ""
+	}
+	rest := body[i+len(open):]
+	j := strings.Index(rest, "</div>")
+	if j < 0 {
+		return ""
+	}
+	return html.UnescapeString(strings.TrimSpace(rest[:j]))
+}
+
 // The audit middleware records AFTER the handler returns, but only the handler
 // knows which user an exchange resolved. It therefore places a mutable holder
 // in the request context and handlers fill it in via noteAuditSubject.
-type auditSubject struct{ UserID, UPN string }
+type auditSubject struct{ UserID, UPN, ClientID string }
 
 type auditSubjectKey struct{}
 
@@ -103,5 +130,13 @@ type auditSubjectKey struct{}
 func noteAuditSubject(r *http.Request, userID, upn string) {
 	if s, ok := r.Context().Value(auditSubjectKey{}).(*auditSubject); ok {
 		s.UserID, s.UPN = userID, upn
+	}
+}
+
+// noteAuditClientID records the application this exchange was for when the
+// wire parameter is not client_id (WS-Fed wtrealm).
+func noteAuditClientID(r *http.Request, clientID string) {
+	if s, ok := r.Context().Value(auditSubjectKey{}).(*auditSubject); ok {
+		s.ClientID = clientID
 	}
 }

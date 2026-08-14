@@ -161,6 +161,16 @@ func (s *Store) HasRedirectURI(appID, uri string) (bool, error) {
 	return n > 0, err
 }
 
+// HasRedirectURIOfType reports whether uri is registered as exactly typ.
+// HasRedirectURI ignores type; WS-Fed must not treat a saml-acs or web URI
+// as a valid wreply.
+func (s *Store) HasRedirectURIOfType(appID, uri, typ string) (bool, error) {
+	var n int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM app_redirect_uris WHERE app_id=? AND uri=? AND type=?`,
+		appID, uri, typ).Scan(&n)
+	return n > 0, err
+}
+
 // ---- Secrets ----
 
 func (s *Store) ListSecrets(appID string) ([]*AppSecret, error) {

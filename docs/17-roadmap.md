@@ -232,6 +232,6 @@ Deeper Microsoft identity platform coverage:
 
 ## Explicit non-goals
 
-WS-Fed, B2C user flows, MFA/Conditional Access emulation, production hardening.
-SAML was on this list and has moved — it answers the same question a token does.
+B2C user flows, MFA/Conditional Access emulation, production hardening.
+SAML and WS-Fed were on this list and have moved — they answer the same question a token does.
 These remaining items change the project's character from "dev-loop emulator" to "IdP".
