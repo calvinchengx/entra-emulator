@@ -50,9 +50,14 @@ func (i *Identity) handleWSFed(w http.ResponseWriter, r *http.Request) {
 		_ = r.ParseForm()
 		// A posted sign-in carries our signed state; a posted challenge
 		// carries wtrealm. Distinguishing on which field is present keeps
-		// one endpoint, as Entra does.
+		// one endpoint, as Entra does. wresult without that signed Kind is
+		// unsolicited (SAML InResponseTo analog) and is never a new challenge.
 		if r.PostFormValue(fieldState) != "" {
 			i.wsfedSignIn(w, r)
+			return
+		}
+		if r.PostFormValue("wresult") != "" {
+			i.refuseUnsolicitedWSFed(w, r)
 			return
 		}
 	}
@@ -77,6 +82,15 @@ func (i *Identity) handleWSFed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	i.renderWSFedSignIn(w, st, "")
+}
+
+// refuseUnsolicitedWSFed rejects a token-shaped POST that did not start as a
+// challenge this STS issued. No session, no wresult to wreply, no flag to
+// allow IdP-initiated login in this cut.
+func (i *Identity) refuseUnsolicitedWSFed(w http.ResponseWriter, r *http.Request) {
+	noteAuditClientID(r, wsfedChallengeValue(r, "wtrealm"))
+	i.renderErrorPage(w, http.StatusBadRequest, "Unsolicited sign-in",
+		"wsfed: unsolicited sign-in that did not start at this STS is refused")
 }
 
 // renderWSFedSignIn reuses the OIDC sign-in UI, posting back to /wsfed.

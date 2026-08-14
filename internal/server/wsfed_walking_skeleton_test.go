@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -330,8 +331,65 @@ func TestAnotherAppsReplyIsNotAccepted(t *testing.T) {
 	assertWSFedRefusedOnEmulator(t, resp, page, testFinanceWSFedReply)
 }
 
+// Test Budget: 2 US-08 behaviors × 2 = 4. HTTP driving-port tests below: 2 ≤ 4.
+// Kind wsfed signed state is the correlation (SAML InResponseTo analog).
+// A token-shaped POST without that state must not mint a wresult or a session.
+
+const forgedWSFedWresult = `<t:RequestSecurityTokenResponse xmlns:t="http://schemas.xmlsoap.org/ws/2005/02/trust"><t:RequestedSecurityToken>unsolicited</t:RequestedSecurityToken></t:RequestSecurityTokenResponse>`
+
 func TestUnsolicitedWresultIsRefused(t *testing.T) {
-	t.Skip("pending: US-08 unsolicited wresult")
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+
+	c := samlClient(t)
+	resp, err := c.PostForm(hts.URL+"/"+cfg.TenantID+"/wsfed", url.Values{
+		"wa":      {"wsignin1.0"},
+		"wresult": {forgedWSFedWresult},
+		"wtrealm": {testTasksAppIDURI},
+		"wreply":  {testTasksWSFedReply},
+		"wctx":    {testWSFedWctx},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := readAll(t, resp)
+	assertWSFedRefusedOnEmulator(t, resp, page, testTasksWSFedReply)
+
+	origin, err := url.Parse(hts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ck := range c.Jar.Cookies(origin) {
+		if ck.Name == "ee_session" && ck.Value != "" {
+			t.Fatal("Tasks API gained a session from the unsolicited token via this STS")
+		}
+	}
+
+	var failed map[string]any
+	for _, e := range auditList(t, hts.URL) {
+		if e["flow"] == "wsfed" && e["ok"] == false {
+			failed = e
+			break
+		}
+	}
+	if failed == nil {
+		t.Fatal("unsolicited wresult was not recorded as a failed wsfed event")
+	}
+	reason, _ := failed["reason"].(string)
+	if strings.TrimSpace(reason) == "" {
+		t.Fatalf("unsolicited refusal must carry a concrete Reason: %v", failed)
+	}
+}
+
+func TestUnsolicitedLoginIsNotOfferedAsASetting(t *testing.T) {
+	_, cfg, _ := newTestServer(t)
+	rt := reflect.TypeOf(*cfg)
+	for i := 0; i < rt.NumField(); i++ {
+		name := rt.Field(i).Name
+		if strings.Contains(strings.ToLower(name), "unsolicited") {
+			t.Fatalf("v0.8.0 offers unsolicited login as setting %s", name)
+		}
+	}
 }
 
 // Test Budget: 6 distinct behaviors × 2 = 12. HTTP driving-port tests below: 3 ≤ 12.

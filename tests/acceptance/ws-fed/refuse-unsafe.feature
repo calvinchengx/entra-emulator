@@ -2,7 +2,7 @@
 # Driving port: GET|POST /{tid}/wsfed
 # Guardrail: never Location / wresult POST to an unowned URL
 #
-# US-06 and US-07 scenarios enabled. US-08 stays @pending until its DELIVER step.
+# US-06, US-07, and US-08 scenarios enabled.
 
 Feature: The STS refuses unsafe WS-Fed challenges
 
@@ -66,7 +66,7 @@ Feature: The STS refuses unsafe WS-Fed challenges
     When a challenge uses wtrealm=api://tasks-api and Finance's reply URL
     Then Tasks API sign-in does not POST wresult to the Finance reply
 
-  @pending @driving_port @real-io @US-08 @kpi @KPI-5
+  @driving_port @real-io @US-08 @kpi @KPI-5
   Scenario: A token POST that did not start at this STS is refused
     # Driving port: POST /{tid}/wsfed (unsolicited wresult)
     Given no challenge was issued for the Tasks API
@@ -74,7 +74,7 @@ Feature: The STS refuses unsafe WS-Fed challenges
     Then the emulator does not treat that as a successful sign-in it initiated
     And the Tasks API does not gain a session from that unsolicited token via this STS
 
-  @pending @driving_port @US-08 @kpi @KPI-5
+  @driving_port @US-08 @kpi @KPI-5
   Scenario: Unsolicited login is not offered as a setting
     # Driving port: GET|POST /{tid}/wsfed
     Given v0.8.0 WS-Fed
