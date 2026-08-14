@@ -1,9 +1,8 @@
 schema_version: 1
 ssot: canonical
 canonical_path: docs/product/journeys/ws-fed-sign-in.yaml
-discuss_copy: docs/feature/ws-fed/discuss/journey-ws-fed-sign-in.yaml
 jtbd_analysis: skipped
-traces_to: docs/feature/ws-fed/discover/problem-validation.md
+traces_to: docs/product/jobs.yaml
 
 journey:
   name: Point a WS-Fed RP at the local STS

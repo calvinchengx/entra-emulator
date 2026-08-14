@@ -1,6 +1,6 @@
 # Journey visual — point a WS-Fed RP at the local STS
 
-**Canonical SSOT.** Feature copy: `docs/feature/ws-fed/discuss/journey-ws-fed-sign-in-visual.md`.
+**Canonical SSOT.**
 
 **Persona:** Priya Chen, backend engineer. She already has an ASP.NET Core Tasks API using `AddWsFederation` against Entra. She wants the same `MetadataAddress` + `Wtrealm` to work against the emulator.
 
@@ -8,7 +8,7 @@
 
 **Emotional arc (Problem Relief):** Frustrated → hopeful → focused / familiar → relieved → satisfied.
 
-**JTBD:** skipped; traces to DISCOVER job in `docs/feature/ws-fed/discover/problem-validation.md`.
+**JTBD:** skipped; traces to the DISCOVER job in `docs/product/jobs.yaml`.
 
 **Medium:** Protocol + existing web account picker. Not a new GUI. Not a CLI. Config is C# the RP already has; login is the same “Pick an account” page OIDC and SAML already use.
 
@@ -33,7 +33,7 @@
   Alex Rivera                         + echoed wctx                      at the Tasks API RP
 ```
 
-Shared artifacts that must match across steps: `${tid}`, `${wtrealm}`, `${wreply}`, `${metadata_url}`, `${wsfed_url}`, `${entity_id}`, `${signing_cert}`, `${wctx}`, `${audience}`. Registry: `docs/feature/ws-fed/discuss/shared-artifacts-registry.md`.
+Shared artifacts that must match across steps: `${tid}`, `${wtrealm}`, `${wreply}`, `${metadata_url}`, `${wsfed_url}`, `${entity_id}`, `${signing_cert}`, `${wctx}`, `${audience}`.
 
 ---
 
