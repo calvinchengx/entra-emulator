@@ -415,6 +415,142 @@ func TestOmittedContextIsAcceptedOnTheChallenge(t *testing.T) {
 	}
 }
 
+// Test Budget: 3 US-03 behaviors × 2 = 6. HTTP driving-port tests below: 3 ≤ 6.
+
 func TestPasswordRequiredModeStaysTheExistingForm(t *testing.T) {
-	t.Skip("pending: US-03 password-required chrome")
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+	cfg.RequirePassword = true
+	t.Cleanup(func() { cfg.RequirePassword = false })
+
+	oidc := hts.URL + "/" + cfg.TenantID + "/oauth2/v2.0/authorize?" + url.Values{
+		"client_id": {spaID}, "redirect_uri": {redirect},
+		"response_type": {"code"}, "scope": {"openid"}, "state": {"s"},
+		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge_method": {"S256"},
+	}.Encode()
+	oidcResp, err := http.Get(oidc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oidcPage := readAll(t, oidcResp)
+	if !strings.Contains(oidcPage, `name="__ee_username"`) || !strings.Contains(oidcPage, `name="__ee_password"`) {
+		t.Fatalf("OIDC password-required analog is not the email and password form:\n%s", oidcPage)
+	}
+
+	c := samlClient(t)
+	resp, err := c.Get(wsfedChallengeURL(hts.URL, cfg.TenantID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := readAll(t, resp)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("password-required challenge returned %d:\n%s", resp.StatusCode, page)
+	}
+	if !strings.Contains(page, `name="__ee_username"`) || !strings.Contains(page, `name="__ee_password"`) {
+		t.Fatalf("she does not see the same email and password form OIDC uses:\n%s", page)
+	}
+	if !strings.Contains(page, ">Email<") || !strings.Contains(page, ">Password<") {
+		t.Fatalf("password form is missing Email/Password labels:\n%s", page)
+	}
+	if !strings.Contains(page, "LOCAL EMULATOR") || !strings.Contains(page, "<h1>Sign in</h1>") {
+		t.Fatalf("password form is not the existing chrome:\n%s", page)
+	}
+	if strings.Contains(page, "Pick an account") {
+		t.Fatal("password-required mode still showed Pick an account")
+	}
+	if !strings.Contains(page, "/"+cfg.TenantID+"/wsfed") {
+		t.Fatalf("password form POST action is not /{tid}/wsfed:\n%s", page)
+	}
+
+	form := url.Values{
+		"__ee_state":    {firstMatch(t, stateFieldRe, page, "signed state")},
+		"__ee_username": {"alice@entraemulator.dev"},
+		"__ee_password": {store.SeedPassword},
+	}
+	post, err := c.PostForm(hts.URL+"/"+cfg.TenantID+"/wsfed", form)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := readAll(t, post)
+	if post.StatusCode != http.StatusOK {
+		t.Fatalf("password sign-in returned %d:\n%s", post.StatusCode, out)
+	}
+	if !strings.Contains(out, `name="wresult"`) {
+		t.Fatalf("correct credentials produced no wresult:\n%s", out)
+	}
+}
+
+func TestChallengeParametersSurviveAccountChoice(t *testing.T) {
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+
+	c := samlClient(t)
+	resp, err := c.Get(wsfedChallengeURL(hts.URL, cfg.TenantID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := readAll(t, resp)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("challenge returned %d:\n%s", resp.StatusCode, page)
+	}
+
+	form := url.Values{
+		"__ee_state": {firstMatch(t, stateFieldRe, page, "signed state")},
+		"__ee_user":  {firstMatch(t, userFieldRe, page, "an account to pick")},
+	}
+	post, err := c.PostForm(hts.URL+"/"+cfg.TenantID+"/wsfed", form)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := readAll(t, post)
+	if post.StatusCode != http.StatusOK {
+		t.Fatalf("account choice returned %d:\n%s", post.StatusCode, out)
+	}
+	action := firstMatch(t, actionRe, out, "auto-POST form action")
+	if action != testTasksWSFedReply {
+		t.Fatalf("wreply did not survive account choice: got %q, want %q", action, testTasksWSFedReply)
+	}
+	if !strings.Contains(out, `name="wctx"`) || !strings.Contains(out, testWSFedWctx) {
+		t.Fatalf("completing POST missing wctx %q:\n%s", testWSFedWctx, out)
+	}
+	if !strings.Contains(out, testTasksAppIDURI) {
+		t.Fatalf("wtrealm %q did not survive account choice:\n%s", testTasksAppIDURI, out)
+	}
+}
+
+func TestDisabledUserIsNotListedAsSelectable(t *testing.T) {
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+
+	jordan := &store.User{
+		ID: store.NewGUID(), TenantID: cfg.TenantID,
+		UserPrincipalName: "jordan.blake@workforce.example.test",
+		DisplayName:       "Jordan Blake",
+		GivenName:         "Jordan", Surname: "Blake",
+		Mail:           "jordan.blake@workforce.example.test",
+		AccountEnabled: false, CreatedAt: st.Now(),
+	}
+	if err := st.CreateUser(jordan); err != nil {
+		t.Fatal(err)
+	}
+
+	c := samlClient(t)
+	resp, err := c.Get(wsfedChallengeURL(hts.URL, cfg.TenantID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := readAll(t, resp)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("challenge returned %d:\n%s", resp.StatusCode, page)
+	}
+	if !strings.Contains(page, "Pick an account") {
+		t.Fatalf("challenge is not Pick an account:\n%s", page)
+	}
+	if strings.Contains(page, "Jordan Blake") || strings.Contains(page, jordan.UserPrincipalName) {
+		t.Fatalf("disabled user is listed as selectable:\n%s", page)
+	}
+	if !strings.Contains(page, "Alice Example") {
+		t.Fatalf("enabled accounts missing from picker:\n%s", page)
+	}
 }

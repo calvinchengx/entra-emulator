@@ -87,18 +87,12 @@ func (i *Identity) renderWSFedSignIn(w http.ResponseWriter, st wsfedState, errMs
 		i.renderPasswordForm(w, action, signed, nil, "", errMsg)
 		return
 	}
-	users, _, err := i.Store.ListUsers(100, 0, "")
+	users, err := i.enabledDirectoryAccounts()
 	if err != nil {
 		i.renderErrorPage(w, http.StatusInternalServerError, "Error", "Could not list accounts.")
 		return
 	}
-	enabled := users[:0]
-	for _, u := range users {
-		if u.AccountEnabled {
-			enabled = append(enabled, u)
-		}
-	}
-	i.renderAccountPicker(w, action, signed, enabled, nil, errMsg)
+	i.renderAccountPicker(w, action, signed, users, nil, errMsg)
 }
 
 // wsfedSignIn authenticates the human and hands off to the RSTR.

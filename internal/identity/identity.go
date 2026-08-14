@@ -151,6 +151,22 @@ func (i *Identity) currentSession(r *http.Request) (*store.Session, *store.User)
 	return sess, user
 }
 
+// enabledDirectoryAccounts is the Pick an account roster: disabled users are
+// not selectable.
+func (i *Identity) enabledDirectoryAccounts() ([]*store.User, error) {
+	users, _, err := i.Store.ListUsers(100, 0, "")
+	if err != nil {
+		return nil, err
+	}
+	enabled := users[:0]
+	for _, u := range users {
+		if u.AccountEnabled {
+			enabled = append(enabled, u)
+		}
+	}
+	return enabled, nil
+}
+
 // createSession persists a session row and sets ee_session as the FIRST
 // Set-Cookie header (ordering invariant the e2e helpers rely on).
 func (i *Identity) createSession(w http.ResponseWriter, userID, method string) *store.Session {
