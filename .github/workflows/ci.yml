@@ -207,6 +207,20 @@ jobs:
         working-directory: e2e/passkey
         run: npx playwright test
 
+  az-cli-e2e:
+    name: Azure CLI witness (az cloud register + service-principal login)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25'
+      # GitHub-hosted runners ship the Azure CLI. The suite is entra-only:
+      # register a private cloud, login, get-access-token. No ARM companion.
+      - run: az version
+      - run: python3 e2e/az-cli/run.py
+
   fabric-e2e:
     name: Fabric companion witness (workspace-identity handshake)
     runs-on: ubuntu-latest
