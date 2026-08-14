@@ -5,6 +5,8 @@ import (
 	"encoding/xml"
 	"strings"
 	"testing"
+
+	"github.com/beevik/etree"
 )
 
 // The document builder is unit-tested apart from the handler, because these
@@ -75,7 +77,83 @@ func TestSAMLMetadataXMLEmitsWSFedRoleDescriptor(t *testing.T) {
 		t.Fatal("growing WS-Fed RoleDescriptor removed IDPSSODescriptor")
 	}
 	certB64 := base64.StdEncoding.EncodeToString(cert)
-	if strings.Count(body, certB64) < 2 {
+	idpCert := metadataSectionCert(t, out, "./IDPSSODescriptor")
+	wsfedCert := metadataSectionCert(t, out, "./RoleDescriptor")
+	if idpCert != certB64 || wsfedCert != certB64 || idpCert != wsfedCert {
 		t.Fatal("WS-Fed RoleDescriptor must publish the same signing certificate as IDPSSODescriptor")
 	}
+}
+
+func TestSAMLMetadataXMLAdvertisesSignOutOnPassiveRequestorEndpoint(t *testing.T) {
+	out, err := samlMetadataXML([]byte{0x30, 0x82, 0x01}, "https://idp.example/t/",
+		"https://idp.example/t/saml2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rd := parseMetadataRoot(t, out).FindElement("./RoleDescriptor")
+	if rd == nil {
+		t.Fatal("FederationMetadata has no WS-Fed RoleDescriptor")
+	}
+	want := "https://idp.example/t/wsfed"
+	passive := metadataFedAddress(rd, "PassiveRequestorEndpoint")
+	if passive != want {
+		t.Fatalf("sign-out URL %q is not the PassiveRequestorEndpoint %s", passive, want)
+	}
+	if sts := metadataFedAddress(rd, "SecurityTokenServiceEndpoint"); sts != passive {
+		t.Fatalf("STS %q differs from PassiveRequestorEndpoint %q", sts, passive)
+	}
+	if strings.Contains(string(out), "wsignout1.0") {
+		t.Fatal("metadata must not require a wsignout1.0 round-trip")
+	}
+}
+
+func TestSAMLMetadataXMLDoesNotPublishASecondMetadataPath(t *testing.T) {
+	out, err := samlMetadataXML([]byte{0x30, 0x82, 0x01}, "https://idp.example/t/",
+		"https://idp.example/t/saml2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(out), "/wsfed/metadata") {
+		t.Fatal("builder published a second metadata URL")
+	}
+	if parseMetadataRoot(t, out).FindElement("./RoleDescriptor") == nil {
+		t.Fatal("WS-Fed RoleDescriptor must live on the existing FederationMetadata document")
+	}
+}
+
+func parseMetadataRoot(t *testing.T, out []byte) *etree.Element {
+	t.Helper()
+	doc := etree.NewDocument()
+	if err := doc.ReadFromBytes(out); err != nil {
+		t.Fatalf("builder produced XML that does not parse: %v", err)
+	}
+	if doc.Root() == nil {
+		t.Fatal("metadata has no EntityDescriptor")
+	}
+	return doc.Root()
+}
+
+func metadataSectionCert(t *testing.T, out []byte, path string) string {
+	t.Helper()
+	section := parseMetadataRoot(t, out).FindElement(path)
+	if section == nil {
+		t.Fatalf("missing %s", path)
+	}
+	el := section.FindElement(".//X509Certificate")
+	if el == nil {
+		t.Fatalf("%s has no X509Certificate", path)
+	}
+	return strings.Join(strings.Fields(el.Text()), "")
+}
+
+func metadataFedAddress(rd *etree.Element, local string) string {
+	ep := rd.FindElement("./fed:" + local)
+	if ep == nil {
+		return ""
+	}
+	addr := ep.FindElement(".//Address")
+	if addr == nil {
+		return ""
+	}
+	return strings.TrimSpace(addr.Text())
 }

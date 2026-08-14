@@ -189,8 +189,9 @@ func samlMetadataXML(certDER []byte, entityID, ssoURL string) ([]byte, error) {
 
 // attachWSFedRoleDescriptor adds the WS-Federation STS advertisement the
 // ASP.NET WsFederation library reads: xsi:type SecurityTokenServiceType,
-// both PassiveRequestorEndpoint and SecurityTokenServiceEndpoint, same
-// signing cert as IDPSSODescriptor.
+// both PassiveRequestorEndpoint and SecurityTokenServiceEndpoint (sign-in
+// and advertised sign-out share that same PassiveRequestorEndpoint), same
+// signing cert as IDPSSODescriptor. IDPSSODescriptor is left in place.
 func attachWSFedRoleDescriptor(metadata []byte, certDER []byte, wsfedURL string) ([]byte, error) {
 	doc := etree.NewDocument()
 	if err := doc.ReadFromBytes(metadata); err != nil {
@@ -215,6 +216,8 @@ func attachWSFedRoleDescriptor(metadata []byte, certDER []byte, wsfedURL string)
 		SetText(base64.StdEncoding.EncodeToString(certDER))
 
 	addWSFedEndpoint(rd, "SecurityTokenServiceEndpoint", wsfedURL)
+	// Sign-out is advertised on this same PassiveRequestorEndpoint; this cut
+	// does not witness wsignout1.0.
 	addWSFedEndpoint(rd, "PassiveRequestorEndpoint", wsfedURL)
 	return doc.WriteToBytes()
 }

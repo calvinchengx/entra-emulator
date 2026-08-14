@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/beevik/etree"
+
 	"github.com/calvinchengx/entra-emulator/internal/store"
 )
 
@@ -186,6 +188,161 @@ func TestExistingSAMLSignInStillCompletesAfterWSFedMetadataGrowth(t *testing.T) 
 
 func TestExistingOIDCSignInStillCompletes(t *testing.T) {
 	t.Skip("pending: guardrail existing OIDC e2e")
+}
+
+// Test Budget: 5 remaining US-01 behaviors × 2 = 10.
+// HTTP driving-port tests below: 5. XML builder unit tests: 2. Total 7 ≤ 10.
+
+func TestSigningCertificatesInBothSectionsMatch(t *testing.T) {
+	hts, cfg, _ := newTestServer(t)
+	body := fetchMetadata(t, hts.URL, cfg.TenantID)
+	entity := parseFederationMetadata(t, body)
+	idp := entity.FindElement("./IDPSSODescriptor")
+	rd := entity.FindElement("./RoleDescriptor")
+	if idp == nil || rd == nil {
+		t.Fatal("FederationMetadata must include IDPSSODescriptor and a WS-Fed RoleDescriptor")
+	}
+	samlCert := signingCertText(idp)
+	wsfedCert := signingCertText(rd)
+	if samlCert == "" || wsfedCert == "" {
+		t.Fatal("both sections must publish a signing certificate")
+	}
+	if samlCert != wsfedCert {
+		t.Fatal("the WS-Fed certificate is not the same as the SAML certificate")
+	}
+}
+
+func TestSignOutIsAdvertisedWithoutASignOutWitness(t *testing.T) {
+	hts, cfg, _ := newTestServer(t)
+	c := &http.Client{Transport: signOutForbiddenTrip{t: t}}
+	metaURL := hts.URL + "/" + cfg.TenantID + "/federationmetadata/2007-06/federationmetadata.xml"
+	resp, err := c.Get(metaURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := []byte(readAll(t, resp))
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET FederationMetadata returned %d:\n%s", resp.StatusCode, body)
+	}
+
+	rd := parseFederationMetadata(t, body).FindElement("./RoleDescriptor")
+	if rd == nil {
+		t.Fatal("FederationMetadata has no WS-Fed RoleDescriptor")
+	}
+	wantSTS := hts.URL + "/" + cfg.TenantID + "/wsfed"
+	passive := fedEndpointAddress(rd, "PassiveRequestorEndpoint")
+	if passive != wantSTS {
+		t.Fatalf("sign-out URL %q is not the PassiveRequestorEndpoint %s", passive, wantSTS)
+	}
+	if sts := fedEndpointAddress(rd, "SecurityTokenServiceEndpoint"); sts != passive {
+		t.Fatalf("sign-in STS %q differs from advertised sign-out PassiveRequestorEndpoint %q", sts, passive)
+	}
+}
+
+func TestSAMLAppsStillSeeTheirDescriptor(t *testing.T) {
+	hts, cfg, _ := newTestServer(t)
+	body := fetchMetadata(t, hts.URL, cfg.TenantID)
+	entity := parseFederationMetadata(t, body)
+	if entity.FindElement("./RoleDescriptor") == nil {
+		t.Fatal("WS-Fed RoleDescriptor is missing; SAML guardrail is not on a grown document")
+	}
+	idp := entity.FindElement("./IDPSSODescriptor")
+	if idp == nil {
+		t.Fatal("growing WS-Fed RoleDescriptor removed IDPSSODescriptor")
+	}
+	wantSSO := hts.URL + "/" + cfg.TenantID + "/saml2"
+	var sso int
+	for _, el := range idp.FindElements("./SingleSignOnService") {
+		sso++
+		if loc := el.SelectAttrValue("Location", ""); loc != wantSSO {
+			t.Fatalf("SAML SSO Location %q, want %s", loc, wantSSO)
+		}
+	}
+	if sso == 0 {
+		t.Fatal("IDPSSODescriptor has no SingleSignOnService")
+	}
+}
+
+func TestMetadataFetchStaysSamlMetadataAuditFlow(t *testing.T) {
+	hts, cfg, _ := newTestServer(t)
+	_ = fetchMetadata(t, hts.URL, cfg.TenantID)
+
+	var sawSAMLMeta bool
+	for _, e := range auditList(t, hts.URL) {
+		flow, _ := e["flow"].(string)
+		if flow == "wsfed-metadata" {
+			t.Fatalf("metadata fetch was renamed away from saml-metadata: %v", e)
+		}
+		if flow == "saml-metadata" {
+			sawSAMLMeta = true
+		}
+	}
+	if !sawSAMLMeta {
+		t.Fatal("FederationMetadata GET was not recorded as saml-metadata")
+	}
+}
+
+func TestPriyaIsNotSentToASecondMetadataURL(t *testing.T) {
+	hts, cfg, _ := newTestServer(t)
+	body := fetchMetadata(t, hts.URL, cfg.TenantID)
+	if parseFederationMetadata(t, body).FindElement("./RoleDescriptor") == nil {
+		t.Fatal("WS-Fed RoleDescriptor is not on the existing FederationMetadata URL")
+	}
+	if strings.Contains(string(body), "/wsfed/metadata") {
+		t.Fatal("existing metadata document points Priya at /wsfed/metadata")
+	}
+
+	resp, err := http.Get(hts.URL + "/" + cfg.TenantID + "/wsfed/metadata")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("GET /{tid}/wsfed/metadata returned %d, want 404 so MetadataAddress stays the existing URL", resp.StatusCode)
+	}
+}
+
+func parseFederationMetadata(t *testing.T, body []byte) *etree.Element {
+	t.Helper()
+	doc := etree.NewDocument()
+	if err := doc.ReadFromBytes(body); err != nil {
+		t.Fatalf("FederationMetadata is not well-formed XML: %v", err)
+	}
+	if doc.Root() == nil {
+		t.Fatal("FederationMetadata has no EntityDescriptor")
+	}
+	return doc.Root()
+}
+
+func signingCertText(section *etree.Element) string {
+	el := section.FindElement(".//X509Certificate")
+	if el == nil {
+		return ""
+	}
+	return strings.Join(strings.Fields(el.Text()), "")
+}
+
+func fedEndpointAddress(rd *etree.Element, local string) string {
+	ep := rd.FindElement("./fed:" + local)
+	if ep == nil {
+		return ""
+	}
+	addr := ep.FindElement(".//Address")
+	if addr == nil {
+		return ""
+	}
+	return strings.TrimSpace(addr.Text())
+}
+
+// signOutForbiddenTrip fails the test if anyone drives wa=wsignout1.0.
+// Sign-out is advertised on PassiveRequestorEndpoint; this cut does not witness SLO.
+type signOutForbiddenTrip struct{ t *testing.T }
+
+func (s signOutForbiddenTrip) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.URL.Query().Get("wa") == "wsignout1.0" {
+		s.t.Fatal("this story does not require a wsignout1.0 round-trip")
+	}
+	return http.DefaultTransport.RoundTrip(req)
 }
 
 func TestPOSTAsWellAsGETCanStartSignIn(t *testing.T) {
