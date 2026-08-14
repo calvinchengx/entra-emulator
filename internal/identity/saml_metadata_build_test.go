@@ -121,6 +121,20 @@ func TestSAMLMetadataXMLDoesNotPublishASecondMetadataPath(t *testing.T) {
 	}
 }
 
+func TestAttachWSFedRoleDescriptorRefusesMalformedXML(t *testing.T) {
+	_, err := attachWSFedRoleDescriptor([]byte("<not xml"), []byte{0x30}, "https://idp.example/t/wsfed")
+	if err == nil || !strings.Contains(err.Error(), "not well-formed") {
+		t.Fatalf("want a well-formedness refusal, got %v", err)
+	}
+}
+
+func TestAttachWSFedRoleDescriptorRefusesADocumentWithNoRoot(t *testing.T) {
+	_, err := attachWSFedRoleDescriptor([]byte(`<?xml version="1.0"?>`), []byte{0x30}, "https://idp.example/t/wsfed")
+	if err == nil || !strings.Contains(err.Error(), "no EntityDescriptor") {
+		t.Fatalf("want a missing-root refusal, got %v", err)
+	}
+}
+
 func parseMetadataRoot(t *testing.T, out []byte) *etree.Element {
 	t.Helper()
 	doc := etree.NewDocument()

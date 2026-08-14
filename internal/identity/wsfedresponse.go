@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"crypto/rsa"
 	"fmt"
 	"time"
 
@@ -80,4 +81,15 @@ func buildRSTR(signedAssertion *etree.Element, in rstrInput) ([]byte, error) {
 	rstr.CreateElement("t:KeyType").SetText(wsfedKeyTypeNoProof)
 
 	return doc.WriteToBytes()
+}
+
+// signAndWrapRSTR signs the assertion then wraps it. Kept as one step so the
+// RSTR is never built from an unsigned tree, and so each refusal is a unit
+// test rather than an HTTP round-trip that cannot reach it.
+func signAndWrapRSTR(assertion *etree.Element, key *rsa.PrivateKey, certDER []byte, in rstrInput) ([]byte, error) {
+	signed, err := signAssertion(assertion, key, certDER)
+	if err != nil {
+		return nil, err
+	}
+	return buildRSTR(signed, in)
 }

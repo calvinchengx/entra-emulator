@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/beevik/etree"
 )
 
 const persistentNameID = "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent"
@@ -53,5 +55,57 @@ func TestRSTRWrapsSAML20AssertionForTheRealm(t *testing.T) {
 	if strings.Contains(s, "urn:oasis:names:tc:SAML:1.1:assertion") ||
 		strings.Contains(s, "urn:oasis:names:tc:SAML:1.0:assertion") {
 		t.Fatalf("RSTR wrapped a SAML 1.1 assertion:\n%s", s)
+	}
+}
+
+func TestBuildRSTRRefusesANilAssertion(t *testing.T) {
+	_, err := buildRSTR(nil, rstrInput{AppliesTo: "api://tasks-api", Now: time.Now()})
+	if err == nil || !strings.Contains(err.Error(), "no assertion") {
+		t.Fatalf("want a nil-assertion refusal, got %v", err)
+	}
+}
+
+func TestBuildRSTRRefusesEmptyAppliesTo(t *testing.T) {
+	el := etree.NewElement("saml:Assertion")
+	_, err := buildRSTR(el, rstrInput{Now: time.Now()})
+	if err == nil || !strings.Contains(err.Error(), "AppliesTo") {
+		t.Fatalf("want an AppliesTo refusal, got %v", err)
+	}
+}
+
+func TestSignAndWrapRSTRRefusesIncompleteSigningMaterial(t *testing.T) {
+	a, err := buildAssertion(samlAssertionInput{
+		IssuerEntityID: "https://idp.example/t/",
+		SPEntityID:     "api://tasks-api",
+		ACSURL:         "https://rp.example.test/signin-wsfed",
+		NameID:         "user-object-id",
+		NameIDFormat:   persistentNameID,
+		Now:            time.Now(),
+	}, "_assert1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = signAndWrapRSTR(a, nil, nil, rstrInput{AppliesTo: "api://tasks-api", Now: time.Now()})
+	if err == nil {
+		t.Fatal("want a refusal when there is no key or certificate")
+	}
+}
+
+func TestSignAndWrapRSTRRefusesEmptyAppliesToAfterSigning(t *testing.T) {
+	key, certDER := signingMaterial(t)
+	a, err := buildAssertion(samlAssertionInput{
+		IssuerEntityID: "https://idp.example/t/",
+		SPEntityID:     "api://tasks-api",
+		ACSURL:         "https://rp.example.test/signin-wsfed",
+		NameID:         "user-object-id",
+		NameIDFormat:   persistentNameID,
+		Now:            time.Now(),
+	}, "_assert1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = signAndWrapRSTR(a, key, certDER, rstrInput{Now: time.Now()})
+	if err == nil || !strings.Contains(err.Error(), "AppliesTo") {
+		t.Fatalf("want AppliesTo refusal after a successful sign, got %v", err)
 	}
 }

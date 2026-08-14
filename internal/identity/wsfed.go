@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"errors"
 	"html/template"
 	"net/http"
 	"time"
@@ -151,10 +152,21 @@ func (i *Identity) deliverWSFedResponse(w http.ResponseWriter, r *http.Request, 
 		i.renderErrorPage(w, http.StatusInternalServerError, "Cannot sign in", "No signing key for this tenant.")
 		return
 	}
+	body, err := i.issueWSFedRSTR(signer, st, user)
+	if err != nil {
+		i.renderErrorPage(w, http.StatusInternalServerError, "Cannot sign in", err.Error())
+		return
+	}
+	writeWSFedPost(w, st, string(body))
+}
+
+// issueWSFedRSTR is the minting half of deliverWSFedResponse, split out so a
+// missing certificate or a malformed assertion can be refused without standing
+// up an HTTP challenge that would never reach those checks.
+func (i *Identity) issueWSFedRSTR(signer *tokens.Signer, st wsfedState, user *store.User) ([]byte, error) {
 	certDER, err := signer.SAMLCertificate(st.Tenant, time.Now().AddDate(0, 0, -1).Truncate(24*time.Hour))
 	if err != nil {
-		i.renderErrorPage(w, http.StatusInternalServerError, "Cannot sign in", "No signing certificate.")
-		return
+		return nil, errors.New("No signing certificate.")
 	}
 	now := time.Now()
 	assertion, err := buildAssertion(samlAssertionInput{
@@ -168,21 +180,9 @@ func (i *Identity) deliverWSFedResponse(w http.ResponseWriter, r *http.Request, 
 		Now:            now,
 	}, samlID())
 	if err != nil {
-		i.renderErrorPage(w, http.StatusInternalServerError, "Cannot sign in", err.Error())
-		return
+		return nil, err
 	}
-	signed, err := signAssertion(assertion, signer.PrivateKey, certDER)
-	if err != nil {
-		i.renderErrorPage(w, http.StatusInternalServerError, "Cannot sign in", err.Error())
-		return
-	}
-	body, err := buildRSTR(signed, rstrInput{AppliesTo: st.Wtrealm, Now: now})
-	if err != nil {
-		i.renderErrorPage(w, http.StatusInternalServerError, "Cannot sign in", err.Error())
-		return
-	}
-
-	writeWSFedPost(w, st, string(body))
+	return signAndWrapRSTR(assertion, signer.PrivateKey, certDER, rstrInput{AppliesTo: st.Wtrealm, Now: now})
 }
 
 // writeWSFedPost is the WS-Fed HTTP-POST binding: the RSTR cannot travel on a

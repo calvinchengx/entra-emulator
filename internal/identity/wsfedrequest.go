@@ -37,7 +37,7 @@ func (i *Identity) resolveWSFedRelyingParty(wtrealm, wreply string) (*store.App,
 	if wreply == "" {
 		return nil, fmt.Errorf("wsfed: no wreply")
 	}
-	ok, err := i.Store.HasRedirectURIOfType(app.ID, wreply, redirectTypeWSFedReply)
+	ok, err := checkWSFedReply(i.Store, app.ID, wreply)
 	if err != nil {
 		return nil, fmt.Errorf("wsfed: cannot read reply URLs for %s: %w", app.ID, err)
 	}
@@ -51,3 +51,10 @@ func (i *Identity) resolveWSFedRelyingParty(wtrealm, wreply string) (*store.App,
 // existing table rather than adding a WS-Fed-specific one keeps one answer
 // to "where may this app receive credentials".
 const redirectTypeWSFedReply = "wsfed-reply"
+
+// checkWSFedReply is HasRedirectURIOfType for wsfed-reply. Tests replace it
+// to force a read failure: Store.db is unexported, so the wrap cannot be
+// reached by closing the store (GetAppByIDURI fails first).
+var checkWSFedReply = func(st *store.Store, appID, wreply string) (bool, error) {
+	return st.HasRedirectURIOfType(appID, wreply, redirectTypeWSFedReply)
+}
