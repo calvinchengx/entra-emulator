@@ -38,12 +38,16 @@ func (g *Graph) signInShape(e audit.Event) map[string]any {
 		created = time.Unix(e.Time, 0).UTC().Format(time.RFC3339)
 	}
 	appName := ""
-	if app, err := g.Store.GetApp(e.ClientID); err == nil {
+	app, err := g.Store.GetApp(e.ClientID)
+	if err != nil {
+		app, err = g.Store.GetAppByIDURI(e.ClientID)
+	}
+	if err == nil {
 		appName = app.DisplayName
 	}
-	// Interactive means a human was at the keyboard: the authorize leg, not a
-	// back-channel token exchange.
-	interactive := e.Flow == "authorize"
+	// Interactive means a human was at the keyboard: authorize or WS-Fed
+	// passive sign-in, not a back-channel token exchange.
+	interactive := e.Flow == "authorize" || e.Flow == "wsfed"
 
 	return map[string]any{
 		"id":                      e.ID(),

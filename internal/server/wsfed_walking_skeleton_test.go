@@ -2,6 +2,7 @@ package server
 
 import (
 	"crypto/x509"
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -177,12 +178,121 @@ func TestUnsolicitedWresultIsRefused(t *testing.T) {
 	t.Skip("pending: US-08 unsolicited wresult")
 }
 
+// Test Budget: 6 distinct behaviors × 2 = 12. HTTP driving-port tests below: 3 ≤ 12.
+// Gherkin: tests/acceptance/ws-fed/audit-observability.feature
+// Journey persona Alex Rivera is the existing seeded user (Alice).
+
 func TestWSFedChallengeAndSuccessAppearInAudit(t *testing.T) {
-	t.Skip("pending: Admin GET /admin/api/audit and Graph GET /{tid}/v1.0/auditLogs/signIns")
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+	completeTasksAPIWSFedSignInAs(t, hts.URL, cfg.TenantID, testWSFedWctx, store.SeedUserAliceID)
+
+	var challenge, success map[string]any
+	for _, e := range auditList(t, hts.URL) {
+		if e["flow"] != "wsfed" {
+			continue
+		}
+		if e["ok"] == true && e["userId"] == nil {
+			challenge = e
+		}
+		if e["ok"] == true && e["userId"] != nil {
+			success = e
+		}
+	}
+	if challenge == nil {
+		t.Fatal("admin audit has no unauthenticated wsfed challenge")
+	}
+	if challenge["clientId"] != testTasksAppIDURI {
+		t.Fatalf("challenge ClientID = %v, want %s", challenge["clientId"], testTasksAppIDURI)
+	}
+	if challenge["userPrincipalName"] != nil {
+		t.Fatalf("challenge must have no user: %v", challenge)
+	}
+
+	if success == nil {
+		t.Fatal("admin audit has no successful wsfed sign-in")
+	}
+	if success["clientId"] != testTasksAppIDURI {
+		t.Fatalf("success ClientID = %v, want %s", success["clientId"], testTasksAppIDURI)
+	}
+	if success["userId"] != store.SeedUserAliceID {
+		t.Fatalf("success userId = %v, want seeded user %s", success["userId"], store.SeedUserAliceID)
+	}
+	if success["userPrincipalName"] != "alice@entraemulator.dev" {
+		t.Fatalf("success userPrincipalName = %v, want alice@entraemulator.dev", success["userPrincipalName"])
+	}
+
+	auditJSONMustOmitTokenBody(t, challenge)
+	auditJSONMustOmitTokenBody(t, success)
 }
 
 func TestRefusedChallengeIsRecordedWithReason(t *testing.T) {
-	t.Skip("pending: refuse-unsafe audit Reason")
+	hts, cfg, _ := newTestServer(t)
+	q := url.Values{
+		"wa":      {"wsignin1.0"},
+		"wtrealm": {"api://not-registered"},
+		"wreply":  {"https://attacker.example.test/steal"},
+	}
+	c := samlClient(t)
+	resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := readAll(t, resp)
+	if strings.Contains(page, "wresult") || strings.Contains(page, "RequestSecurityTokenResponse") {
+		t.Fatalf("unknown wtrealm issued a token:\n%s", page)
+	}
+
+	var failed map[string]any
+	for _, e := range auditList(t, hts.URL) {
+		if e["flow"] == "wsfed" && e["ok"] == false {
+			failed = e
+			break
+		}
+	}
+	if failed == nil {
+		t.Fatal("admin audit has no failed wsfed event")
+	}
+	reason, _ := failed["reason"].(string)
+	if strings.TrimSpace(reason) == "" {
+		t.Fatalf("refused challenge must carry a concrete Reason: %v", failed)
+	}
+	auditJSONMustOmitTokenBody(t, failed)
+}
+
+func TestGraphSignInsIdentifyTasksAPIAsInteractive(t *testing.T) {
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+	completeTasksAPIWSFedSignInAs(t, hts.URL, cfg.TenantID, testWSFedWctx, store.SeedUserAliceID)
+
+	app := appGraphToken(t, hts.URL)
+	status, logs := graphGet(t, hts.URL, "/graph/v1.0/auditLogs/signIns", app)
+	if status != http.StatusOK {
+		t.Fatalf("signIns: %d %v", status, logs)
+	}
+	rows, _ := logs["value"].([]any)
+	var row map[string]any
+	for _, v := range rows {
+		m, _ := v.(map[string]any)
+		if m["appId"] == testTasksAppIDURI && m["userId"] == store.SeedUserAliceID {
+			row = m
+			break
+		}
+	}
+	if row == nil {
+		t.Fatalf("Graph has no Tasks API WS-Fed sign-in row: %v", rows)
+	}
+	name, _ := row["appDisplayName"].(string)
+	if name == "" {
+		t.Fatalf("appDisplayName is blank when ClientID is Application ID URI %s: %v", testTasksAppIDURI, row)
+	}
+	if name != "Tasks API" {
+		t.Fatalf("appDisplayName = %q, want Tasks API", name)
+	}
+	if row["isInteractive"] != true {
+		t.Fatalf("WS-Fed exchange must be interactive: %v", row["isInteractive"])
+	}
+	auditJSONMustOmitTokenBody(t, row)
 }
 
 func TestExistingSAMLSignInStillCompletesAfterWSFedMetadataGrowth(t *testing.T) {
@@ -577,6 +687,11 @@ var (
 
 func completeTasksAPIWSFedSignIn(t *testing.T, base, tenant, wctx string) string {
 	t.Helper()
+	return completeTasksAPIWSFedSignInAs(t, base, tenant, wctx, "")
+}
+
+func completeTasksAPIWSFedSignInAs(t *testing.T, base, tenant, wctx, userID string) string {
+	t.Helper()
 	q := url.Values{
 		"wa":      {"wsignin1.0"},
 		"wtrealm": {testTasksAppIDURI},
@@ -594,9 +709,12 @@ func completeTasksAPIWSFedSignIn(t *testing.T, base, tenant, wctx string) string
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("challenge returned %d:\n%s", resp.StatusCode, page)
 	}
+	if userID == "" {
+		userID = firstMatch(t, userFieldRe, page, "an account to pick")
+	}
 	form := url.Values{
 		"__ee_state": {firstMatch(t, stateFieldRe, page, "signed state")},
-		"__ee_user":  {firstMatch(t, userFieldRe, page, "an account to pick")},
+		"__ee_user":  {userID},
 	}
 	post, err := c.PostForm(base+"/"+tenant+"/wsfed", form)
 	if err != nil {
@@ -607,6 +725,20 @@ func completeTasksAPIWSFedSignIn(t *testing.T, base, tenant, wctx string) string
 		t.Fatalf("account choice returned %d:\n%s", post.StatusCode, out)
 	}
 	return out
+}
+
+func auditJSONMustOmitTokenBody(t *testing.T, row map[string]any) {
+	t.Helper()
+	raw, err := json.Marshal(row)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(raw)
+	for _, needle := range []string{"wresult", "RequestSecurityTokenResponse"} {
+		if strings.Contains(s, needle) {
+			t.Fatalf("audit row includes %s:\n%s", needle, s)
+		}
+	}
 }
 
 func postedWresult(t *testing.T, page string) *etree.Element {
