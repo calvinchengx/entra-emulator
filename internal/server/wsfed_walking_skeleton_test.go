@@ -31,6 +31,7 @@ const (
 	testTasksAppIDURI   = "api://tasks-api"
 	testTasksWSFedReply = "https://rp.example.test/signin-wsfed"
 	testWSFedWctx       = "tasks-return-state-7"
+	testAttackerReply   = "https://attacker.example.test/steal"
 )
 
 func registerTasksAPI(t *testing.T, st *store.Store, tenantID string) *store.App {
@@ -147,12 +148,77 @@ func TestUnmodifiedWsFederationCompletesSignIn(t *testing.T) {
 	t.Skip("pending: KPI-1 e2e/wsfed stranger — see e2e/wsfed/README.md (DELIVER US-05)")
 }
 
+// Test Budget: 4 US-06 behaviors × 2 = 8. HTTP driving-port tests below: 2 ≤ 8.
+// Gherkin: tests/acceptance/ws-fed/refuse-unsafe.feature
+// Lookup is GetAppByIDURI; a miss must refuse on the emulator — never Location
+// or wresult POST to the caller-supplied wreply.
+
 func TestUnknownWtrealmDoesNotIssueAToken(t *testing.T) {
-	t.Skip("pending: US-06 refuse-unsafe")
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+
+	q := url.Values{
+		"wa":      {"wsignin1.0"},
+		"wtrealm": {"api://not-registered"},
+		"wreply":  {testAttackerReply},
+	}
+	c := samlClient(t)
+	resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := readAll(t, resp)
+	assertWSFedRefusedOnEmulator(t, resp, page, testAttackerReply)
 }
 
 func TestEmptyRealmIsRefused(t *testing.T) {
-	t.Skip("pending: US-06 refuse-unsafe")
+	for _, tc := range []struct {
+		name    string
+		wtrealm string
+		omit    bool
+	}{
+		{name: "omitted", omit: true},
+		{name: "empty", wtrealm: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			hts, cfg, st := newTestServer(t)
+			registerTasksAPI(t, st, cfg.TenantID)
+
+			q := url.Values{
+				"wa":     {"wsignin1.0"},
+				"wreply": {testAttackerReply},
+			}
+			if !tc.omit {
+				q.Set("wtrealm", tc.wtrealm)
+			}
+			c := samlClient(t)
+			resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
+			if err != nil {
+				t.Fatal(err)
+			}
+			page := readAll(t, resp)
+			assertWSFedRefusedOnEmulator(t, resp, page, testAttackerReply)
+		})
+	}
+}
+
+func assertWSFedRefusedOnEmulator(t *testing.T, resp *http.Response, page, unowned string) {
+	t.Helper()
+	if resp.StatusCode < 400 {
+		t.Fatalf("unsafe challenge returned %d, want 4xx so the error stays on the emulator:\n%s", resp.StatusCode, page)
+	}
+	if loc := resp.Header.Get("Location"); loc != "" && (loc == unowned || strings.Contains(loc, "attacker.example.test")) {
+		t.Fatalf("unknown realm sent Location to an unowned URL: %s", loc)
+	}
+	if m := actionRe.FindStringSubmatch(page); len(m) > 1 && m[1] == unowned {
+		t.Fatalf("emulator POSTs wresult to caller wreply %q:\n%s", unowned, page)
+	}
+	if strings.Contains(page, "wresult") || strings.Contains(page, "RequestSecurityTokenResponse") {
+		t.Fatalf("issued a token to the caller reply:\n%s", page)
+	}
+	if !strings.Contains(page, "LOCAL EMULATOR") {
+		t.Fatalf("error did not stay on the emulator:\n%s", page)
+	}
 }
 
 func TestUnregisteredWreplyDoesNotReceiveAToken(t *testing.T) {
@@ -232,7 +298,7 @@ func TestRefusedChallengeIsRecordedWithReason(t *testing.T) {
 	q := url.Values{
 		"wa":      {"wsignin1.0"},
 		"wtrealm": {"api://not-registered"},
-		"wreply":  {"https://attacker.example.test/steal"},
+		"wreply":  {testAttackerReply},
 	}
 	c := samlClient(t)
 	resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
