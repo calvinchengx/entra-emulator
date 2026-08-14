@@ -32,6 +32,7 @@ Two knobs make custom authorities work in every Microsoft SDK:
 | Chromium (WebAuthn) | `navigator.credentials` + CDP virtual authenticator | passkey register → assert on the emulator origin; SSO authorize; ID token `amr:["fido"]` | Playwright headless Chromium (`e2e/passkey`) |
 | Fabric companion | fabric-emulator handshake tests (pinned) | Fabric-audience `client_credentials`; workspace-identity provision → mint → rename → deprovision → cascade delete | `e2e/fabric/run.py` (CI `fabric-e2e`) |
 | Chromium (implicit / hybrid) | raw `/authorize` (not msal-browser) | `response_type=id_token` and `code id_token` front-channel redirects; hybrid code exchange; query-mode refusal | Playwright headless Chromium (`e2e/implicit`) |
+| Azure CLI | `az` (packaged, unmodified) | `az cloud register` + service-principal login; `get-access-token` for Graph and `https://management.azure.com` | `e2e/az-cli/run.py` (CI `az-cli-e2e`) |
 | Go | `microsoft-authentication-library-for-go` + `azidentity` | client credentials (both layers), device code | HTTP approval sequence |
 | Python | `msal` (+ optional `azure-identity`) | client credentials, device code | HTTP approval sequence in a thread |
 | C# / .NET | `Microsoft.Identity.Client` (MSAL.NET) | client credentials (+ token-cache hit) | — (no interactive flow) |

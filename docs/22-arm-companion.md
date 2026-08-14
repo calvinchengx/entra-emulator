@@ -59,6 +59,8 @@ fabric-emulator         (capacities are ARM resources — a future consumer)
 `az cloud register` points the real Azure CLI at the first two, and everything
 downstream follows: `az login` here, `az role assignment create` there, and a
 Key Vault data-plane call that flips between `403` and authorized as a result.
+entra's own `az login` witness is `e2e/az-cli` (CI `az-cli-e2e`) — it stops
+at the token and does not start this companion.
 
 ## Nothing to do here
 

@@ -4,6 +4,7 @@
     "claim": "RS256-signed access / ID tokens",
     "witnesses": [
       "ci:sdk-e2e",
+      "ci:az-cli-e2e",
       "go:TestJWKSAndTokenVerify"
     ]
   },
@@ -12,6 +13,7 @@
     "claim": "`kid` / JWKS",
     "witnesses": [
       "ci:sdk-e2e",
+      "ci:az-cli-e2e",
       "go:TestJWKSAndVerificationKeyRoundTrip"
     ]
   },
@@ -28,6 +30,7 @@
     "claim": "Entra v2.0 claim shapes (`tid`/`oid`/`azp`/`appid`/`scp`/`roles`/`ver`/`idtyp`, pairwise `sub`)",
     "witnesses": [
       "ci:sdk-e2e",
+      "ci:az-cli-e2e",
       "go:TestAppRoleAssignmentDrivesRolesClaim"
     ]
   },
@@ -64,6 +67,7 @@
     "claim": "OIDC discovery + JWKS",
     "witnesses": [
       "ci:sdk-e2e",
+      "ci:az-cli-e2e",
       "go:TestDiscoveryDocFields",
       "go:TestGoldenParityOIDCDiscovery"
     ]
@@ -100,6 +104,7 @@
     "claim": "`client_credentials`",
     "witnesses": [
       "ci:sdk-e2e",
+      "ci:az-cli-e2e",
       "go:TestClientCredentials"
     ]
   },
@@ -249,6 +254,7 @@
     "section": "Directory, storage & transport",
     "claim": "TLS with a wildcard cert over the emulator's origins",
     "witnesses": [
+      "ci:az-cli-e2e",
       "go:TestBootTLSEnabled",
       "go:TestCertReloadEndToEnd"
     ]

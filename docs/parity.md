@@ -182,6 +182,7 @@ discovery disabled per-SDK, and TLS trust injected per-SDK.
 | Chromium `navigator.credentials` | Passkey register + assert on the emulator origin (CDP virtual authenticator); ID token `amr:["fido"]` | 🟢 CI `passkey-e2e` |
 | fabric-emulator (workspace-identity handshake) | Provision / mint / rename / deprovision / cascade-delete against this entra via `go.mod` replace | 🟢 CI `fabric-e2e` |
 | Chromium implicit / hybrid | Front-channel `id_token` and `code id_token` redirects (msal-browser cannot emit these) | 🟢 CI `implicit-e2e` |
+| Azure CLI (`az`) | `az cloud register` + `az login --service-principal`; Graph and ARM audience tokens | 🟢 CI `az-cli-e2e` |
 
 ### Contract conformance: golden references as witnesses
 
