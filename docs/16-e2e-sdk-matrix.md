@@ -35,7 +35,7 @@ Two knobs make custom authorities work in every Microsoft SDK:
 | Azure CLI | `az` (packaged, unmodified) | `az cloud register` + service-principal login; `get-access-token` for Graph and `https://management.azure.com` | `e2e/az-cli/run.py` (CI `az-cli-e2e`) |
 | Go | `microsoft-authentication-library-for-go` + `azidentity` | client credentials (both layers), device code | HTTP approval sequence |
 | Python | `msal` (+ optional `azure-identity`) | client credentials, device code | HTTP approval sequence in a thread |
-| C# / .NET | `Microsoft.Identity.Client` (MSAL.NET) | client credentials (+ token-cache hit) | — (no interactive flow) |
+| C# / .NET | `Microsoft.Identity.Client` (MSAL.NET) + Wilson (`Microsoft.IdentityModel.Protocols.OpenIdConnect`) | client credentials (+ token-cache hit); JwtBearer-stack validation of the resulting JWT (discovery, JWKS, tamper, key rotation) | — (no interactive flow) |
 | Java | `com.microsoft.azure:msal4j` (MSAL4J) | client credentials | — (no interactive flow) |
 | Flutter/Dart | Dart `http` (automated) + `flutter_appauth` (manual screen) | device code end-to-end on-device; auth code + PKCE manually | `integration_test` on Android emulator / iOS simulator — **nightly, not PR gate** |
 
@@ -56,9 +56,12 @@ Notes per language:
   provisions its own venv.
 - **.NET** (`e2e/dotnet/`): `ConfidentialClientApplicationBuilder` with
   `.WithAuthority(authority, validateAuthority: false).WithInstanceDiscovery(false)`
-  and a cert-trusting `HttpClient` supplied via `WithHttpClientFactory`. Asserts the
-  app-only claim shape (`aud`, `roles`, no `scp`/`oid`) and that a second call is served
-  from MSAL's token cache. Built and run with `dotnet run`.
+  and an `HttpClient` that trusts `EMU_CERT` (not every certificate), supplied via
+  `WithHttpClientFactory`. Asserts the app-only claim shape (`aud`, `roles`, no
+  `scp`/`oid`) and that a second call is served from MSAL's token cache. **Wilson**
+  then fetches OIDC discovery + JWKS and validates the JWT the same way JwtBearer
+  does — including a tampered-signature refusal and a rotate-with-grace check.
+  Built and run with `dotnet run`.
 - **Java** (`e2e/java/`): `ConfidentialClientApplication.builder(...)
   .authority(authority).validateAuthority(false).instanceDiscovery(false)`; the suite
   loads `EMU_CERT` into a fresh trust store and sets it as the default `SSLContext` so

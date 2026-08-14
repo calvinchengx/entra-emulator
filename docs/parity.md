@@ -175,6 +175,7 @@ discovery disabled per-SDK, and TLS trust injected per-SDK.
 | MSAL **Go** + **`azidentity`** | client_credentials, device code, `ClientSecretCredential`, **ManagedIdentityCredential**, embedded-library mode | 🟢 CI `sdk-e2e` |
 | MSAL **Python** | client_credentials, device code | 🟢 CI `sdk-e2e` |
 | **MSAL.NET** (`Microsoft.Identity.Client`) | client_credentials + token-cache hit, app-only claim shape | 🟢 CI `sdk-e2e` |
+| **Wilson** (`Microsoft.IdentityModel`) | Official token validator: OIDC discovery + JWKS, RS256/`kid`, issuer/audience/lifetime; tampered signature refused; retired key still verifies inside the grace window | 🟢 CI `sdk-e2e` |
 | **msal4j** (Java) | client_credentials, with the emulator cert in a real trust store | 🟢 CI `sdk-e2e` |
 | OpenFGA · SpiceDB · Keto · Permify · Casbin · OPA · Cedar | The PDP port against real engines | 🟢 CI `pdp-compat` (7-way matrix) |
 | Flutter (`http`, `flutter_appauth`) | Device code on real Android/iOS | 🟡 Nightly, not a PR gate; the auth-code leg is a manual screen |

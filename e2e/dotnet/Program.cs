@@ -4,6 +4,8 @@
 // ASP.NET Core's JwtBearer middleware uses against production Entra.
 // Env: EMU_ORIGIN, EMU_TENANT, EMU_CERT.
 using System.Net.Http.Json;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.Identity.Client;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Protocols;
@@ -27,10 +29,16 @@ void Check(string name, bool cond, string extra = "")
 
 Console.WriteLine($"MSAL.NET flows against {authority}");
 
-// Trust the emulator's self-signed cert (dev only).
+// Trust the emulator leaf, not every certificate. Wilson fetches discovery
+// and JWKS over this client — accepting any cert would not witness TLS.
+string certPath = Environment.GetEnvironmentVariable("EMU_CERT")
+    ?? throw new InvalidOperationException("EMU_CERT is required");
+var emuCert = X509Certificate2.CreateFromPem(File.ReadAllText(certPath));
 var handler = new HttpClientHandler
 {
-    ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator,
+    ServerCertificateCustomValidationCallback = (_, cert, _, errors) =>
+        errors == SslPolicyErrors.None
+        || (cert is not null && cert.GetCertHashString() == emuCert.GetCertHashString()),
 };
 var http = new HttpClient(handler);
 var factory = new SingleClientFactory(http);
