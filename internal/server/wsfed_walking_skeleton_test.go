@@ -27,11 +27,17 @@ import (
 // Do not add SCAFFOLD panic handlers into internal/identity — they would break Register.
 
 const (
-	testTasksAppID      = "55556666-7777-8888-9999-000011112222"
-	testTasksAppIDURI   = "api://tasks-api"
-	testTasksWSFedReply = "https://rp.example.test/signin-wsfed"
-	testWSFedWctx       = "tasks-return-state-7"
-	testAttackerReply   = "https://attacker.example.test/steal"
+	testTasksAppID        = "55556666-7777-8888-9999-000011112222"
+	testTasksAppIDURI     = "api://tasks-api"
+	testTasksWSFedReply   = "https://rp.example.test/signin-wsfed"
+	testWSFedWctx         = "tasks-return-state-7"
+	testAttackerReply     = "https://attacker.example.test/steal"
+	testUnregisteredReply = "https://rp.example.test/not-a-callback"
+	testSAMLACSOnlyReply  = "https://rp.example.test/acs"
+	testWebOnlyReply      = "https://rp.example.test/signin-oidc"
+	testFinanceAppID      = "aaaa1111-2222-3333-4444-555566667777"
+	testFinanceAppIDURI   = "api://finance-api"
+	testFinanceWSFedReply = "https://finance.example.test/signin-wsfed"
 )
 
 func registerTasksAPI(t *testing.T, st *store.Store, tenantID string) *store.App {
@@ -221,24 +227,107 @@ func assertWSFedRefusedOnEmulator(t *testing.T, resp *http.Response, page, unown
 	}
 }
 
+// Test Budget: 4 US-07 behaviors × 2 = 8. HTTP driving-port tests below: 5 ≤ 8.
+// wreply must be an exact URI of type wsfed-reply for the wtrealm app.
+// HasRedirectURI is type-blind — these tests fail if the STS uses it.
+
 func TestUnregisteredWreplyDoesNotReceiveAToken(t *testing.T) {
-	t.Skip("pending: US-07 refuse-unsafe")
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+
+	q := url.Values{
+		"wa":      {"wsignin1.0"},
+		"wtrealm": {testTasksAppIDURI},
+		"wreply":  {testUnregisteredReply},
+	}
+	c := samlClient(t)
+	resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := readAll(t, resp)
+	assertWSFedRefusedOnEmulator(t, resp, page, testUnregisteredReply)
 }
 
 func TestMissingWreplyDoesNotReceiveAToken(t *testing.T) {
-	t.Skip("pending: US-07 refuse-unsafe")
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+
+	q := url.Values{
+		"wa":      {"wsignin1.0"},
+		"wtrealm": {testTasksAppIDURI},
+	}
+	c := samlClient(t)
+	resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := readAll(t, resp)
+	assertWSFedRefusedOnEmulator(t, resp, page, testTasksWSFedReply)
 }
 
 func TestSAMLACSOnlyReplyIsRefused(t *testing.T) {
-	t.Skip("pending: US-07 saml-acs-only wreply")
+	assertWrongTypeWreplyRefused(t, testSAMLACSOnlyReply, "saml-acs")
 }
 
 func TestWebOnlyReplyIsRefused(t *testing.T) {
-	t.Skip("pending: US-07 web-only wreply")
+	assertWrongTypeWreplyRefused(t, testWebOnlyReply, "web")
+}
+
+func assertWrongTypeWreplyRefused(t *testing.T, uri, typ string) {
+	t.Helper()
+	hts, cfg, st := newTestServer(t)
+	app := &store.App{
+		ID: testTasksAppID, TenantID: cfg.TenantID,
+		DisplayName: "Tasks API", AppIDURI: testTasksAppIDURI,
+	}
+	if err := st.CreateApp(app); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.AddRedirectURI(app.ID, uri, typ); err != nil {
+		t.Fatal(err)
+	}
+
+	q := url.Values{
+		"wa":      {"wsignin1.0"},
+		"wtrealm": {testTasksAppIDURI},
+		"wreply":  {uri},
+	}
+	c := samlClient(t)
+	resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := readAll(t, resp)
+	assertWSFedRefusedOnEmulator(t, resp, page, uri)
 }
 
 func TestAnotherAppsReplyIsNotAccepted(t *testing.T) {
-	t.Skip("pending: US-07 cross-app wreply")
+	hts, cfg, st := newTestServer(t)
+	registerTasksAPI(t, st, cfg.TenantID)
+	finance := &store.App{
+		ID: testFinanceAppID, TenantID: cfg.TenantID,
+		DisplayName: "Finance API", AppIDURI: testFinanceAppIDURI,
+	}
+	if err := st.CreateApp(finance); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.AddRedirectURI(finance.ID, testFinanceWSFedReply, "wsfed-reply"); err != nil {
+		t.Fatal(err)
+	}
+
+	q := url.Values{
+		"wa":      {"wsignin1.0"},
+		"wtrealm": {testTasksAppIDURI},
+		"wreply":  {testFinanceWSFedReply},
+	}
+	c := samlClient(t)
+	resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := readAll(t, resp)
+	assertWSFedRefusedOnEmulator(t, resp, page, testFinanceWSFedReply)
 }
 
 func TestUnsolicitedWresultIsRefused(t *testing.T) {

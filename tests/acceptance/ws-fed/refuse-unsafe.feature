@@ -2,7 +2,7 @@
 # Driving port: GET|POST /{tid}/wsfed
 # Guardrail: never Location / wresult POST to an unowned URL
 #
-# US-06 scenarios enabled. US-07 / US-08 stay @pending until their DELIVER steps.
+# US-06 and US-07 scenarios enabled. US-08 stays @pending until its DELIVER step.
 
 Feature: The STS refuses unsafe WS-Fed challenges
 
@@ -28,21 +28,21 @@ Feature: The STS refuses unsafe WS-Fed challenges
     Then the emulator does not send Location to "https://attacker.example.test/steal"
     And the error stays on the emulator
 
-  @pending @driving_port @real-io @US-07 @kpi @KPI-5
+  @driving_port @real-io @US-07 @kpi @KPI-5
   Scenario: Unregistered reply URL does not receive a token
     # Driving port: GET /{tid}/wsfed wa=wsignin1.0
     Given Tasks API is registered with wsfed-reply "https://rp.example.test/signin-wsfed" only
     When the browser challenges with wtrealm=api://tasks-api and wreply=https://rp.example.test/not-a-callback
     Then the emulator does not POST wresult to "https://rp.example.test/not-a-callback"
 
-  @pending @driving_port @real-io @US-07 @kpi @KPI-5
+  @driving_port @real-io @US-07 @kpi @KPI-5
   Scenario: Missing reply URL does not receive a token
     # Driving port: GET /{tid}/wsfed wa=wsignin1.0
     Given a challenge with wtrealm=api://tasks-api and no wreply
     When the browser hits /{tid}/wsfed
     Then the emulator does not POST wresult to an unregistered or guessed URL
 
-  @pending @driving_port @real-io @US-07 @kpi @KPI-5
+  @driving_port @real-io @US-07 @kpi @KPI-5
   Scenario: Reply registered only as saml-acs is refused
     # Driving port: GET /{tid}/wsfed wa=wsignin1.0
     Given Tasks API has Application ID URI "api://tasks-api"
@@ -50,7 +50,7 @@ Feature: The STS refuses unsafe WS-Fed challenges
     When the browser challenges with wtrealm=api://tasks-api and wreply=https://rp.example.test/acs
     Then the emulator does not POST wresult to "https://rp.example.test/acs"
 
-  @pending @driving_port @real-io @US-07 @kpi @KPI-5
+  @driving_port @real-io @US-07 @kpi @KPI-5
   Scenario: Reply registered only as web is refused
     # Driving port: GET /{tid}/wsfed wa=wsignin1.0
     Given Tasks API has Application ID URI "api://tasks-api"
@@ -58,7 +58,7 @@ Feature: The STS refuses unsafe WS-Fed challenges
     When the browser challenges with wtrealm=api://tasks-api and wreply=https://rp.example.test/signin-oidc
     Then the emulator does not POST wresult to "https://rp.example.test/signin-oidc"
 
-  @pending @driving_port @real-io @US-07 @kpi @KPI-5
+  @driving_port @real-io @US-07 @kpi @KPI-5
   Scenario: Another app's reply is not accepted
     # Driving port: GET /{tid}/wsfed wa=wsignin1.0
     Given Tasks API owns wsfed-reply "https://rp.example.test/signin-wsfed"
