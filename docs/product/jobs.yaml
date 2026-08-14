@@ -1,0 +1,39 @@
+# Product jobs — entra-emulator
+# SSOT bootstrap: 14 Aug 2026. JTBD analysis was skipped for ws-fed (no DIVERGE).
+# This file records the one DISCOVER job DISCUSS traces to. Do not invent a second job.
+
+jobs:
+  - id: point-ws-fed-rp-at-local-sts
+    feature_id: ws-fed
+    jtbd_analysis: skipped
+    traces_to: docs/feature/ws-fed/discover/problem-validation.md
+    statement: >
+      When I already have an ASP.NET WS-Fed relying party, I want to point
+      MetadataAddress and Wtrealm at the local emulator, so the unmodified
+      middleware completes the same metadata fetch and sign-in it completes
+      against Entra.
+    desired_outcome: >
+      Microsoft.AspNetCore.Authentication.WsFederation pointed at this emulator
+      instead of login.microsoftonline.com completes metadata fetch plus /wsfed
+      sign-in using the same MetadataAddress / Wtrealm it already uses against
+      Entra, and the unmodified library verifies the token.
+    persona: >
+      A developer who already maintains an ASP.NET Core WS-Fed relying party
+      (not a first-time federation learner; not a SharePoint operator).
+    witness: Microsoft.AspNetCore.Authentication.WsFederation
+    in_scope_v0_8_0:
+      - FederationMetadata on the existing URL grows a WS-Fed RoleDescriptor
+      - GET|POST /{tid}/wsfed answers wa=wsignin1.0
+      - Same sign-in the emulator already uses for OIDC and SAML
+      - POST wresult wrapping a SAML 2.0 assertion
+      - Audience equals wtrealm; wreply must be a registered reply URL
+      - Unsolicited logins refused
+      - Sign-out URL advertised; wsignout1.0 not witnessed
+    out_of_scope_v0_8_0:
+      - SOAP / active WS-Trust
+      - /common/wsfed
+      - IdP-initiated / AllowUnsolicitedLogins
+      - SharePoint / SAML 1.1
+      - Portal gallery UX, Graph, MFA/CA/B2C
+      - Token encryption
+    journey: docs/product/journeys/ws-fed-sign-in.yaml
