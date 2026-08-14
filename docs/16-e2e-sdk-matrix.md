@@ -36,6 +36,7 @@ Two knobs make custom authorities work in every Microsoft SDK:
 | Go | `microsoft-authentication-library-for-go` + `azidentity` | client credentials (both layers), device code | HTTP approval sequence |
 | Python | `msal` (+ optional `azure-identity`) | client credentials, device code | HTTP approval sequence in a thread |
 | C# / .NET | `Microsoft.Identity.Client` (MSAL.NET) + Wilson (`Microsoft.IdentityModel.Protocols.OpenIdConnect`) | client credentials (+ token-cache hit); JwtBearer-stack validation of the resulting JWT (discovery, JWKS, tamper, key rotation) | — (no interactive flow) |
+| C# / .NET (WS-Fed) | `Microsoft.AspNetCore.Authentication.WsFederation` | FederationMetadata + `wa=wsignin1.0`; SAML 2.0 `wresult` verified by unmodified middleware | cookie-jar HTTPS against the account picker (`e2e/wsfed`) |
 | Java | `com.microsoft.azure:msal4j` (MSAL4J) | client credentials | — (no interactive flow) |
 | Flutter/Dart | Dart `http` (automated) + `flutter_appauth` (manual screen) | device code end-to-end on-device; auth code + PKCE manually | `integration_test` on Android emulator / iOS simulator — **nightly, not PR gate** |
 
@@ -62,6 +63,10 @@ Notes per language:
   then fetches OIDC discovery + JWKS and validates the JWT the same way JwtBearer
   does — including a tampered-signature refusal and a rotate-with-grace check.
   Built and run with `dotnet run`.
+- **.NET WS-Fed** (`e2e/wsfed/`): unmodified `AddWsFederation` against the existing
+  FederationMetadata URL and `Wtrealm=api://tasks-api`. Sibling of `e2e/saml`, not
+  an extension of `e2e/dotnet`. Drives the account picker, then lets the middleware
+  verify the SAML 2.0 `wresult`. `python3 e2e/run.py wsfed`.
 - **Java** (`e2e/java/`): `ConfidentialClientApplication.builder(...)
   .authority(authority).validateAuthority(false).instanceDiscovery(false)`; the suite
   loads `EMU_CERT` into a fresh trust store and sets it as the default `SSLContext` so

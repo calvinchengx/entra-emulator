@@ -119,6 +119,11 @@ borrowed oracles. Full detail: [parity map](docs/parity.md).
   (`<resource>/.default`, app-role auto-grant), rotating Refresh Tokens with
   family-revocation-on-reuse, Device Code (RFC 8628, with the human approval page),
   front-channel logout, OIDC UserInfo.
+- **Federation:** SAML 2.0 SP-initiated SSO (`/{tid}/saml2`) and WS-Federation
+  passive sign-in (`/{tid}/wsfed`, SAML 2.0 `wresult` to a registered
+  `wsfed-reply`). Both advertised on the existing FederationMetadata URL.
+  Unmodified `node-saml` and `Microsoft.AspNetCore.Authentication.WsFederation`
+  complete those paths.
 - **Sign-in methods:** account-picker / password (`amr: ["pwd"]`) and
   **passkeys (FIDO2/WebAuthn)** — register + assert ceremonies yielding
   `amr: ["fido"]`, with the relying party built per-request from the `Host` header

@@ -10,8 +10,8 @@
 **Gherkin SSOT:** `tests/acceptance/ws-fed/`  
 **Go analog:** `internal/server/wsfed_walking_skeleton_test.go` (package `server`)
 
-KPI source: `docs/feature/ws-fed/discuss/outcome-kpis.md` (`kpi-contracts.yaml` missing).  
-Scope boundary: US-01–US-08 in `docs/feature/ws-fed/discuss/user-stories.md`.
+KPI source: `docs/evolution/2026-08-14-ws-fed.md` (`kpi-contracts.yaml` was never added).  
+Scope boundary: US-01–US-08 (summarized in the evolution document).
 
 ## Counts
 
