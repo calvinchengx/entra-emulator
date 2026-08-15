@@ -660,7 +660,6 @@ func TestUnsolicitedLoginIsStillNotOfferedAsASetting(t *testing.T) {
 }
 
 func TestSuccessfulSignOutIsRecordedWithoutATokenBody(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-04)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
@@ -687,7 +686,6 @@ func TestSuccessfulSignOutIsRecordedWithoutATokenBody(t *testing.T) {
 }
 
 func TestGraphSignInsStillTreatWSFedAsInteractiveAfterSignOut(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-04)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
@@ -722,7 +720,6 @@ func TestGraphSignInsStillTreatWSFedAsInteractiveAfterSignOut(t *testing.T) {
 }
 
 func TestRefusedSignOutIsRecordedWithAConcreteReason(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-04 / US-06)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	q := url.Values{
