@@ -1,5 +1,5 @@
 // KPI-1: unmodified Microsoft.AspNetCore.Authentication.WsFederation completes
-// metadata fetch plus sign-in against a running emulator (via e2e/run.py).
+// metadata fetch, sign-in, and SignOut against a running emulator (via e2e/run.py).
 // Sibling of e2e/saml, not an extension of e2e/dotnet (that job is MSAL.NET).
 // Host and TLS knobs only versus Entra. Do not log raw wresult.
 // Env: EMU_ORIGIN, EMU_TENANT, EMU_CERT.
@@ -10,6 +10,7 @@ using System.Net.Security;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.WsFederation;
 
@@ -22,6 +23,7 @@ string certPath = Environment.GetEnvironmentVariable("EMU_CERT")
 
 const string Wtrealm = "api://tasks-api";
 const string ReplyPath = "/signin-wsfed";
+const string SignOutPath = "/wsfed-signed-out";
 
 int failures = 0;
 void Check(string name, bool cond, string extra = "")
@@ -44,6 +46,7 @@ var backchannel = new HttpClient(new HttpClientHandler
 int port = FreePort();
 string rpOrigin = $"http://127.0.0.1:{port}";
 string wreply = rpOrigin + ReplyPath;
+string signOutWreply = rpOrigin + SignOutPath;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -69,6 +72,7 @@ builder.Services.AddAuthentication(options =>
     o.Wtrealm = Wtrealm;
     o.Wreply = wreply;
     o.CallbackPath = ReplyPath;
+    o.SignOutWreply = signOutWreply;
     o.Backchannel = backchannel;
     // Loopback HTTP: SameAsRequest so the correlation cookie is stored and
     // sent. Entra-facing apps keep the package defaults (HTTPS / Secure).
@@ -100,6 +104,12 @@ app.MapGet("/secure", (ClaimsPrincipal user) =>
         ?? "unknown";
     return Results.Text($"authenticated:{name}");
 });
+app.MapGet("/signout", async (HttpContext ctx) =>
+{
+    await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    await ctx.SignOutAsync(WsFederationDefaults.AuthenticationScheme);
+});
+app.MapGet(SignOutPath, () => Results.Text("signed-out"));
 
 await app.StartAsync();
 try
@@ -126,9 +136,13 @@ try
     {
         displayName = "Tasks API",
         appIdUri = Wtrealm,
-        redirectUris = new[] { new { uri = wreply, type = "wsfed-reply" } },
+        redirectUris = new[]
+        {
+            new { uri = wreply, type = "wsfed-reply" },
+            new { uri = signOutWreply, type = "wsfed-reply" },
+        },
     });
-    Check("Tasks API registered with wsfed-reply",
+    Check("Tasks API registered with two wsfed-reply URIs",
         registered.StatusCode is HttpStatusCode.Created or HttpStatusCode.OK,
         $"{(int)registered.StatusCode} {SafeText(await registered.Content.ReadAsStringAsync())}");
 
@@ -205,6 +219,68 @@ try
     Check("session subject is the account that signed in",
         body.Contains("alice@entraemulator.dev", StringComparison.Ordinal),
         SafeText(body));
+
+    // KPI-1 SignOut: unmodified library SignOut after v0.8.0 sign-in.
+    // SignOutWreply must be distinct from CallbackPath (spike return-URL trap).
+    var signOut = await rpHttp.GetAsync("/signout");
+    string? signOutLoc = signOut.Headers.Location?.ToString();
+    Check("unmodified SignOut redirects wa=wsignout1.0 with distinct SignOutWreply",
+        signOut.StatusCode == HttpStatusCode.Redirect
+        && signOutLoc is not null
+        && signOutLoc.Contains($"/{tenant}/wsfed", StringComparison.Ordinal)
+        && signOutLoc.Contains("wa=wsignout1.0", StringComparison.Ordinal)
+        && signOutLoc.Contains("wtrealm=", StringComparison.Ordinal)
+        && signOutLoc.Contains("wsfed-signed-out", StringComparison.Ordinal)
+        && !signOutLoc.Contains("signin-wsfed", StringComparison.Ordinal),
+        $"{(int)signOut.StatusCode} {signOutLoc}");
+    if (signOutLoc is null || failures > 0)
+    {
+        Console.WriteLine($"FAIL ({failures})");
+        return 1;
+    }
+
+    var stsSignOut = await emuHttp.GetAsync(signOutLoc);
+    string? signedOutLoc = stsSignOut.Headers.Location?.ToString();
+    Check("emulator 302s SignOut to registered SignOutWreply",
+        stsSignOut.StatusCode == HttpStatusCode.Redirect
+        && signedOutLoc is not null
+        && signedOutLoc.Contains("wsfed-signed-out", StringComparison.Ordinal)
+        && !signedOutLoc.Contains("signin-wsfed", StringComparison.Ordinal),
+        $"{(int)stsSignOut.StatusCode} {signedOutLoc} {SafeText(await stsSignOut.Content.ReadAsStringAsync())}");
+    if (signedOutLoc is null)
+    {
+        Console.WriteLine($"FAIL ({failures})");
+        return 1;
+    }
+
+    var signedOutPage = await rpHttp.GetAsync(new Uri(signedOutLoc).PathAndQuery);
+    string signedOutBody = await signedOutPage.Content.ReadAsStringAsync();
+    Check("Tasks API shows signed-out page",
+        signedOutPage.IsSuccessStatusCode
+        && signedOutBody.Contains("signed-out", StringComparison.OrdinalIgnoreCase),
+        $"{(int)signedOutPage.StatusCode} {SafeText(signedOutBody)}");
+
+    var afterSignOut = await rpHttp.GetAsync("/secure");
+    string? afterLoc = afterSignOut.Headers.Location?.ToString();
+    Check("GET /secure is unauthenticated after SignOut",
+        afterSignOut.StatusCode == HttpStatusCode.Redirect
+        && afterLoc is not null
+        && afterLoc.Contains("wa=wsignin1.0", StringComparison.Ordinal),
+        $"{(int)afterSignOut.StatusCode} {afterLoc} {SafeText(await afterSignOut.Content.ReadAsStringAsync())}");
+    if (afterLoc is null || failures > 0)
+    {
+        Console.WriteLine($"FAIL ({failures})");
+        return 1;
+    }
+
+    var nextPicker = await emuHttp.GetAsync(afterLoc);
+    string nextHtml = await nextPicker.Content.ReadAsStringAsync();
+    Check("next challenge shows Pick an account",
+        nextPicker.StatusCode == HttpStatusCode.OK
+        && nextHtml.Contains("Pick an account", StringComparison.Ordinal)
+        && nextHtml.Contains("LOCAL EMULATOR", StringComparison.Ordinal)
+        && !nextHtml.Contains("wresult", StringComparison.Ordinal),
+        $"{(int)nextPicker.StatusCode} {SafeText(nextHtml)}");
 }
 finally
 {

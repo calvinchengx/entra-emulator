@@ -214,7 +214,7 @@ func TestPriyaSignsAliceOutAfterRegisteringDistinctReturnOnStaleDirectory(t *tes
 }
 
 func TestUnmodifiedWsFederationCompletesSignOut(t *testing.T) {
-	t.Skip("KPI-1 witness is e2e/wsfed (python3 e2e/run.py wsfed including SignOut); DELIVER extends e2e/wsfed — two wsfed-reply URIs, SignOutWreply ≠ CallbackPath")
+	t.Skip("KPI-1 witness is e2e/wsfed (python3 e2e/run.py wsfed); see e2e/wsfed/README.md")
 }
 
 func TestFederationMetadataStillNamesSignOutOnTheSignInEndpoint(t *testing.T) {

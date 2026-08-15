@@ -677,11 +677,14 @@ func TestSigningCertificatesInBothSectionsMatch(t *testing.T) {
 	}
 }
 
+// TestSignOutIsAdvertisedWithoutASignOutWitness keeps the v0.8.0 metadata
+// advertisement: PassiveRequestorEndpoint is /{tid}/wsfed. The freeze that
+// forbade driving wa=wsignout1.0 (signOutForbiddenTrip) is superseded by the
+// e2e/wsfed SignOut witness (KPI-1).
 func TestSignOutIsAdvertisedWithoutASignOutWitness(t *testing.T) {
 	hts, cfg, _ := newTestServer(t)
-	c := &http.Client{Transport: signOutForbiddenTrip{t: t}}
 	metaURL := hts.URL + "/" + cfg.TenantID + "/federationmetadata/2007-06/federationmetadata.xml"
-	resp, err := c.Get(metaURL)
+	resp, err := http.Get(metaURL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -797,17 +800,6 @@ func fedEndpointAddress(rd *etree.Element, local string) string {
 		return ""
 	}
 	return strings.TrimSpace(addr.Text())
-}
-
-// signOutForbiddenTrip fails the test if anyone drives wa=wsignout1.0.
-// Sign-out is advertised on PassiveRequestorEndpoint; this cut does not witness SLO.
-type signOutForbiddenTrip struct{ t *testing.T }
-
-func (s signOutForbiddenTrip) RoundTrip(req *http.Request) (*http.Response, error) {
-	if req.URL.Query().Get("wa") == "wsignout1.0" {
-		s.t.Fatal("this story does not require a wsignout1.0 round-trip")
-	}
-	return http.DefaultTransport.RoundTrip(req)
 }
 
 func TestPOSTAsWellAsGETCanStartSignIn(t *testing.T) {

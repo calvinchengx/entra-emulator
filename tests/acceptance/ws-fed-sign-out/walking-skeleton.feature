@@ -7,8 +7,8 @@
 #   GET|POST /{tid}/wsfed  (wa=wsignout1.0 after completed wsignin1.0)
 #   e2e/wsfed unmodified Microsoft.AspNetCore.Authentication.WsFederation SignOut (KPI-1)
 #
-# WS-1 (clean), WS-2 (with-pre-commit), and WS-3 (with-stale-config) are enabled.
-# KPI-1 (e2e/wsfed SignOut) remains @pending until DELIVER 04-02.
+# WS-1 (clean), WS-2 (with-pre-commit), WS-3 (with-stale-config), and KPI-1
+# (e2e/wsfed SignOut) are enabled. KPI-1 green bar is python3 e2e/run.py wsfed.
 #
 # Return URL (DESIGN): https://rp.example.test/wsfed-signed-out
 # Sign-in callback remains https://rp.example.test/signin-wsfed
@@ -56,7 +56,7 @@ Feature: Sign out of a WS-Fed relying party at the local STS
     And the emulator never mints a wresult
     And the emulator never sends the browser to an unregistered return
 
-  @pending @walking_skeleton @kpi @real-io @driving_adapter @driving_port @US-02 @US-03 @US-05 @KPI-1
+  @walking_skeleton @kpi @real-io @driving_adapter @driving_port @US-02 @US-03 @US-05 @KPI-1
   Scenario: Priya's unmodified WsFederation middleware completes SignOut
     # Driving port: e2e/wsfed stranger — unmodified Microsoft.AspNetCore.Authentication.WsFederation SignOut
     # Witness: python3 e2e/run.py wsfed including a SignOut step. DELIVER extends e2e/wsfed.
