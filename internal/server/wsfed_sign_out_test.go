@@ -361,7 +361,6 @@ func TestPOSTAsWellAsGETCanSignOut(t *testing.T) {
 }
 
 func TestAfterSignOutAliceIsStillListed(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-03)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
@@ -383,7 +382,6 @@ func TestAfterSignOutAliceIsStillListed(t *testing.T) {
 }
 
 func TestChoosingAliceAfterSignOutStillCompletesSignIn(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-03)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)

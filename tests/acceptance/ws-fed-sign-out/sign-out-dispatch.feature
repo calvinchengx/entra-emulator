@@ -34,14 +34,14 @@ Feature: Sign-out ends the session and never mints a token
     Then the emulator does not mint a wresult
     And the browser is sent to "https://rp.example.test/wsfed-signed-out"
 
-  @pending @driving_port @real-io @US-03
+  @driving_port @real-io @US-03
   Scenario: After sign-out Alice is still listed
     # Driving port: GET /{tid}/wsfed wa=wsignin1.0
     Given Alice signed out through wa=wsignout1.0
     When the account picker is shown
     Then Alice (alice@entraemulator.dev) is listed as an enabled account
 
-  @pending @driving_port @real-io @US-03 @US-05
+  @driving_port @real-io @US-03 @US-05
   Scenario: Choosing Alice after sign-out still completes sign-in
     # Driving port: GET|POST /{tid}/wsfed wa=wsignin1.0
     Given the picker is shown after sign-out
