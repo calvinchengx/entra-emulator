@@ -220,7 +220,6 @@ func TestUnmodifiedWsFederationCompletesSignOut(t *testing.T) {
 }
 
 func TestFederationMetadataStillNamesSignOutOnTheSignInEndpoint(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-01)")
 	hts, cfg, _ := newTestServer(t)
 	body := fetchMetadata(t, hts.URL, cfg.TenantID)
 	rd := parseFederationMetadata(t, body).FindElement("./RoleDescriptor")
@@ -238,7 +237,6 @@ func TestFederationMetadataStillNamesSignOutOnTheSignInEndpoint(t *testing.T) {
 }
 
 func TestSAMLAppsStillSeeTheirDescriptorAfterSignOutIsWitnessed(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-01)")
 	hts, cfg, _ := newTestServer(t)
 	entity := parseFederationMetadata(t, fetchMetadata(t, hts.URL, cfg.TenantID))
 	if entity.FindElement("./RoleDescriptor") == nil {
@@ -262,7 +260,6 @@ func TestSAMLAppsStillSeeTheirDescriptorAfterSignOutIsWitnessed(t *testing.T) {
 }
 
 func TestPriyaIsNotSentToASecondMetadataURLForSignOut(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-01)")
 	hts, cfg, _ := newTestServer(t)
 	body := fetchMetadata(t, hts.URL, cfg.TenantID)
 	if parseFederationMetadata(t, body).FindElement("./RoleDescriptor") == nil {
