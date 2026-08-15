@@ -41,6 +41,11 @@ var wsfedPostForm = template.Must(template.New("wsfed-post").Parse(`<!DOCTYPE ht
 <noscript><p>JavaScript is off.</p><button type="submit">Continue</button></noscript>
 </form></body></html>`))
 
+const (
+	wsfedActionSignIn  = "wsignin1.0"
+	wsfedActionSignOut = "wsignout1.0"
+)
+
 // handleWSFed accepts a wa=wsignin1.0 challenge or a wa=wsignout1.0 request
 // on the same GET|POST /{tid}/wsfed route. Sign-out is dispatched on wa
 // before any mint: a live session never produces wresult.
@@ -53,13 +58,7 @@ func (i *Identity) handleWSFed(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		_ = r.ParseForm()
 	}
-	wa := wsfedChallengeValue(r, "wa")
-	if wa == "wsignout1.0" {
-		i.handleWSFedSignOut(w, r)
-		return
-	}
-	if wa != "" && wa != "wsignin1.0" {
-		i.refuseUnknownWSFedAction(w, r)
+	if i.dispatchWSFedAction(w, r) {
 		return
 	}
 	if r.Method == http.MethodPost {
@@ -99,6 +98,21 @@ func (i *Identity) handleWSFed(w http.ResponseWriter, r *http.Request) {
 	i.renderWSFedSignIn(w, st, "")
 }
 
+// dispatchWSFedAction handles wsignout1.0 and unknown wa before any mint.
+// Empty wa and wsignin1.0 fall through to the sign-in challenge.
+func (i *Identity) dispatchWSFedAction(w http.ResponseWriter, r *http.Request) bool {
+	wa := wsfedChallengeValue(r, "wa")
+	if wa == wsfedActionSignOut {
+		i.handleWSFedSignOut(w, r)
+		return true
+	}
+	if wa != "" && wa != wsfedActionSignIn {
+		i.refuseUnknownWSFedAction(w, r)
+		return true
+	}
+	return false
+}
+
 // handleWSFedSignOut ends the shared emulator session and 302s to an exact
 // registered wsfed-reply. It never mints an RSTR, even with a live session.
 func (i *Identity) handleWSFedSignOut(w http.ResponseWriter, r *http.Request) {
@@ -110,9 +124,15 @@ func (i *Identity) handleWSFedSignOut(w http.ResponseWriter, r *http.Request) {
 		i.renderErrorPage(w, http.StatusBadRequest, "Unknown application", err.Error())
 		return
 	}
+	i.endWSFedEmulatorSession(w, r)
+	http.Redirect(w, r, returnTo, http.StatusFound)
+}
 
+// endWSFedEmulatorSession clears the emulator session cookie and RP list
+// after the return URL is allowlisted. Sign-out never mints an RSTR.
+func (i *Identity) endWSFedEmulatorSession(w http.ResponseWriter, r *http.Request) {
 	sessionID := ""
-	if c, err := r.Cookie(sessionCookie); err == nil {
+	if c, err := r.Cookie(sessionCookie); err == nil && c.Value != "" {
 		sessionID = c.Value
 	}
 	if _, user := i.currentSession(r); user != nil {
@@ -122,7 +142,6 @@ func (i *Identity) handleWSFedSignOut(w http.ResponseWriter, r *http.Request) {
 	if sessionID != "" {
 		_ = i.Store.ForgetSessionApps(sessionID)
 	}
-	http.Redirect(w, r, returnTo, http.StatusFound)
 }
 
 // resolveWSFedSignOutReturn prefers a library-sent wreply that is an exact
@@ -139,12 +158,9 @@ func (i *Identity) resolveWSFedSignOutReturn(wtrealm, wreply string) (string, er
 }
 
 func (i *Identity) registeredWSFedReplyForRealm(wtrealm string) (string, error) {
-	if wtrealm == "" {
-		return "", fmt.Errorf("wsfed: no wtrealm")
-	}
-	app, err := i.Store.GetAppByIDURI(wtrealm)
+	app, err := i.wsfedAppByRealm(wtrealm)
 	if err != nil {
-		return "", fmt.Errorf("wsfed: no application registered with identifier %q", wtrealm)
+		return "", err
 	}
 	uris, err := i.Store.ListRedirectURIs(app.ID)
 	if err != nil {
@@ -155,10 +171,9 @@ func (i *Identity) registeredWSFedReplyForRealm(wtrealm string) (string, error) 
 		if err != nil {
 			return "", fmt.Errorf("wsfed: cannot read reply URLs for %s: %w", app.ID, err)
 		}
-		if !ok {
-			continue
+		if ok {
+			return u.URI, nil
 		}
-		return u.URI, nil
 	}
 	return "", fmt.Errorf("wsfed: no registered wsfed-reply for %s", app.ID)
 }

@@ -17,6 +17,19 @@ func wsfedChallengeValue(r *http.Request, key string) string {
 	return r.URL.Query().Get(key)
 }
 
+// wsfedAppByRealm looks up the registered app for wtrealm. Empty and unknown
+// realms stay on the emulator — they are never a bounce to caller wreply.
+func (i *Identity) wsfedAppByRealm(wtrealm string) (*store.App, error) {
+	if wtrealm == "" {
+		return nil, fmt.Errorf("wsfed: no wtrealm")
+	}
+	app, err := i.Store.GetAppByIDURI(wtrealm)
+	if err != nil {
+		return nil, fmt.Errorf("wsfed: no application registered with identifier %q", wtrealm)
+	}
+	return app, nil
+}
+
 // resolveWSFedRelyingParty maps wtrealm onto a registered app and decides
 // where the RSTR may be delivered.
 //
@@ -27,12 +40,9 @@ func wsfedChallengeValue(r *http.Request, key string) string {
 // Type-blind HasRedirectURI would accept a saml-acs or OIDC web URI, which
 // is a different POST contract — so the check is type-aware.
 func (i *Identity) resolveWSFedRelyingParty(wtrealm, wreply string) (*store.App, error) {
-	if wtrealm == "" {
-		return nil, fmt.Errorf("wsfed: no wtrealm")
-	}
-	app, err := i.Store.GetAppByIDURI(wtrealm)
+	app, err := i.wsfedAppByRealm(wtrealm)
 	if err != nil {
-		return nil, fmt.Errorf("wsfed: no application registered with identifier %q", wtrealm)
+		return nil, err
 	}
 	if wreply == "" {
 		return nil, fmt.Errorf("wsfed: no wreply")

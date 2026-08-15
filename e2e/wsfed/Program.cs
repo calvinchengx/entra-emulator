@@ -230,8 +230,8 @@ try
         && signOutLoc.Contains($"/{tenant}/wsfed", StringComparison.Ordinal)
         && signOutLoc.Contains("wa=wsignout1.0", StringComparison.Ordinal)
         && signOutLoc.Contains("wtrealm=", StringComparison.Ordinal)
-        && signOutLoc.Contains("wsfed-signed-out", StringComparison.Ordinal)
-        && !signOutLoc.Contains("signin-wsfed", StringComparison.Ordinal),
+        && signOutLoc.Contains(SignOutPath.TrimStart('/'), StringComparison.Ordinal)
+        && !signOutLoc.Contains(ReplyPath.TrimStart('/'), StringComparison.Ordinal),
         $"{(int)signOut.StatusCode} {signOutLoc}");
     if (signOutLoc is null || failures > 0)
     {
@@ -244,8 +244,8 @@ try
     Check("emulator 302s SignOut to registered SignOutWreply",
         stsSignOut.StatusCode == HttpStatusCode.Redirect
         && signedOutLoc is not null
-        && signedOutLoc.Contains("wsfed-signed-out", StringComparison.Ordinal)
-        && !signedOutLoc.Contains("signin-wsfed", StringComparison.Ordinal),
+        && signedOutLoc.Contains(SignOutPath.TrimStart('/'), StringComparison.Ordinal)
+        && !signedOutLoc.Contains(ReplyPath.TrimStart('/'), StringComparison.Ordinal),
         $"{(int)stsSignOut.StatusCode} {signedOutLoc} {SafeText(await stsSignOut.Content.ReadAsStringAsync())}");
     if (signedOutLoc is null)
     {

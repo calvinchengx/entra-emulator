@@ -16,9 +16,8 @@ import (
 // Scenario: Priya signs Alice out of the Tasks API on a clean emulator
 //
 // Enters through driving ports only (httptest emulator HTTP), matching
-// wsfed_walking_skeleton_test.go. Production packages already exist;
-// handleWSFed ignores wa, so a live session on wsignout1.0 can mint wresult
-// (DISCUSS D12 / ADR-006). That is RED, not BROKEN.
+// wsfed_walking_skeleton_test.go. handleWSFed dispatches wa=wsignout1.0
+// before any mint (DISCUSS D12 / ADR-006).
 // Do not add SCAFFOLD panic handlers into handleWSFed — they would break Register.
 //
 // Return URL (DESIGN): https://rp.example.test/wsfed-signed-out
@@ -42,6 +41,24 @@ func wsfedSignOutURL(base, tenant string) string {
 		"wreply":  {testTasksWSFedSignOutReply},
 	}
 	return base + "/" + tenant + "/wsfed?" + q.Encode()
+}
+
+func getTenantWSFed(t *testing.T, c *http.Client, base, tenant string, q url.Values) (*http.Response, string) {
+	t.Helper()
+	resp, err := c.Get(base + "/" + tenant + "/wsfed?" + q.Encode())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp, readAll(t, resp)
+}
+
+func getTasksAPISignOut(t *testing.T, c *http.Client, base, tenant string) (*http.Response, string) {
+	t.Helper()
+	resp, err := c.Get(wsfedSignOutURL(base, tenant))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp, readAll(t, resp)
 }
 
 func sessionCookieValue(t *testing.T, c *http.Client, originStr string) string {
@@ -68,11 +85,7 @@ func completeTasksAPIWSFedSignInOn(t *testing.T, c *http.Client, base, tenant, w
 	if wctx != "" {
 		q.Set("wctx", wctx)
 	}
-	resp, err := c.Get(base + "/" + tenant + "/wsfed?" + q.Encode())
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := readAll(t, resp)
+	resp, page := getTenantWSFed(t, c, base, tenant, q)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("challenge returned %d:\n%s", resp.StatusCode, page)
 	}
@@ -135,11 +148,7 @@ func TestPriyaSignsAliceOutOfTheTasksAPI(t *testing.T) {
 		t.Fatal("expected an emulator session after WS-Fed sign-in")
 	}
 
-	resp, err := c.Get(wsfedSignOutURL(hts.URL, cfg.TenantID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := readAll(t, resp)
+	resp, page := getTasksAPISignOut(t, c, hts.URL, cfg.TenantID)
 	assertSignOutDidNotMint(t, resp, page)
 
 	if sessionCookieValue(t, c, hts.URL) != "" {
@@ -172,11 +181,7 @@ func TestPriyaSignsAliceOutAlongsideOIDCAndSAML(t *testing.T) {
 
 	c := samlClient(t)
 	completeTasksAPIWSFedSignInOn(t, c, hts.URL, cfg.TenantID, testWSFedWctx, store.SeedUserAliceID)
-	resp, err := c.Get(wsfedSignOutURL(hts.URL, cfg.TenantID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := readAll(t, resp)
+	resp, page := getTasksAPISignOut(t, c, hts.URL, cfg.TenantID)
 	assertSignOutDidNotMint(t, resp, page)
 	if sessionCookieValue(t, c, hts.URL) != "" {
 		t.Fatal("Alice's emulator session is still present after wa=wsignout1.0")
@@ -205,11 +210,7 @@ func TestPriyaSignsAliceOutAfterRegisteringDistinctReturnOnStaleDirectory(t *tes
 
 	c := samlClient(t)
 	completeTasksAPIWSFedSignInOn(t, c, hts.URL, cfg.TenantID, testWSFedWctx, store.SeedUserAliceID)
-	resp, err := c.Get(wsfedSignOutURL(hts.URL, cfg.TenantID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := readAll(t, resp)
+	resp, page := getTasksAPISignOut(t, c, hts.URL, cfg.TenantID)
 	assertSignOutDidNotMint(t, resp, page)
 }
 
@@ -282,11 +283,7 @@ func TestExistingSAMLSignInStillCompletesAfterWSFedSignOut(t *testing.T) {
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
 	completeTasksAPIWSFedSignInOn(t, c, hts.URL, cfg.TenantID, testWSFedWctx, store.SeedUserAliceID)
-	resp, err := c.Get(wsfedSignOutURL(hts.URL, cfg.TenantID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	_ = readAll(t, resp)
+	_, _ = getTasksAPISignOut(t, c, hts.URL, cfg.TenantID)
 
 	saml := signInOverSAML(t, &httptestServer{URL: hts.URL}, cfg.TenantID, "")
 	if got := firstMatch(t, actionRe, saml, "SAML form action"); got != testSPACS {
@@ -299,11 +296,7 @@ func TestExistingOIDCSignInStillCompletesAfterWSFedSignOut(t *testing.T) {
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
 	completeTasksAPIWSFedSignInOn(t, c, hts.URL, cfg.TenantID, testWSFedWctx, store.SeedUserAliceID)
-	resp, err := c.Get(wsfedSignOutURL(hts.URL, cfg.TenantID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	_ = readAll(t, resp)
+	_, _ = getTasksAPISignOut(t, c, hts.URL, cfg.TenantID)
 
 	oidc := driveAuthCode(t, hts, "verifier-supercalifragilistic-0123456789")
 	if oidc["id_token"] == nil || oidc["access_token"] == nil {
@@ -316,11 +309,7 @@ func TestSignOutWithALiveSessionDoesNotMintAToken(t *testing.T) {
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
 	completeTasksAPIWSFedSignInOn(t, c, hts.URL, cfg.TenantID, testWSFedWctx, store.SeedUserAliceID)
-	resp, err := c.Get(wsfedSignOutURL(hts.URL, cfg.TenantID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := readAll(t, resp)
+	resp, page := getTasksAPISignOut(t, c, hts.URL, cfg.TenantID)
 	assertSignOutDidNotMint(t, resp, page)
 }
 
@@ -328,11 +317,7 @@ func TestRepeatingSignOutWithNoSessionStillReturnsToRegisteredReply(t *testing.T
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
-	resp, err := c.Get(wsfedSignOutURL(hts.URL, cfg.TenantID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := readAll(t, resp)
+	resp, page := getTasksAPISignOut(t, c, hts.URL, cfg.TenantID)
 	assertSignOutDidNotMint(t, resp, page)
 	if loc := resp.Header.Get("Location"); loc == testAttackerReply {
 		t.Fatal("idempotent sign-out bounced to an unowned URL")
@@ -361,11 +346,7 @@ func TestAfterSignOutAliceIsStillListed(t *testing.T) {
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
 	completeTasksAPIWSFedSignInOn(t, c, hts.URL, cfg.TenantID, testWSFedWctx, store.SeedUserAliceID)
-	resp, err := c.Get(wsfedSignOutURL(hts.URL, cfg.TenantID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := readAll(t, resp)
+	resp, page := getTasksAPISignOut(t, c, hts.URL, cfg.TenantID)
 	assertSignOutDidNotMint(t, resp, page)
 	challenge, err := c.Get(wsfedChallengeURL(hts.URL, cfg.TenantID))
 	if err != nil {
@@ -382,11 +363,7 @@ func TestChoosingAliceAfterSignOutStillCompletesSignIn(t *testing.T) {
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
 	completeTasksAPIWSFedSignInOn(t, c, hts.URL, cfg.TenantID, testWSFedWctx, store.SeedUserAliceID)
-	resp, err := c.Get(wsfedSignOutURL(hts.URL, cfg.TenantID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	_ = readAll(t, resp)
+	_, _ = getTasksAPISignOut(t, c, hts.URL, cfg.TenantID)
 
 	out := completeTasksAPIWSFedSignInOn(t, c, hts.URL, cfg.TenantID, testWSFedWctx, store.SeedUserAliceID)
 	if got := firstMatch(t, actionRe, out, "auto-POST form action"); got != testTasksWSFedReply {
@@ -403,21 +380,13 @@ func TestUnknownWaIsRefusedOnTheEmulator(t *testing.T) {
 		"wreply":  {testTasksWSFedSignOutReply},
 	}
 	c := samlClient(t)
-	resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := readAll(t, resp)
+	resp, page := getTenantWSFed(t, c, hts.URL, cfg.TenantID, q)
 	assertWSFedRefusedOnEmulator(t, resp, page, testTasksWSFedSignOutReply)
 
-	empty, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + url.Values{
+	empty, emptyPage := getTenantWSFed(t, c, hts.URL, cfg.TenantID, url.Values{
 		"wtrealm": {testTasksAppIDURI},
 		"wreply":  {testTasksWSFedReply},
-	}.Encode())
-	if err != nil {
-		t.Fatal(err)
-	}
-	emptyPage := readAll(t, empty)
+	})
 	if empty.StatusCode != http.StatusOK || strings.Contains(emptyPage, "wresult") {
 		t.Fatalf("empty wa must still start sign-in:\n%s", emptyPage)
 	}
@@ -455,11 +424,7 @@ func TestUnknownWtrealmOnSignOutDoesNotReturnToCallerURL(t *testing.T) {
 		"wreply":  {testAttackerReply},
 	}
 	c := samlClient(t)
-	resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := readAll(t, resp)
+	resp, page := getTenantWSFed(t, c, hts.URL, cfg.TenantID, q)
 	assertWSFedRefusedOnEmulator(t, resp, page, testAttackerReply)
 }
 
@@ -483,11 +448,7 @@ func TestEmptyRealmIsRefusedOnSignOut(t *testing.T) {
 				q.Set("wtrealm", tc.wtrealm)
 			}
 			c := samlClient(t)
-			resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
-			if err != nil {
-				t.Fatal(err)
-			}
-			page := readAll(t, resp)
+			resp, page := getTenantWSFed(t, c, hts.URL, cfg.TenantID, q)
 			assertWSFedRefusedOnEmulator(t, resp, page, testAttackerReply)
 		})
 	}
@@ -523,11 +484,7 @@ func assertWrongTypeSignOutReturnRefused(t *testing.T, uri, typ string) {
 		"wreply":  {uri},
 	}
 	c := samlClient(t)
-	resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := readAll(t, resp)
+	resp, page := getTenantWSFed(t, c, hts.URL, cfg.TenantID, q)
 	assertWSFedRefusedOnEmulator(t, resp, page, uri)
 }
 
@@ -550,11 +507,7 @@ func TestAnotherAppsReplyIsNotAcceptedOnSignOut(t *testing.T) {
 		"wreply":  {testFinanceWSFedReply},
 	}
 	c := samlClient(t)
-	resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := readAll(t, resp)
+	resp, page := getTenantWSFed(t, c, hts.URL, cfg.TenantID, q)
 	assertWSFedRefusedOnEmulator(t, resp, page, testFinanceWSFedReply)
 }
 
@@ -567,11 +520,7 @@ func TestUnregisteredReturnDoesNotReceiveTheBrowserOnSignOut(t *testing.T) {
 		"wreply":  {testUnregisteredReply},
 	}
 	c := samlClient(t)
-	resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := readAll(t, resp)
+	resp, page := getTenantWSFed(t, c, hts.URL, cfg.TenantID, q)
 	assertWSFedRefusedOnEmulator(t, resp, page, testUnregisteredReply)
 }
 
@@ -584,11 +533,7 @@ func TestMissingReturnUsesARegisteredWSFedReply(t *testing.T) {
 		"wa":      {"wsignout1.0"},
 		"wtrealm": {testTasksAppIDURI},
 	}
-	resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := readAll(t, resp)
+	resp, page := getTenantWSFed(t, c, hts.URL, cfg.TenantID, q)
 	if strings.Contains(page, "wresult") || strings.Contains(page, "RequestSecurityTokenResponse") {
 		t.Fatalf("omitted return minted a wresult:\n%s", page)
 	}
@@ -650,11 +595,7 @@ func TestSuccessfulSignOutIsRecordedWithoutATokenBody(t *testing.T) {
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
 	completeTasksAPIWSFedSignInOn(t, c, hts.URL, cfg.TenantID, testWSFedWctx, store.SeedUserAliceID)
-	resp, err := c.Get(wsfedSignOutURL(hts.URL, cfg.TenantID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	_ = readAll(t, resp)
+	_, _ = getTasksAPISignOut(t, c, hts.URL, cfg.TenantID)
 
 	var signOut map[string]any
 	for _, e := range auditList(t, hts.URL) {
@@ -676,11 +617,7 @@ func TestGraphSignInsStillTreatWSFedAsInteractiveAfterSignOut(t *testing.T) {
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
 	completeTasksAPIWSFedSignInOn(t, c, hts.URL, cfg.TenantID, testWSFedWctx, store.SeedUserAliceID)
-	resp, err := c.Get(wsfedSignOutURL(hts.URL, cfg.TenantID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	_ = readAll(t, resp)
+	_, _ = getTasksAPISignOut(t, c, hts.URL, cfg.TenantID)
 
 	app := appGraphToken(t, hts.URL)
 	status, logs := graphGet(t, hts.URL, "/graph/v1.0/auditLogs/signIns", app)
@@ -714,11 +651,7 @@ func TestRefusedSignOutIsRecordedWithAConcreteReason(t *testing.T) {
 		"wreply":  {testAttackerReply},
 	}
 	c := samlClient(t)
-	resp, err := c.Get(hts.URL + "/" + cfg.TenantID + "/wsfed?" + q.Encode())
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := readAll(t, resp)
+	_, page := getTenantWSFed(t, c, hts.URL, cfg.TenantID, q)
 	if strings.Contains(page, "wresult") || strings.Contains(page, "RequestSecurityTokenResponse") {
 		t.Fatalf("unknown wtrealm issued a token:\n%s", page)
 	}
