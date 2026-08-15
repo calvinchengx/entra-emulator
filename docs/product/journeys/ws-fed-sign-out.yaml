@@ -1,0 +1,287 @@
+schema_version: 1
+ssot: canonical
+canonical_path: docs/product/journeys/ws-fed-sign-out.yaml
+jtbd_analysis: skipped
+traces_to: docs/product/jobs.yaml
+job_id: point-ws-fed-rp-at-local-sts
+
+journey:
+  name: Sign out of a WS-Fed RP at the local STS
+  feature_id: ws-fed-sign-out
+  goal: >
+    After a completed v0.8.0 WS-Fed sign-in, unmodified
+    Microsoft.AspNetCore.Authentication.WsFederation SignOut drives
+    wa=wsignout1.0 to the advertised PassiveRequestorEndpoint. The emulator
+    session ends. The Tasks API session is gone. A new wa=wsignin1.0 from the
+    same browser shows Pick an account.
+  persona: >
+    Priya Chen, backend engineer maintaining an ASP.NET Core Tasks API that
+    already uses AddWsFederation. Developer-as-user, not a SharePoint operator.
+  directory_user: Alice (alice@entraemulator.dev)
+  witness: Microsoft.AspNetCore.Authentication.WsFederation
+  medium: protocol-plus-existing-session
+
+  emotional_arc:
+    pattern: Problem Relief
+    start: Frustrated (sign-out advertised; a live session can still be treated as sign-in)
+    middle: Hopeful then relieved (library reaches /{tid}/wsfed; session actually ends)
+    end: Confident (RP session gone; next wsignin1.0 shows the picker; sign-in still works)
+
+steps:
+  - id: 1
+    name: Start from a completed v0.8.0 sign-in
+    command: >
+      Priya already pointed MetadataAddress and Wtrealm at the emulator.
+      Alice completed Pick an account. Unmodified WsFederation accepted wresult.
+    tui_mockup: |
+      options.MetadataAddress =
+        "${login_origin}/${tid}/federationmetadata/2007-06/federationmetadata.xml";
+      options.Wtrealm = "api://tasks-api";
+      // ${wreply} = https://rp.example.test/signin-wsfed (registered wsfed-reply)
+      // Alice (alice@entraemulator.dev) has an RP session
+    shared_artifacts:
+      - name: tid
+        source: emulator workforce tenant
+        displayed_as: "${tid}"
+        consumers: ["metadata URL", "wsfed URL"]
+      - name: wtrealm
+        source: app Application ID URI
+        displayed_as: "${wtrealm}"
+        consumers: ["Wtrealm option", "wa=wsignout1.0 query", "audit ClientID"]
+      - name: wreply
+        source: registered reply URL of type wsfed-reply for the Tasks API app
+        displayed_as: "${wreply}"
+        consumers: ["sign-in wreply", "sign-out return URL"]
+      - name: account
+        source: enabled user in the emulator directory
+        displayed_as: "${account}"
+        consumers: ["picker row on next sign-in", "audit subject"]
+    emotional_state:
+      entry: Frustrated — sign-in works; sign-out is advertised and not witnessed
+      exit: Determined — the next Entra-shaped call is the library SignOut she already ships
+    integration_checkpoint: |
+      ${wtrealm} is api://tasks-api. ${wreply} is registered as type wsfed-reply.
+      FederationMetadata already advertises sign-out on PassiveRequestorEndpoint
+      ${login_origin}/${tid}/wsfed. This step does not re-grow metadata.
+    failure_modes:
+      - v0.8.0 sign-in not completed (this journey does not start)
+      - Reply not registered as wsfed-reply
+    gherkin: |
+      Scenario: Priya starts sign-out from a completed Tasks API sign-in
+        Given Priya Chen maintains an ASP.NET Core Tasks API that already uses AddWsFederation
+        And the emulator directory has an app whose Application ID URI is "api://tasks-api"
+        And that app has a registered wsfed-reply "https://rp.example.test/signin-wsfed"
+        And Alice (alice@entraemulator.dev) completed WS-Fed sign-in
+        And unmodified Microsoft.AspNetCore.Authentication.WsFederation accepted the token
+        Then Priya has an authenticated session at the Tasks API
+        And FederationMetadata advertises sign-out on "${login_origin}/${tid}/wsfed"
+        And shared artifact "${wtrealm}" is "api://tasks-api"
+        And shared artifact "${wreply}" is "https://rp.example.test/signin-wsfed"
+
+  - id: 2
+    name: Unmodified SignOut reaches the advertised endpoint
+    command: >
+      GET|POST ${wsfed_url}?wa=wsignout1.0&wtrealm=api://tasks-api
+      &wreply=https://rp.example.test/signin-wsfed
+    tui_mockup: |
+      GET /{tid}/wsfed?wa=wsignout1.0&wtrealm=api://tasks-api
+        &wreply=https://rp.example.test/signin-wsfed
+      (library SignOut; host and TLS knobs only)
+    shared_artifacts:
+      - name: wsfed_url
+        source: FederationMetadata PassiveRequestorEndpoint
+        displayed_as: "${wsfed_url}"
+        consumers: ["TokenEndpoint", "sign-out request"]
+      - name: wtrealm
+        source: app Application ID URI
+        displayed_as: "${wtrealm}"
+        consumers: ["wsignout1.0 query"]
+      - name: wreply
+        source: return URL the library sends, else registered wsfed-reply
+        displayed_as: "${wreply}"
+        consumers: ["wsignout1.0 query", "browser return at step 4"]
+    emotional_state:
+      entry: Hopeful — metadata already named this URL for sign-out
+      exit: Focused — the request is sign-out, not another sign-in
+    integration_checkpoint: |
+      wa is wsignout1.0. Endpoint equals PassiveRequestorEndpoint (same
+      /{tid}/wsfed as sign-in). Witness is e2e/wsfed, not a second project,
+      not e2e/dotnet. Prefer the library-sent return URL; otherwise the
+      registered wreply.
+    failure_modes:
+      - Request treated as wa=wsignin1.0 (today: live session can mint wresult)
+      - Sign-out sent to a new path that metadata does not advertise
+    gherkin: |
+      Scenario: Priya's unmodified SignOut reaches the advertised sign-out URL
+        Given Alice completed WS-Fed sign-in for the Tasks API
+        And FederationMetadata names PassiveRequestorEndpoint as "${login_origin}/${tid}/wsfed"
+        When unmodified Microsoft.AspNetCore.Authentication.WsFederation SignOut runs
+        Then the browser is sent to GET or POST /{tid}/wsfed with wa=wsignout1.0
+        And wtrealm is "api://tasks-api"
+        And shared artifact "${wsfed_url}" matches PassiveRequestorEndpoint
+
+  - id: 3
+    name: Emulator ends the shared session
+    command: Emulator answers wa=wsignout1.0; shared session cookie is gone
+    tui_mockup: |
+      GET|POST /{tid}/wsfed  wa=wsignout1.0
+      emulator session (OIDC/SAML/WS-Fed cookie) ended
+      no wresult minted
+    shared_artifacts:
+      - name: account
+        source: Alice's emulator session
+        displayed_as: "${account}"
+        consumers: ["session subject being cleared"]
+    emotional_state:
+      entry: Tense — today this URL may SSO-deliver a token
+      exit: Relieved — the session is actually gone; no token
+    integration_checkpoint: |
+      The shared emulator session used by OIDC, SAML, and WS-Fed is ended.
+      No wresult is minted. Multi-RP wsignoutcleanup1.0 fan-out to other RPs
+      is out unless the unmodified library cannot complete single-RP SignOut
+      without it. SOAP SLO is out.
+    failure_modes:
+      - Live session treated as sign-in; wresult posted to wreply
+      - Session left in place so the next wsignin1.0 is silent SSO
+    gherkin: |
+      Scenario: The emulator ends Alice's session instead of minting another token
+        Given Alice (alice@entraemulator.dev) has an emulator session from WS-Fed sign-in
+        When the browser requests /{tid}/wsfed with wa=wsignout1.0
+          and wtrealm=api://tasks-api
+        Then the emulator does not mint a wresult
+        And Alice's emulator session is gone
+        And shared artifact "${account}" is Alice
+
+  - id: 4
+    name: Browser returns; Tasks API session is gone
+    command: Return the browser to a registered wsfed-reply
+    tui_mockup: |
+      return to https://rp.example.test/signin-wsfed  (type wsfed-reply)
+      Tasks API session gone
+      (not saml-acs, not web, not attacker.example.test)
+    shared_artifacts:
+      - name: wreply
+        source: registered wsfed-reply for api://tasks-api
+        displayed_as: "${wreply}"
+        consumers: ["browser return target"]
+    emotional_state:
+      entry: Relieved — emulator session ended
+      exit: Satisfied — the RP session she can see is gone too
+    integration_checkpoint: |
+      Return URL must be type wsfed-reply for the wtrealm app. Do not use
+      type-blind HasRedirectURI. Prefer library-sent return; otherwise the
+      registered sign-in wreply. Errors stay on the emulator (LOCAL EMULATOR);
+      never Location to an unowned URL.
+    failure_modes:
+      - Return to saml-acs or web URI
+      - Return to another app's wsfed-reply
+      - Location to https://attacker.example.test/steal
+    gherkin: |
+      Scenario: Priya's Tasks API session is gone after sign-out
+        Given Alice completed WS-Fed sign-in and Priya had an authenticated Tasks API session
+        When unmodified WsFederation SignOut completes against the emulator
+        Then the browser returns to registered wsfed-reply "https://rp.example.test/signin-wsfed"
+        And Priya no longer has an authenticated session at the Tasks API
+        And shared artifact "${wreply}" is a wsfed-reply for "api://tasks-api"
+
+  - id: 5
+    name: Next wsignin1.0 shows Pick an account
+    command: >
+      GET ${wsfed_url}?wa=wsignin1.0&wtrealm=api://tasks-api
+      &wreply=https://rp.example.test/signin-wsfed
+    tui_mockup: |
+      HTTP 200 HTML "Pick an account" LOCAL EMULATOR
+      Alice  alice@entraemulator.dev
+      (not a wresult; not silent SSO)
+    shared_artifacts:
+      - name: account
+        source: enabled user in the emulator directory
+        displayed_as: "${account}"
+        consumers: ["picker row"]
+    emotional_state:
+      entry: Checking — was sign-out real
+      exit: Confident — she must pick Alice again; sign-in still works
+    integration_checkpoint: |
+      Unauthenticated challenge remains HTTP 200 login HTML, not a wresult.
+      Completing the picker still delivers v0.8.0 SAML 2.0 wresult. Do not
+      revert WS-Fed parity to red.
+    failure_modes:
+      - Silent SSO posts wresult without picker
+      - GET /{tid}/wsfed 404
+      - Sign-in token shape regresses
+    gherkin: |
+      Scenario: After sign-out, Priya's next sign-in shows Pick an account
+        Given Alice signed out of the Tasks API through wa=wsignout1.0
+        When the same browser requests GET /{tid}/wsfed with wa=wsignin1.0,
+          wtrealm=api://tasks-api, and wreply=https://rp.example.test/signin-wsfed
+        Then the response is login HTML "Pick an account", not a wresult
+        And Alice (alice@entraemulator.dev) is listed
+        And shared artifact "${account}" is Alice
+
+  - id: 6
+    name: Audit records the sign-out exchange
+    command: Existing audited("wsfed") recorder; Graph auditLogs/signIns
+    tui_mockup: |
+      Flow=wsfed  ClientID=api://tasks-api  subject=Alice
+      no raw wresult in the event
+    shared_artifacts:
+      - name: wtrealm
+        source: app Application ID URI
+        displayed_as: "${wtrealm}"
+        consumers: ["Event.ClientID"]
+      - name: account
+        source: directory user on the ended session
+        displayed_as: "${account}"
+        consumers: ["audit subject"]
+    emotional_state:
+      entry: Checking — operators already use one audit list
+      exit: Confident — sign-out appears beside sign-in, no token body
+    integration_checkpoint: |
+      Same recorder as sign-in. Flow=wsfed. ClientID=wtrealm. Never persist
+      raw wresult. Graph already treats Flow=wsfed as interactive. Do not
+      invent a second log store. Metadata GETs remain saml-metadata.
+    failure_modes:
+      - Sign-out missing from Admin / Graph lists
+      - Event contains wresult or RequestSecurityTokenResponse
+      - Second log store invented
+    gherkin: |
+      Scenario: Priya can see the sign-out exchange in the existing audit
+        Given Alice completed WS-Fed sign-in for wtrealm "api://tasks-api"
+        When wa=wsignout1.0 completes
+        Then Admin GET /admin/api/audit includes a wsfed event for that exchange
+        And ClientID is "api://tasks-api"
+        And the event does not contain raw wresult
+        And Graph auditLogs/signIns still treats Flow=wsfed as interactive
+
+integration_validation:
+  shared_artifact_consistency:
+    - artifact: wtrealm
+      must_match_across: [1, 2, 4, 6]
+      failure_message: Wtrealm on sign-in, sign-out, return, and audit ClientID diverged
+    - artifact: wreply
+      must_match_across: [1, 2, 4]
+      failure_message: Registered wsfed-reply and sign-out return target diverged
+    - artifact: wsfed_url
+      must_match_across: [2, 3, 5]
+      failure_message: Metadata PassiveRequestorEndpoint and /wsfed URL diverged
+    - artifact: account
+      must_match_across: [1, 3, 5, 6]
+      failure_message: Alice who signed in is not the session/subject who signed out
+
+out_of_journey:
+  - SOAP / active WS-Trust (still 404)
+  - /common/wsfed
+  - IdP-initiated / AllowUnsolicitedLogins (unsolicited wresult still refused)
+  - SharePoint / SAML 1.1
+  - Portal gallery UX, MFA/CA/B2C
+  - Token encryption
+  - Multi-RP front-channel wsignoutcleanup1.0 fan-out to other relying parties
+  - SOAP SLO
+
+changelog:
+  - date: "2026-08-15"
+    feature: ws-fed-sign-out
+    change: >
+      Initial DISCUSS journey. Witnesses advertised wsignout1.0 on the existing
+      PassiveRequestorEndpoint after v0.8.0 sign-in. JTBD skipped — extends
+      point-ws-fed-rp-at-local-sts. Sign-in journey is unchanged.

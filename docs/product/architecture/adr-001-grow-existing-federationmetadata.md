@@ -4,6 +4,8 @@
 
 Accepted — 14 Aug 2026 (feature `ws-fed`)
 
+The **witness freeze** in the Decision (“advertise sign-out; do **not** witness `wsignout1.0`”) is **superseded** by [ADR-006](adr-006-wsfed-sign-out-dispatch.md) (feature `ws-fed-sign-out`, 15 Aug 2026). The metadata decision itself is unchanged: grow the existing FederationMetadata URL; both endpoints remain `/{tid}/wsfed`; same cert; no second metadata path.
+
 ## Context
 
 `Microsoft.AspNetCore.Authentication.WsFederation` locates the STS from `MetadataAddress`. Entra publishes WS-Fed at the same document SAML already uses: `/{tid}/federationmetadata/2007-06/federationmetadata.xml`. Spike H2: the library maps `PassiveRequestorEndpoint` → `TokenEndpoint` and also reads `SecurityTokenServiceEndpoint`. The emulator document today is `IDPSSODescriptor` only. Quality drivers: interoperability (stranger parse) and maintainability (one metadata URL).
