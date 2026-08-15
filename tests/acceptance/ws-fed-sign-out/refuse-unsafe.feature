@@ -24,7 +24,7 @@ Feature: The STS refuses unsafe WS-Fed sign-out returns
     Then the error stays on the emulator
     And the caller-supplied wreply does not receive the browser
 
-  @pending @driving_port @real-io @US-07 @kpi @KPI-3
+  @driving_port @real-io @US-07 @kpi @KPI-3
   Scenario: A SAML ACS is not accepted as a sign-out return
     # Driving port: GET /{tid}/wsfed wa=wsignout1.0
     Given "https://rp.example.test/acs" is registered only as saml-acs
@@ -32,28 +32,28 @@ Feature: The STS refuses unsafe WS-Fed sign-out returns
     Then the error stays on the emulator
     And the browser is not sent to the ACS
 
-  @pending @driving_port @real-io @US-07 @kpi @KPI-3
+  @driving_port @real-io @US-07 @kpi @KPI-3
   Scenario: An OIDC web callback is not accepted as a sign-out return
     # Driving port: GET /{tid}/wsfed wa=wsignout1.0
     Given "https://rp.example.test/signin-oidc" is registered only as web
     When wsignout1.0 names that URL as the return
     Then the error stays on the emulator
 
-  @pending @driving_port @real-io @US-07 @kpi @KPI-3
+  @driving_port @real-io @US-07 @kpi @KPI-3
   Scenario: Another app's reply is not accepted
     # Driving port: GET /{tid}/wsfed wa=wsignout1.0
     Given Finance API has wsfed-reply "https://finance.example.test/signin-wsfed"
     When Tasks API sign-out (wtrealm=api://tasks-api) names Finance's reply as the return
     Then the error stays on the emulator
 
-  @pending @driving_port @real-io @US-07 @kpi @KPI-3
+  @driving_port @real-io @US-07 @kpi @KPI-3
   Scenario: Unregistered return does not receive the browser
     # Driving port: GET /{tid}/wsfed wa=wsignout1.0
     When wsignout1.0 names "https://rp.example.test/not-a-callback" as the return
     Then the error stays on the emulator
     And there is no Location to that URL
 
-  @pending @driving_port @real-io @US-07
+  @driving_port @real-io @US-07
   Scenario: Missing return uses a registered wsfed-reply
     # Driving port: GET /{tid}/wsfed wa=wsignout1.0
     Given the Tasks API has registered wsfed-reply "https://rp.example.test/signin-wsfed" and "https://rp.example.test/wsfed-signed-out"

@@ -2,6 +2,7 @@ package identity
 
 import (
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"time"
@@ -104,7 +105,8 @@ func (i *Identity) handleWSFedSignOut(w http.ResponseWriter, r *http.Request) {
 	wtrealm := wsfedChallengeValue(r, "wtrealm")
 	wreply := wsfedChallengeValue(r, "wreply")
 	noteAuditClientID(r, wtrealm)
-	if _, err := i.resolveWSFedRelyingParty(wtrealm, wreply); err != nil {
+	returnTo, err := i.resolveWSFedSignOutReturn(wtrealm, wreply)
+	if err != nil {
 		i.renderErrorPage(w, http.StatusBadRequest, "Unknown application", err.Error())
 		return
 	}
@@ -120,7 +122,45 @@ func (i *Identity) handleWSFedSignOut(w http.ResponseWriter, r *http.Request) {
 	if sessionID != "" {
 		_ = i.Store.ForgetSessionApps(sessionID)
 	}
-	http.Redirect(w, r, wreply, http.StatusFound)
+	http.Redirect(w, r, returnTo, http.StatusFound)
+}
+
+// resolveWSFedSignOutReturn prefers a library-sent wreply that is an exact
+// wsfed-reply for the wtrealm app. If wreply is omitted, it uses a registered
+// wsfed-reply for that app (never saml-acs or web).
+func (i *Identity) resolveWSFedSignOutReturn(wtrealm, wreply string) (string, error) {
+	if wreply != "" {
+		if _, err := i.resolveWSFedRelyingParty(wtrealm, wreply); err != nil {
+			return "", err
+		}
+		return wreply, nil
+	}
+	return i.registeredWSFedReplyForRealm(wtrealm)
+}
+
+func (i *Identity) registeredWSFedReplyForRealm(wtrealm string) (string, error) {
+	if wtrealm == "" {
+		return "", fmt.Errorf("wsfed: no wtrealm")
+	}
+	app, err := i.Store.GetAppByIDURI(wtrealm)
+	if err != nil {
+		return "", fmt.Errorf("wsfed: no application registered with identifier %q", wtrealm)
+	}
+	uris, err := i.Store.ListRedirectURIs(app.ID)
+	if err != nil {
+		return "", fmt.Errorf("wsfed: cannot read reply URLs for %s: %w", app.ID, err)
+	}
+	for _, u := range uris {
+		ok, err := checkWSFedReply(i.Store, app.ID, u.URI)
+		if err != nil {
+			return "", fmt.Errorf("wsfed: cannot read reply URLs for %s: %w", app.ID, err)
+		}
+		if !ok {
+			continue
+		}
+		return u.URI, nil
+	}
+	return "", fmt.Errorf("wsfed: no registered wsfed-reply for %s", app.ID)
 }
 
 // refuseUnknownWSFedAction keeps a non-empty wa other than wsignin1.0 /

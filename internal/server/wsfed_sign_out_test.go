@@ -498,12 +498,10 @@ func TestEmptyRealmIsRefusedOnSignOut(t *testing.T) {
 }
 
 func TestSAMLACSIsNotAcceptedAsSignOutReturn(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-07)")
 	assertWrongTypeSignOutReturnRefused(t, testSAMLACSOnlyReply, "saml-acs")
 }
 
 func TestWebCallbackIsNotAcceptedAsSignOutReturn(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-07)")
 	assertWrongTypeSignOutReturnRefused(t, testWebOnlyReply, "web")
 }
 
@@ -538,7 +536,6 @@ func assertWrongTypeSignOutReturnRefused(t *testing.T, uri, typ string) {
 }
 
 func TestAnotherAppsReplyIsNotAcceptedOnSignOut(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-07)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	finance := &store.App{
@@ -566,7 +563,6 @@ func TestAnotherAppsReplyIsNotAcceptedOnSignOut(t *testing.T) {
 }
 
 func TestUnregisteredReturnDoesNotReceiveTheBrowserOnSignOut(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-07)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	q := url.Values{
@@ -584,7 +580,6 @@ func TestUnregisteredReturnDoesNotReceiveTheBrowserOnSignOut(t *testing.T) {
 }
 
 func TestMissingReturnUsesARegisteredWSFedReply(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-07 omitted wreply)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
