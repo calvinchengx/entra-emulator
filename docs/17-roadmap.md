@@ -33,7 +33,8 @@ The features only a Go implementation can offer; cheap and differentiating.
 4. ✅ **Distribution.** ~13 MB distroless Docker image (pure-Go, no cgo) with a
    built-in HEALTHCHECK, GHCR publish on tag, and GoReleaser cross-platform binaries
    (linux/darwin/windows × amd64/arm64). CI smoke-tests the image on every push.
-   (Homebrew tap still open.)
+   Each tag refreshes the Homebrew cask (`calvinchengx/tap/entra-emulator`) and
+   opens a winget manifest PR.
 
 ## Phase 2 — Testing ergonomics beyond the real Entra
 
@@ -52,8 +53,8 @@ The features only a Go implementation can offer; cheap and differentiating.
 8. ✅ **Flow audit trail.** Every authorize/token exchange recorded with its concrete
    accept/reject reason (OAuth `error` + `error_description`), including
    redirect-delivered authorize errors and injected faults. `GET/DELETE /admin/api/audit`;
-   in-memory ring buffer. Turns "why won't MSAL sign in" into reading a log.
-   (Portal surfacing still open.)
+   in-memory ring buffer, and the portal **Audit trail** view. Turns "why won't
+   MSAL sign in" into reading a log.
 
 ## Phase 3 — Protocol surface parity-plus
 
