@@ -609,7 +609,6 @@ func TestMissingReturnUsesARegisteredWSFedReply(t *testing.T) {
 }
 
 func TestUnsolicitedWresultIsStillRefusedAfterSignOutCut(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-08)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
@@ -628,7 +627,6 @@ func TestUnsolicitedWresultIsStillRefusedAfterSignOutCut(t *testing.T) {
 }
 
 func TestSOAPStaysAbsent(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-08)")
 	hts, cfg, _ := newTestServer(t)
 	resp, err := http.Get(hts.URL + "/" + cfg.TenantID + "/trust/13/usernamemixed")
 	if err != nil {
@@ -641,7 +639,6 @@ func TestSOAPStaysAbsent(t *testing.T) {
 }
 
 func TestUnsolicitedLoginIsStillNotOfferedAsASetting(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-08)")
 	_, cfg, _ := newTestServer(t)
 	rt := reflect.TypeOf(*cfg)
 	for i := 0; i < rt.NumField(); i++ {

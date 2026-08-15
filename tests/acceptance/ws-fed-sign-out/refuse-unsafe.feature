@@ -62,7 +62,7 @@ Feature: The STS refuses unsafe WS-Fed sign-out returns
     And the emulator does not pick a saml-acs or web URI on the same app
     And no wresult is minted
 
-  @pending @driving_port @real-io @US-08 @kpi @KPI-3
+  @driving_port @real-io @US-08 @kpi @KPI-3
   Scenario: A token POST that did not start at this STS is still refused
     # Driving port: POST /{tid}/wsfed (unsolicited wresult)
     Given the Tasks API is registered
@@ -70,14 +70,14 @@ Feature: The STS refuses unsafe WS-Fed sign-out returns
     Then the emulator refuses
     And no Tasks API session is created via this STS
 
-  @pending @driving_port @real-io @US-08
+  @driving_port @real-io @US-08
   Scenario: SOAP stays absent
     # Driving port: no SOAP / active WS-Trust route
     When a client calls a SOAP / active WS-Trust path on the emulator
     Then the response is not a working SOAP listener
     And no SOAP sign-out is offered
 
-  @pending @driving_port @US-08
+  @driving_port @US-08
   Scenario: Unsolicited login is still not offered as a setting
     # Driving port: GET|POST /{tid}/wsfed
     Given this sign-out cut
