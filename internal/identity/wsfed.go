@@ -40,7 +40,9 @@ var wsfedPostForm = template.Must(template.New("wsfed-post").Parse(`<!DOCTYPE ht
 <noscript><p>JavaScript is off.</p><button type="submit">Continue</button></noscript>
 </form></body></html>`))
 
-// handleWSFed accepts a wa=wsignin1.0 challenge by GET or POST.
+// handleWSFed accepts a wa=wsignin1.0 challenge or a wa=wsignout1.0 request
+// on the same GET|POST /{tid}/wsfed route. Sign-out is dispatched on wa
+// before any mint: a live session never produces wresult.
 func (i *Identity) handleWSFed(w http.ResponseWriter, r *http.Request) {
 	tid, ok := i.tenantSegment(r)
 	if !ok {
@@ -49,6 +51,12 @@ func (i *Identity) handleWSFed(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method == http.MethodPost {
 		_ = r.ParseForm()
+	}
+	if wsfedChallengeValue(r, "wa") == "wsignout1.0" {
+		i.handleWSFedSignOut(w, r)
+		return
+	}
+	if r.Method == http.MethodPost {
 		// A posted sign-in carries our signed state; a posted challenge
 		// carries wtrealm. Distinguishing on which field is present keeps
 		// one endpoint, as Entra does. wresult without that signed Kind is
@@ -83,6 +91,31 @@ func (i *Identity) handleWSFed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	i.renderWSFedSignIn(w, st, "")
+}
+
+// handleWSFedSignOut ends the shared emulator session and 302s to an exact
+// registered wsfed-reply. It never mints an RSTR, even with a live session.
+func (i *Identity) handleWSFedSignOut(w http.ResponseWriter, r *http.Request) {
+	wtrealm := wsfedChallengeValue(r, "wtrealm")
+	wreply := wsfedChallengeValue(r, "wreply")
+	noteAuditClientID(r, wtrealm)
+	if _, err := i.resolveWSFedRelyingParty(wtrealm, wreply); err != nil {
+		i.renderErrorPage(w, http.StatusBadRequest, "Unknown application", err.Error())
+		return
+	}
+
+	sessionID := ""
+	if c, err := r.Cookie(sessionCookie); err == nil {
+		sessionID = c.Value
+	}
+	if _, user := i.currentSession(r); user != nil {
+		noteAuditSubject(r, user.ID, user.UserPrincipalName)
+	}
+	i.clearSession(w, r)
+	if sessionID != "" {
+		_ = i.Store.ForgetSessionApps(sessionID)
+	}
+	http.Redirect(w, r, wreply, http.StatusFound)
 }
 
 // refuseUnsolicitedWSFed rejects a token-shaped POST that did not start as a
