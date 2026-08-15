@@ -451,7 +451,6 @@ func TestSignOutCarryingATokenBodyDoesNotDeliverAToken(t *testing.T) {
 }
 
 func TestUnknownWtrealmOnSignOutDoesNotReturnToCallerURL(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-06)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	q := url.Values{
@@ -469,7 +468,6 @@ func TestUnknownWtrealmOnSignOutDoesNotReturnToCallerURL(t *testing.T) {
 }
 
 func TestEmptyRealmIsRefusedOnSignOut(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-06)")
 	for _, tc := range []struct {
 		name    string
 		wtrealm string
