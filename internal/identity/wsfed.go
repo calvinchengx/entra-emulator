@@ -52,8 +52,13 @@ func (i *Identity) handleWSFed(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		_ = r.ParseForm()
 	}
-	if wsfedChallengeValue(r, "wa") == "wsignout1.0" {
+	wa := wsfedChallengeValue(r, "wa")
+	if wa == "wsignout1.0" {
 		i.handleWSFedSignOut(w, r)
+		return
+	}
+	if wa != "" && wa != "wsignin1.0" {
+		i.refuseUnknownWSFedAction(w, r)
 		return
 	}
 	if r.Method == http.MethodPost {
@@ -116,6 +121,14 @@ func (i *Identity) handleWSFedSignOut(w http.ResponseWriter, r *http.Request) {
 		_ = i.Store.ForgetSessionApps(sessionID)
 	}
 	http.Redirect(w, r, wreply, http.StatusFound)
+}
+
+// refuseUnknownWSFedAction keeps a non-empty wa other than wsignin1.0 /
+// wsignout1.0 on the emulator. No token, no bounce to the caller reply.
+func (i *Identity) refuseUnknownWSFedAction(w http.ResponseWriter, r *http.Request) {
+	noteAuditClientID(r, wsfedChallengeValue(r, "wtrealm"))
+	i.renderErrorPage(w, http.StatusBadRequest, "Unsupported action",
+		"wsfed: unknown wa is refused on this emulator")
 }
 
 // refuseUnsolicitedWSFed rejects a token-shaped POST that did not start as a

@@ -316,7 +316,6 @@ func TestExistingOIDCSignInStillCompletesAfterWSFedSignOut(t *testing.T) {
 }
 
 func TestSignOutWithALiveSessionDoesNotMintAToken(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-02)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
@@ -330,7 +329,6 @@ func TestSignOutWithALiveSessionDoesNotMintAToken(t *testing.T) {
 }
 
 func TestRepeatingSignOutWithNoSessionStillReturnsToRegisteredReply(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-02 idempotent)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
@@ -346,7 +344,6 @@ func TestRepeatingSignOutWithNoSessionStillReturnsToRegisteredReply(t *testing.T
 }
 
 func TestPOSTAsWellAsGETCanSignOut(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-02 POST)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
@@ -404,7 +401,6 @@ func TestChoosingAliceAfterSignOutStillCompletesSignIn(t *testing.T) {
 }
 
 func TestUnknownWaIsRefusedOnTheEmulator(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (ADR-006 unknown wa)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	q := url.Values{
@@ -434,7 +430,6 @@ func TestUnknownWaIsRefusedOnTheEmulator(t *testing.T) {
 }
 
 func TestSignOutCarryingATokenBodyDoesNotDeliverAToken(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-08 / ADR-006)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)
