@@ -339,6 +339,11 @@ func (i *Identity) grantClientCredentials(w http.ResponseWriter, r *http.Request
 		// Fabric / Power BI: recognized first-party resource, correct-aud token
 		// without a registered resource app (roadmap #16a).
 		aud = fabricAud(resource)
+	case databricksAud(resource) != "":
+		// Azure Databricks first-party app id: correct-aud token without a
+		// registered resource app, so databricks-emulator can accept a
+		// federated JWT from this process.
+		aud = databricksAud(resource)
 	case azureAud(resource) != "":
 		// Well-known Azure resource (Key Vault, Storage, ARM, …): correct-aud
 		// token without a registered resource app, so azsecrets/azstorage/the
