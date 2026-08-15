@@ -166,7 +166,6 @@ func TestPriyaSignsAliceOutOfTheTasksAPI(t *testing.T) {
 }
 
 func TestPriyaSignsAliceOutAlongsideOIDCAndSAML(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (WS-2 with-pre-commit)")
 	hts, cfg, st := newTestServer(t)
 	registerSAMLApp(t, st, cfg.TenantID)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
@@ -194,7 +193,6 @@ func TestPriyaSignsAliceOutAlongsideOIDCAndSAML(t *testing.T) {
 }
 
 func TestPriyaSignsAliceOutAfterRegisteringDistinctReturnOnStaleDirectory(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (WS-3 with-stale-config)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPI(t, st, cfg.TenantID)
 
@@ -279,7 +277,6 @@ func TestPriyaIsNotSentToASecondMetadataURLForSignOut(t *testing.T) {
 }
 
 func TestExistingSAMLSignInStillCompletesAfterWSFedSignOut(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-05)")
 	hts, cfg, st := newTestServer(t)
 	registerSAMLApp(t, st, cfg.TenantID)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
@@ -298,7 +295,6 @@ func TestExistingSAMLSignInStillCompletesAfterWSFedSignOut(t *testing.T) {
 }
 
 func TestExistingOIDCSignInStillCompletesAfterWSFedSignOut(t *testing.T) {
-	t.Skip("pending: enable after walking skeleton (US-05)")
 	hts, cfg, st := newTestServer(t)
 	registerTasksAPIWithSignOutReturn(t, st, cfg.TenantID)
 	c := samlClient(t)

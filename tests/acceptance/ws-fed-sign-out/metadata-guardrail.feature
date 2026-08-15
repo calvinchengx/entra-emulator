@@ -34,7 +34,7 @@ Feature: FederationMetadata still names sign-out on the existing STS
     Then the response is not a second metadata document
     And Priya is not required to discover a new sign-out URL
 
-  @pending @driving_port @real-io @US-05
+  @driving_port @real-io @US-05
   Scenario: Existing SAML sign-in still completes
     # Driving port: existing SAML SSO on the same emulator
     Given FederationMetadata includes the WS-Fed RoleDescriptor
@@ -42,7 +42,7 @@ Feature: FederationMetadata still names sign-out on the existing STS
     When a SAML app signs in on the same emulator
     Then the assertion still posts to the registered ACS
 
-  @pending @driving_port @real-io @US-05
+  @driving_port @real-io @US-05
   Scenario: Existing OIDC sign-in still completes
     # Driving port: existing OIDC authorize on the same emulator
     Given the same emulator that answers wa=wsignout1.0

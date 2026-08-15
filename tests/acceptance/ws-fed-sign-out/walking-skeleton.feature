@@ -7,8 +7,8 @@
 #   GET|POST /{tid}/wsfed  (wa=wsignout1.0 after completed wsignin1.0)
 #   e2e/wsfed unmodified Microsoft.AspNetCore.Authentication.WsFederation SignOut (KPI-1)
 #
-# WS-1 (clean) is enabled. WS-2 (with-pre-commit), WS-3 (with-stale-config),
-# and KPI-1 (e2e/wsfed SignOut) are @pending until DELIVER.
+# WS-1 (clean), WS-2 (with-pre-commit), and WS-3 (with-stale-config) are enabled.
+# KPI-1 (e2e/wsfed SignOut) remains @pending until DELIVER 04-02.
 #
 # Return URL (DESIGN): https://rp.example.test/wsfed-signed-out
 # Sign-in callback remains https://rp.example.test/signin-wsfed
@@ -34,7 +34,7 @@ Feature: Sign out of a WS-Fed relying party at the local STS
     And the next wa=wsignin1.0 from that browser shows Pick an account, not a wresult
     And Alice (alice@entraemulator.dev) is listed
 
-  @pending @walking_skeleton @real-io @driving_adapter @driving_port @US-05
+  @walking_skeleton @real-io @driving_adapter @driving_port @US-05
   Scenario: Priya signs Alice out alongside existing OIDC and SAML
     # Driving port: GET|POST /{tid}/wsfed wa=wsignout1.0
     # Environment: with-pre-commit
@@ -45,7 +45,7 @@ Feature: Sign out of a WS-Fed relying party at the local STS
     Then Alice's emulator session is gone
     And existing OIDC and SAML sign-in still complete on the same emulator
 
-  @pending @walking_skeleton @real-io @driving_adapter @driving_port @US-07
+  @walking_skeleton @real-io @driving_adapter @driving_port @US-07
   Scenario: Priya signs Alice out after registering a distinct sign-out return on a stale directory
     # Driving port: GET|POST /{tid}/wsfed wa=wsignout1.0
     # Environment: with-stale-config
