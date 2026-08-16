@@ -54,6 +54,11 @@ arm-emulator            role assignments, resource groups, vault resources
    ↓
 azure-keyvault-emulator enforces them on its data plane
 fabric-emulator         (capacities are ARM resources — a future consumer)
+azure-apim-emulator     validates these tokens, but serves its OWN
+                        Microsoft.ApiManagement ARM surface rather than
+                        calling arm-emulator's
+databricks-emulator     optional consumer: its own PATs by default, this
+                        issuer when configured
 ```
 
 `az cloud register` points the real Azure CLI at the first two, and everything
