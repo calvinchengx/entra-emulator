@@ -228,7 +228,8 @@ SQLite via a pure-Go driver, and a Svelte portal embedded with `go:embed`.
 `entra-emulator` is the STS the rest of the family validates against:
 [`azure-keyvault-emulator`](https://github.com/calvinchengx/azure-keyvault-emulator),
 [`arm-emulator`](https://github.com/calvinchengx/arm-emulator),
-[`fabric-emulator`](https://github.com/calvinchengx/fabric-emulator) and
+[`fabric-emulator`](https://github.com/calvinchengx/fabric-emulator),
+[`databricks-emulator`](https://github.com/calvinchengx/databricks-emulator) and
 [`azure-apim-emulator`](https://github.com/calvinchengx/azure-apim-emulator)
 all verify the tokens this one issues.
 [`databricks-emulator`](https://github.com/calvinchengx/databricks-emulator)
