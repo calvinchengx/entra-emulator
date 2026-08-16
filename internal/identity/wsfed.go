@@ -2,6 +2,7 @@ package identity
 
 import (
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"time"
@@ -40,7 +41,14 @@ var wsfedPostForm = template.Must(template.New("wsfed-post").Parse(`<!DOCTYPE ht
 <noscript><p>JavaScript is off.</p><button type="submit">Continue</button></noscript>
 </form></body></html>`))
 
-// handleWSFed accepts a wa=wsignin1.0 challenge by GET or POST.
+const (
+	wsfedActionSignIn  = "wsignin1.0"
+	wsfedActionSignOut = "wsignout1.0"
+)
+
+// handleWSFed accepts a wa=wsignin1.0 challenge or a wa=wsignout1.0 request
+// on the same GET|POST /{tid}/wsfed route. Sign-out is dispatched on wa
+// before any mint: a live session never produces wresult.
 func (i *Identity) handleWSFed(w http.ResponseWriter, r *http.Request) {
 	tid, ok := i.tenantSegment(r)
 	if !ok {
@@ -49,6 +57,11 @@ func (i *Identity) handleWSFed(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method == http.MethodPost {
 		_ = r.ParseForm()
+	}
+	if i.dispatchWSFedAction(w, r) {
+		return
+	}
+	if r.Method == http.MethodPost {
 		// A posted sign-in carries our signed state; a posted challenge
 		// carries wtrealm. Distinguishing on which field is present keeps
 		// one endpoint, as Entra does. wresult without that signed Kind is
@@ -83,6 +96,94 @@ func (i *Identity) handleWSFed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	i.renderWSFedSignIn(w, st, "")
+}
+
+// dispatchWSFedAction handles wsignout1.0 and unknown wa before any mint.
+// Empty wa and wsignin1.0 fall through to the sign-in challenge.
+func (i *Identity) dispatchWSFedAction(w http.ResponseWriter, r *http.Request) bool {
+	wa := wsfedChallengeValue(r, "wa")
+	if wa == wsfedActionSignOut {
+		i.handleWSFedSignOut(w, r)
+		return true
+	}
+	if wa != "" && wa != wsfedActionSignIn {
+		i.refuseUnknownWSFedAction(w, r)
+		return true
+	}
+	return false
+}
+
+// handleWSFedSignOut ends the shared emulator session and 302s to an exact
+// registered wsfed-reply. It never mints an RSTR, even with a live session.
+func (i *Identity) handleWSFedSignOut(w http.ResponseWriter, r *http.Request) {
+	wtrealm := wsfedChallengeValue(r, "wtrealm")
+	wreply := wsfedChallengeValue(r, "wreply")
+	noteAuditClientID(r, wtrealm)
+	returnTo, err := i.resolveWSFedSignOutReturn(wtrealm, wreply)
+	if err != nil {
+		i.renderErrorPage(w, http.StatusBadRequest, "Unknown application", err.Error())
+		return
+	}
+	i.endWSFedEmulatorSession(w, r)
+	http.Redirect(w, r, returnTo, http.StatusFound)
+}
+
+// endWSFedEmulatorSession clears the emulator session cookie and RP list
+// after the return URL is allowlisted. Sign-out never mints an RSTR.
+func (i *Identity) endWSFedEmulatorSession(w http.ResponseWriter, r *http.Request) {
+	sessionID := ""
+	if c, err := r.Cookie(sessionCookie); err == nil && c.Value != "" {
+		sessionID = c.Value
+	}
+	if _, user := i.currentSession(r); user != nil {
+		noteAuditSubject(r, user.ID, user.UserPrincipalName)
+	}
+	i.clearSession(w, r)
+	if sessionID != "" {
+		_ = i.Store.ForgetSessionApps(sessionID)
+	}
+}
+
+// resolveWSFedSignOutReturn prefers a library-sent wreply that is an exact
+// wsfed-reply for the wtrealm app. If wreply is omitted, it uses a registered
+// wsfed-reply for that app (never saml-acs or web).
+func (i *Identity) resolveWSFedSignOutReturn(wtrealm, wreply string) (string, error) {
+	if wreply != "" {
+		if _, err := i.resolveWSFedRelyingParty(wtrealm, wreply); err != nil {
+			return "", err
+		}
+		return wreply, nil
+	}
+	return i.registeredWSFedReplyForRealm(wtrealm)
+}
+
+func (i *Identity) registeredWSFedReplyForRealm(wtrealm string) (string, error) {
+	app, err := i.wsfedAppByRealm(wtrealm)
+	if err != nil {
+		return "", err
+	}
+	uris, err := i.Store.ListRedirectURIs(app.ID)
+	if err != nil {
+		return "", fmt.Errorf("wsfed: cannot read reply URLs for %s: %w", app.ID, err)
+	}
+	for _, u := range uris {
+		ok, err := checkWSFedReply(i.Store, app.ID, u.URI)
+		if err != nil {
+			return "", fmt.Errorf("wsfed: cannot read reply URLs for %s: %w", app.ID, err)
+		}
+		if ok {
+			return u.URI, nil
+		}
+	}
+	return "", fmt.Errorf("wsfed: no registered wsfed-reply for %s", app.ID)
+}
+
+// refuseUnknownWSFedAction keeps a non-empty wa other than wsignin1.0 /
+// wsignout1.0 on the emulator. No token, no bounce to the caller reply.
+func (i *Identity) refuseUnknownWSFedAction(w http.ResponseWriter, r *http.Request) {
+	noteAuditClientID(r, wsfedChallengeValue(r, "wtrealm"))
+	i.renderErrorPage(w, http.StatusBadRequest, "Unsupported action",
+		"wsfed: unknown wa is refused on this emulator")
 }
 
 // refuseUnsolicitedWSFed rejects a token-shaped POST that did not start as a

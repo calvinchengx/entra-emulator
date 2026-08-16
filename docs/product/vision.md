@@ -10,13 +10,13 @@ It is **not an identity provider product**. It is not a portal, not a policy eng
 
 ## Job this SSOT exists to serve
 
-Point an existing WS-Fed relying party at a local STS. Canonical job: `docs/product/jobs.yaml`. Canonical journey: `docs/product/journeys/ws-fed-sign-in.yaml`.
+Point an existing WS-Fed relying party at a local STS. Canonical job: `docs/product/jobs.yaml`. Canonical journeys: `docs/product/journeys/ws-fed-sign-in.yaml` (v0.8.0 sign-in) and `docs/product/journeys/ws-fed-sign-out.yaml` (witness advertised `wsignout1.0`).
 
-## Boundary (unchanged by WS-Fed)
+## Boundary (unchanged by WS-Fed except sign-out witness)
 
 | In | Out |
 |---|---|
 | Protocol + crypto + directory | Admin gallery UX, Graph-as-the-sign-in, MFA/CA/B2C |
 | Tenant-specific FederationMetadata and `/{tid}/wsfed` | SOAP / active WS-Trust, `/common/wsfed` in v0.8.0 |
-| Advertise sign-out URL | Witness `wsignout1.0` in v0.8.0 |
+| Advertise sign-out URL and witness `wsignout1.0` on `/{tid}/wsfed` | Multi-RP `wsignoutcleanup1.0` fan-out, SOAP SLO |
 | SAML 2.0 inside WS-Fed `wresult` for app-registration `Wtrealm` | SharePoint / SAML 1.1, token encryption |
