@@ -226,8 +226,14 @@ SQLite via a pure-Go driver, and a Svelte portal embedded with `go:embed`.
 ## Emulator family
 
 `entra-emulator` is the STS the rest of the family validates against:
-`azure-keyvault-emulator`, `arm-emulator`, `fabric-emulator` and
-`azure-apim-emulator` all verify the tokens this one issues.
+[`azure-keyvault-emulator`](https://github.com/calvinchengx/azure-keyvault-emulator),
+[`arm-emulator`](https://github.com/calvinchengx/arm-emulator),
+[`fabric-emulator`](https://github.com/calvinchengx/fabric-emulator) and
+[`azure-apim-emulator`](https://github.com/calvinchengx/azure-apim-emulator)
+all verify the tokens this one issues.
+[`databricks-emulator`](https://github.com/calvinchengx/databricks-emulator)
+joins them as an optional federated STS consumer: it authenticates with its own
+PATs by default and takes this issuer when configured to.
 
 To run them together, see [**azure-emulators**](https://github.com/calvinchengx/azure-emulators): a
 composition-only repo holding the family `docker-compose.yml`, the shared
