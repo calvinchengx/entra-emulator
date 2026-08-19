@@ -14,6 +14,7 @@ jobs:
   test:
     name: Build, vet & unit tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -26,6 +27,7 @@ jobs:
   portal:
     name: Portal builds from source
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -56,6 +58,7 @@ jobs:
   sdk-e2e:
     name: Real-SDK e2e (msal-node, Graph SDK, MSAL Go/azidentity/.NET/Java, MSAL Python, node-saml)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -83,6 +86,7 @@ jobs:
   docker-smoke:
     name: Docker image smoke test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - run: ./scripts/docker-smoke.sh
@@ -90,6 +94,7 @@ jobs:
   samples:
     name: Samples compile
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -113,6 +118,7 @@ jobs:
   pdp-compat:
     name: PDP compat (${{ matrix.engine }})
     runs-on: ubuntu-latest # Docker preinstalled → testcontainers works
+    timeout-minutes: 15
     strategy:
       fail-fast: false # one engine's failure must not hide the others
       matrix:
@@ -145,6 +151,7 @@ jobs:
   witnesses:
     name: Every supported parity claim names its witness
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       # Strict: every claim is mapped, so a new 🟢 row without a witness — or a
