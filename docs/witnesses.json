@@ -192,7 +192,7 @@
   },
   "scim-provisioning-client-outbound-filter-probe-create-update-active-false-deprovision-member-correlated-groups-incremental-watermark": {
     "section": "SCIM 2.0 (`10-scim-provisioning`)",
-    "claim": "SCIM **provisioning client** (outbound): filter-probe → create / update / `active:false` deprovision, member-correlated groups, incremental watermark",
+    "claim": "SCIM **provisioning client** (outbound): filter-probe \u2192 create / update / `active:false` deprovision, member-correlated groups, incremental watermark",
     "witnesses": [
       "ci:scim-outbound-e2e",
       "go:TestSCIMAuthAndDiscovery",
@@ -244,8 +244,9 @@
   },
   "concurrency-contracts-single-use-codes-refresh-reuse-detection-device-code-approve-mint": {
     "section": "Directory, storage & transport",
-    "claim": "Concurrency contracts (single-use codes, refresh-reuse detection, device-code approve→mint)",
+    "claim": "Concurrency contracts (single-use codes, refresh-reuse detection, device-code approve\u2192mint)",
     "witnesses": [
+      "ci:concurrency-e2e",
       "go:TestRefreshTokenRotationAndReuse",
       "go:TestPKCEMismatchAndReplay"
     ]
