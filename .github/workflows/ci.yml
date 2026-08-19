@@ -166,6 +166,10 @@ jobs:
         with:
           version: "0.11.32"
       - run: uv run --no-project --python 3.12 python scripts/check_witnesses.py --strict
+      # The site build does NOT catch a dangling intra-doc link: measured, it
+      # exits 0 and publishes a 404. Nor can it see a page missing from the
+      # sidebar, which is published but unreachable by navigation.
+      - run: uv run --no-project --python 3.12 python scripts/check_docs_links.py --strict
 
   browser-e2e:
     name: msal-browser witness (real browser, redirect flow)

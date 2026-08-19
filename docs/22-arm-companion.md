@@ -24,8 +24,7 @@ that is exactly what shipped.
 ## What entra-emulator provides
 
 **The ARM audience, without a resource-app seed.** `https://management.azure.com`
-(and `https://management.core.windows.net`) are
-[well-known Azure resources](14-well-known-azure-resources.md): a
+(and `https://management.core.windows.net`) are well-known Azure resources: a
 client-credentials or managed-identity caller asking for
 `https://management.azure.com/.default` gets a token with that audience, no
 registration step required.
