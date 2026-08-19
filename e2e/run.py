@@ -62,8 +62,20 @@ def suite_saml(env):
 
 
 def suite_go(env):
+    # No `go mod download` pre-warm here, deliberately. One used to sit in front
+    # of the test, inherited from run.sh where it was `go mod download
+    # 2>/dev/null;` — a quiet pre-fetch whose exit status was discarded. It hid a
+    # real defect: on a stale module `go mod download` REWRITES go.mod in place,
+    # exits 0, and leaves `go test` passing against a file the repo never
+    # committed. That is how e2e/go stayed green across the Go 1.26.6 bump while
+    # samples/externalized-authz/compat, which has no such pre-warm, failed
+    # honestly. `-mod=readonly` does not restrain it either way: the flag is not
+    # defined for this subcommand, and via GOFLAGS it is ignored.
+    # `go test` fetches what it needs anyway, and on a stale go.mod it stops with
+    # "updates to go.mod needed; to update it: go mod tidy" — the right message,
+    # at the moment it is true. The cost is that download lines now appear in the
+    # suite's output, which is the noise the original redirect was hiding.
     d = ROOT / "e2e" / "go"
-    subprocess.run(["go", "mod", "download"], cwd=d, env=env)
     return run(["go", "test", "./...", "-count=1"], d, env)
 
 
