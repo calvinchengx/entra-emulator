@@ -1,6 +1,6 @@
 module github.com/calvinchengx/entra-emulator/e2e/go
 
-go 1.25.11
+go 1.26.6
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.0
