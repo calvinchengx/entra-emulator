@@ -145,7 +145,7 @@ not "honestly refused". Likewise 🟠 means *"real when you attach a real engine
 |---|---|---|
 | Persisted directory | Real SQLite (WAL, foreign keys, forward-only migrations) | 🟢 Real |
 | Credential hashing | Real scrypt for passwords/secrets; SHA-256 for refresh/device codes | 🟢 Real |
-| Concurrency contracts (single-use codes, refresh-reuse detection, device-code approve→mint) | Real atomic SQL — not best-effort | 🟢 Real |
+| Concurrency contracts (single-use codes, refresh-reuse detection, device-code approve→mint) | Real atomic SQL — not best-effort. `ci:concurrency-e2e` presents each credential **twice, and then eight times at once behind a barrier**: a spent device code is refused, and exactly one of eight simultaneous redemptions wins — the check that separates atomic marking from a check-then-mark window, which sequential replay cannot see. Reuse of a rotated refresh token is refused **and revokes its successor**, so a replayed token does not leave the legitimate holder working. | 🟢 Real |
 | Multi-tenant | Multiple tenants exist and are isolated | 🟡 Emulated |
 | TLS with a wildcard cert over the emulator's origins | Real self-signed X.509, regenerated on SAN drift, stable fingerprint otherwise | 🟢 Real |
 | CORS on the OIDC surface | Real: discovery, JWKS and instance discovery reflect the caller's `Origin` and `Vary` on it; the **token endpoint is gated exactly as Entra gates it** — CORS only for an origin the application registered as an `spa` redirect URI, so an app that works here will not fail against real Entra. Preflight answers with the telemetry headers MSAL.js sends. Without any of this, **no browser SPA can authenticate at all** | 🟢 Real |
