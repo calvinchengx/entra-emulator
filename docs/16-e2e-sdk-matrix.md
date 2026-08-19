@@ -39,6 +39,8 @@ Two knobs make custom authorities work in every Microsoft SDK:
 | C# / .NET (WS-Fed) | `Microsoft.AspNetCore.Authentication.WsFederation` | FederationMetadata + `wa=wsignin1.0`; SAML 2.0 `wresult` verified by unmodified middleware | cookie-jar HTTPS against the account picker (`e2e/wsfed`) |
 | Java | `com.microsoft.azure:msal4j` (MSAL4J) | client credentials | — (no interactive flow) |
 | Python (concurrency) | `msal` + raw replays (`e2e/concurrency`) | **second use** of every credential: spent device code, reused refresh token and its revoked successor, plus 8-way races on both — exactly one winner | HTTP approval sequence, then a `threading.Barrier` so the racers arrive together |
+| Python (JAR) | `PyJWT` + `cryptography` (`e2e/jar`) | RFC 9101 request object by reference: SSRF guard (untrusted origin refused, 302 not followed) and the positive case where the object's parameters override the query | local HTTP servers on trusted and untrusted origins |
+| Python (cloud metadata) | `msal` (`e2e/cloud-metadata`) | the discovery document's cloud coordinates are followed, not just read: the advertised graph host answers with this emulator's seeded directory, and nothing in the document names an Azure host | — |
 | Flutter/Dart | Dart `http` (automated) + `flutter_appauth` (manual screen) | device code end-to-end on-device; auth code + PKCE manually | `integration_test` on Android emulator / iOS simulator — **nightly, not PR gate** |
 
 Notes per language:

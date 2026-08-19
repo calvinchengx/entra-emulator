@@ -79,6 +79,30 @@ def venv_bin(venv, name):
     return venv / "bin" / name
 
 
+def suite_jar(env):
+    """Real PyJWT + cryptography sign the request object the emulator fetches."""
+    d = ROOT / "e2e" / "jar"
+    venv = d / ".venv"
+    if not venv.exists():
+        subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
+    pip = venv_bin(venv, "pip")
+    py = venv_bin(venv, "python")
+    subprocess.run([str(pip), "install", "-q", "pyjwt[crypto]"], check=True)
+    return run([str(py), "suite.py"], d, env)
+
+
+def suite_cloud_metadata(env):
+    """Reads the cloud coordinates out of discovery, then follows them."""
+    d = ROOT / "e2e" / "cloud-metadata"
+    venv = d / ".venv"
+    if not venv.exists():
+        subprocess.run([sys.executable, "-m", "venv", str(venv)], check=True)
+    pip = venv_bin(venv, "pip")
+    py = venv_bin(venv, "python")
+    subprocess.run([str(pip), "install", "-q", "msal"], check=True)
+    return run([str(py), "suite.py"], d, env)
+
+
 def suite_concurrency(env):
     """Same shape as suite_python: its own venv, real msal, plus raw replays."""
     d = ROOT / "e2e" / "concurrency"
@@ -269,6 +293,8 @@ SUITES = {
     "graph-permissions": suite_graph_permissions,
     "persistence": suite_persistence,
     "concurrency": suite_concurrency,
+    "jar": suite_jar,
+    "cloud-metadata": suite_cloud_metadata,
 }
 
 
