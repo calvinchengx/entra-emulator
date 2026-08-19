@@ -49,6 +49,7 @@ jobs:
   build:
     name: Build Starlight site
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       # Full history + tags: the parity-version generator reads the map at each
       # `v*` tag (git show) and stamps the live map from `git describe`.
@@ -80,6 +81,7 @@ jobs:
     # rejected by the github-pages environment regardless.
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
