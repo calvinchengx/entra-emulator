@@ -20,6 +20,7 @@ jobs:
     name: Cross-platform binaries (GoReleaser)
     needs: make-targets
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
         with:
@@ -46,6 +47,7 @@ jobs:
     name: Docker image → GHCR
     needs: make-targets
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-qemu-action@v4
