@@ -1,6 +1,6 @@
 module github.com/calvinchengx/entra-emulator
 
-go 1.25.11
+go 1.26.6
 
 require (
 	github.com/beevik/etree v1.7.0
