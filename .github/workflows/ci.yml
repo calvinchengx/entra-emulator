@@ -313,6 +313,23 @@ jobs:
       # depends on.
       - run: python3 e2e/run.py graph-permissions
 
+  jar-metadata-e2e:
+    name: JAR by reference + cloud-instance metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      # jar: PyJWT signs the request object the emulator fetches, and the SSRF
+      # guard is the property under test. cloud-metadata: the coordinates in
+      # discovery are FOLLOWED, not just read.
+      - run: python3 e2e/run.py jar cloud-metadata
+
   concurrency-e2e:
     name: Concurrency contracts (single-use codes, refresh reuse, races)
     runs-on: ubuntu-latest

@@ -272,6 +272,7 @@
     "section": "Directory, storage & transport",
     "claim": "Cloud-instance metadata (`tenant_region_scope`, `cloud_instance_name`, `cloud_graph_host_name`, `msgraph_host`, `rbac_url`)",
     "witnesses": [
+      "ci:jar-metadata-e2e",
       "go:TestDiscoveryCloudInstanceMetadata",
       "go:TestGoldenParityOIDCDiscovery"
     ]
@@ -402,6 +403,7 @@
     "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
     "claim": "JAR by reference (`request_uri`, RFC 9101)",
     "witnesses": [
+      "ci:jar-metadata-e2e",
       "go:TestRequestObjectJAR",
       "go:TestGoldenParityOIDCDiscovery"
     ]
