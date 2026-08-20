@@ -1,8 +1,8 @@
 // Minimal MSAL Go sample: acquire an app-only (client-credentials) token from
 // the emulator and call the emulated Microsoft Graph with it.
 //
-//	1. Start the emulator:  ORIGIN_MODE=compat ./entra-emulator
-//	2. Run this sample:     cd samples/msal-go && go run .
+//  1. Start the emulator:  ORIGIN_MODE=compat ./entra-emulator
+//  2. Run this sample:     cd samples/msal-go && go run .
 //
 // Every value defaults to a seeded dev constant; override via env if needed.
 package main

@@ -21,8 +21,8 @@ import (
 // is the PDP's job). Keep the two strictly separate.
 type TokenValidator struct {
 	JWKSURL  string
-	Issuer   string   // expected iss
-	Audience string   // expected aud (this resource's identifier)
+	Issuer   string // expected iss
+	Audience string // expected aud (this resource's identifier)
 	Client   *http.Client
 	Now      func() time.Time // injectable clock (defaults to time.Now)
 

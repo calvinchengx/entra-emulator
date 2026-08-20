@@ -131,7 +131,7 @@ func TestAdminErrorPaths(t *testing.T) {
 }
 
 // small helpers to keep the sweep terse.
-func get(t *testing.T, url string) int      { c, _ := getJSON(t, url); return c }
+func get(t *testing.T, url string) int         { c, _ := getJSON(t, url); return c }
 func patch(t *testing.T, url, body string) int { return postRaw(t, "PATCH", url, body) }
 func expect(t *testing.T, name string, got, want int) {
 	t.Helper()
