@@ -267,6 +267,11 @@ func (i *Identity) deliverWSFedResponse(w http.ResponseWriter, r *http.Request, 
 func (i *Identity) issueWSFedRSTR(signer *tokens.Signer, st wsfedState, user *store.User) ([]byte, error) {
 	certDER, err := signer.SAMLCertificate(st.Tenant, time.Now().AddDate(0, 0, -1).Truncate(24*time.Hour))
 	if err != nil {
+		// Rendered to the browser as the detail line of an error page, not
+		// wrapped into another Go error: renderErrorPage takes the title
+		// ("Cannot sign in") separately and this as prose beneath it, so a
+		// capitalised sentence is the correct form for where it is shown.
+		//nolint:staticcheck // ST1005: display text, not a Go error string
 		return nil, errors.New("No signing certificate.")
 	}
 	now := time.Now()

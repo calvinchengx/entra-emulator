@@ -45,7 +45,7 @@ func newTestServer(t *testing.T) (*httptest.Server, *config.Config, *store.Store
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { st.Close() })
+	t.Cleanup(func() { _ = st.Close() })
 	if _, err := st.Seed(cfg.TenantID, cfg.Issuer); err != nil {
 		t.Fatal(err)
 	}
@@ -550,7 +550,7 @@ func TestAdminSecretShowOnce(t *testing.T) {
 	if status != 201 || sec["secretText"] == nil {
 		t.Fatalf("secret create must return secretText once: %d %v", status, sec)
 	}
-	status, got := call("GET", "/admin/api/apps/"+appID, nil)
+	_, got := call("GET", "/admin/api/apps/"+appID, nil)
 	raw, _ := json.Marshal(got["secrets"])
 	if strings.Contains(string(raw), sec["secretText"].(string)) {
 		t.Fatal("secretText leaked on subsequent GET")

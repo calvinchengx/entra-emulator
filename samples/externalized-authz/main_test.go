@@ -10,7 +10,7 @@ import (
 // library and its tests live in the authz package.
 func TestEnv(t *testing.T) {
 	const k = "EXTAUTHZ_TEST_ENV"
-	os.Unsetenv(k)
+	_ = os.Unsetenv(k)
 	if got := env(k, "fallback"); got != "fallback" {
 		t.Fatalf("unset env: want fallback, got %q", got)
 	}

@@ -49,7 +49,7 @@ func newTestGraph(t *testing.T) *Graph {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { st.Close() })
+	t.Cleanup(func() { _ = st.Close() })
 	if _, err := st.Seed(cfg.TenantID, cfg.Issuer); err != nil {
 		t.Fatal(err)
 	}
@@ -1138,7 +1138,7 @@ func TestAppDisplayNameResolvesGUIDThenURIThenUnknown(t *testing.T) {
 	if got := g.appDisplayName(spaID); got != "Sample SPA" {
 		t.Fatalf("GUID %s = %q, want Sample SPA", spaID, got)
 	}
-	if got := g.appDisplayName("api://"+spaID); got != "Sample SPA" {
+	if got := g.appDisplayName("api://" + spaID); got != "Sample SPA" {
 		t.Fatalf("URI api://%s = %q, want Sample SPA", spaID, got)
 	}
 	if got := g.appDisplayName("no-such-app"); got != "" {

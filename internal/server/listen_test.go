@@ -33,7 +33,7 @@ func buildServer(t *testing.T, cert *tlscert.Material) (*Server, *config.Config)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { st.Close() })
+	t.Cleanup(func() { _ = st.Close() })
 	if err := st.EnsureTenant(cfg.TenantID, cfg.Issuer); err != nil {
 		t.Fatal(err)
 	}

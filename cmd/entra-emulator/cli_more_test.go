@@ -212,7 +212,7 @@ func TestBootTLSEnabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("boot with auto TLS: %v", err)
 	}
-	st.Close()
+	_ = st.Close()
 	if srv == nil {
 		t.Fatal("boot returned nil server")
 	}
@@ -230,7 +230,7 @@ func TestBootTLSEnabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("boot with custom TLS: %v", err)
 	}
-	st2.Close()
+	_ = st2.Close()
 	if srv2 == nil {
 		t.Fatal("boot returned nil server (custom)")
 	}

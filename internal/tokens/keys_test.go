@@ -18,7 +18,7 @@ import (
 	"github.com/calvinchengx/entra-emulator/internal/store"
 )
 
-func bigOne() *big.Int          { return big.NewInt(1) }
+func bigOne() *big.Int           { return big.NewInt(1) }
 func nameCN(cn string) pkix.Name { return pkix.Name{CommonName: cn} }
 
 const testTenant = "6f89cf12-978b-4d23-ac18-9ef0c127cf87"
@@ -29,7 +29,7 @@ func newStore(t *testing.T) *store.Store {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { st.Close() })
+	t.Cleanup(func() { _ = st.Close() })
 	if err := st.EnsureTenant(testTenant, "https://issuer/"+testTenant+"/v2.0"); err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func TestParsePublicKeyPEM(t *testing.T) {
 	// PKIX public key PEM.
 	der, _ := x509.MarshalPKIXPublicKey(&key.PublicKey)
 	pkix := string(pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der}))
-	if pub, err := parsePublicKeyPEM(pkix); err != nil || pub.N.Cmp(key.PublicKey.N) != 0 {
+	if pub, err := parsePublicKeyPEM(pkix); err != nil || pub.N.Cmp(key.N) != 0 {
 		t.Fatalf("PKIX parse: %v", err)
 	}
 

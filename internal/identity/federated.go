@@ -129,7 +129,7 @@ func fetchIssuerKeys(issuer string) (map[string]*rsa.PublicKey, error) {
 func isFederatedAssertion(claims map[string]any, appID string) bool {
 	iss, _ := claims["iss"].(string)
 	sub, _ := claims["sub"].(string)
-	return !(iss == appID && sub == appID)
+	return iss != appID || sub != appID
 }
 
 // verifyFederatedAssertion authenticates an app via workload identity

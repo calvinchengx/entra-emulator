@@ -138,34 +138,34 @@ func Start(opts ...Option) (*Emulator, error) {
 
 	cfg, err := config.Load(getenv)
 	if err != nil {
-		os.RemoveAll(dataDir)
+		_ = os.RemoveAll(dataDir)
 		return nil, err
 	}
 
 	st, err := store.Open(cfg.DBPath)
 	if err != nil {
-		os.RemoveAll(dataDir)
+		_ = os.RemoveAll(dataDir)
 		return nil, err
 	}
 	// The tenant is infrastructure the signing key depends on; ensure it even
 	// when the directory seed is skipped.
 	if err := st.EnsureTenant(cfg.TenantID, cfg.Issuer); err != nil {
-		st.Close()
-		os.RemoveAll(dataDir)
+		_ = st.Close()
+		_ = os.RemoveAll(dataDir)
 		return nil, err
 	}
 	if !o.NoSeed {
 		if _, err := st.Seed(cfg.TenantID, cfg.Issuer); err != nil {
-			st.Close()
-			os.RemoveAll(dataDir)
+			_ = st.Close()
+			_ = os.RemoveAll(dataDir)
 			return nil, fmt.Errorf("seed: %w", err)
 		}
 	}
 
 	signer, err := tokens.EnsureActiveKey(st, cfg.TenantID)
 	if err != nil {
-		st.Close()
-		os.RemoveAll(dataDir)
+		_ = st.Close()
+		_ = os.RemoveAll(dataDir)
 		return nil, err
 	}
 	ts := &tokens.Service{Store: st, Signer: signer, Cfg: cfg}
@@ -174,8 +174,8 @@ func Start(opts ...Option) (*Emulator, error) {
 	if o.TLS {
 		cert, err = tlscert.LoadOrCreate(cfg.TLSCertDir, cfg.BaseDomain, cfg.LocalDomains)
 		if err != nil {
-			st.Close()
-			os.RemoveAll(dataDir)
+			_ = st.Close()
+			_ = os.RemoveAll(dataDir)
 			return nil, err
 		}
 	}
@@ -233,10 +233,10 @@ func (e *Emulator) Close() {
 		e.srv.Close()
 	}
 	if e.st != nil {
-		e.st.Close()
+		_ = e.st.Close()
 	}
 	if e.dataDir != "" {
-		os.RemoveAll(e.dataDir)
+		_ = os.RemoveAll(e.dataDir)
 	}
 }
 

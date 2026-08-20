@@ -244,7 +244,7 @@ func TestRefreshKeysErrors(t *testing.T) {
 	// (c) Keys with un-decodable N/E are skipped (continue branches), leaving no
 	// usable key for the kid.
 	skip := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		json.NewEncoder(w).Encode(map[string]any{"keys": []map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]any{"keys": []map[string]string{
 			{"kid": "bad-n", "n": "!!!", "e": "AQAB"},
 			{"kid": "bad-e", "n": "AQAB", "e": "!!!"},
 		}})

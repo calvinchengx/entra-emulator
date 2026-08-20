@@ -37,10 +37,6 @@ import (
 
 const (
 	differentialDir = "differential"
-	// Fixtures older than the manifest's maxAgeDays are reported STALE rather
-	// than passing. An old recording that still passes is the failure mode this
-	// whole system exists to prevent: it certifies behaviour nobody rechecked.
-	staleIsFailure = true
 )
 
 type fixtureManifest struct {
@@ -243,7 +239,8 @@ func TestDifferentialManifestIsHonest(t *testing.T) {
 }
 
 // TestDifferentialFixturesAreFresh fails on stale recordings instead of letting
-// them pass. Age is measured per fixture, not from the manifest, because a
+// them pass. An old recording that still passes is the failure mode this whole
+// system exists to prevent: it certifies behaviour nobody rechecked. Age is measured per fixture, not from the manifest, because a
 // partial recapture leaves the manifest looking current while some fixtures
 // were not re-recorded.
 func TestDifferentialFixturesAreFresh(t *testing.T) {

@@ -395,3 +395,22 @@ jobs:
       # same database, and reads the work back. Run against the shared emulator
       # there would be no restart, and every check would pass in memory.
       - run: python3 e2e/run.py persistence
+
+  lint:
+    name: golangci-lint
+    runs-on: ubuntu-latest
+    # A wedged run must fail rather than sit in GitHub's 6-hour default, where
+    # 'pending' and 'stuck' look identical.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      # Gated at zero. .golangci.yml excludes unchecked Close, Rollback and
+      # writes to a response, where the return value is unactionable at the
+      # call site; everything surviving that is fixed rather than suppressed.
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2

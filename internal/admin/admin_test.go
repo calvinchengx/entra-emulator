@@ -33,7 +33,7 @@ func newTestAdmin(t *testing.T) *Admin {
 	if err != nil {
 		t.Fatalf("store.Open: %v", err)
 	}
-	t.Cleanup(func() { st.Close() })
+	t.Cleanup(func() { _ = st.Close() })
 	if err := st.EnsureTenant(cfg.TenantID, cfg.Issuer); err != nil {
 		t.Fatalf("EnsureTenant: %v", err)
 	}
@@ -210,5 +210,10 @@ func TestProvisionerDefaulted(t *testing.T) {
 	if a.Provisioner == nil {
 		t.Fatal("Provisioner should have been defaulted by New")
 	}
+	// The explicit type IS the assertion: the line exists to fail compilation
+	// if a.Provisioner ever stops being a *scim.Provisioner. QF1011 suggests
+	// dropping the type because it can be inferred, which is true, and which
+	// removes the only thing this statement does.
+	//nolint:staticcheck // QF1011: the declared type is the check
 	var _ *scim.Provisioner = a.Provisioner
 }

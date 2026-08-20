@@ -44,7 +44,7 @@ func newTestIdentity(t *testing.T) (*Identity, *config.Config, *store.Store) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { st.Close() })
+	t.Cleanup(func() { _ = st.Close() })
 	if _, err := st.Seed(cfg.TenantID, cfg.Issuer); err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestIssueWSFedRSTRRefusesAnAssertionMissingAudience(t *testing.T) {
 
 func TestRenderWSFedSignInSurfacesADirectoryReadFailure(t *testing.T) {
 	id, cfg, st := newTestIdentity(t)
-	st.Close()
+	_ = st.Close()
 	rec := httptest.NewRecorder()
 	id.renderWSFedSignIn(rec, tasksState(cfg.TenantID), "")
 	if rec.Code != http.StatusInternalServerError || !strings.Contains(rec.Body.String(), "Could not list accounts") {
