@@ -37,7 +37,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 
 	log.Printf("entra-emulator %s", version)
 	log.Printf("  login:  %s", cfg.Origins.Login)
@@ -62,12 +62,12 @@ func boot(cfg *config.Config) (*server.Server, *store.Store, error) {
 	// The tenant is infrastructure (the signing key FK-references it); ensure
 	// it independently of SEED_ON_START so an unseeded boot still works.
 	if err := st.EnsureTenant(cfg.TenantID, cfg.Issuer); err != nil {
-		st.Close()
+		_ = st.Close()
 		return nil, nil, fmt.Errorf("ensure tenant: %w", err)
 	}
 	if cfg.SeedOnStart {
 		if seeded, err := st.Seed(cfg.TenantID, cfg.Issuer); err != nil {
-			st.Close()
+			_ = st.Close()
 			return nil, nil, fmt.Errorf("seed: %w", err)
 		} else if seeded {
 			log.Printf("seeded deterministic directory (tenant %s)", cfg.TenantID)
@@ -76,7 +76,7 @@ func boot(cfg *config.Config) (*server.Server, *store.Store, error) {
 
 	signer, err := tokens.EnsureActiveKey(st, cfg.TenantID)
 	if err != nil {
-		st.Close()
+		_ = st.Close()
 		return nil, nil, fmt.Errorf("signing key: %w", err)
 	}
 	ts := &tokens.Service{Store: st, Signer: signer, Cfg: cfg}
@@ -89,7 +89,7 @@ func boot(cfg *config.Config) (*server.Server, *store.Store, error) {
 			cert, err = tlscert.LoadOrCreate(cfg.TLSCertDir, cfg.BaseDomain, cfg.LocalDomains)
 		}
 		if err != nil {
-			st.Close()
+			_ = st.Close()
 			return nil, nil, err
 		}
 	}

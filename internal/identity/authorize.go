@@ -162,13 +162,13 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	// Session / prompt resolution.
 	sess, user := i.currentSession(r)
-	switch {
-	case prompt == "none":
+	switch prompt {
+	case "none":
 		if user == nil {
 			redirectErr("login_required", "No active session and prompt=none.")
 			return
 		}
-	case prompt == "login" || prompt == "select_account":
+	case "login", "select_account":
 		user = nil // force interaction
 	}
 	if user != nil {

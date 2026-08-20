@@ -40,7 +40,7 @@ func newFakeIssuer(t *testing.T) *fakeIssuer {
 		})
 	})
 	mux.HandleFunc("/jwks", func(w http.ResponseWriter, r *http.Request) {
-		n := base64.RawURLEncoding.EncodeToString(key.PublicKey.N.Bytes())
+		n := base64.RawURLEncoding.EncodeToString(key.N.Bytes())
 		e := base64.RawURLEncoding.EncodeToString(big.NewInt(int64(key.PublicKey.E)).Bytes())
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"keys": []map[string]string{{"kty": "RSA", "use": "sig", "kid": fi.kid, "n": n, "e": e}},

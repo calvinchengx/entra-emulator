@@ -19,7 +19,7 @@ func newTestStore(t *testing.T) *Store {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	t.Cleanup(func() { st.Close() })
+	t.Cleanup(func() { _ = st.Close() })
 	if err := st.EnsureTenant(testTenantID, testIssuer); err != nil {
 		t.Fatalf("EnsureTenant: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestOpenAndMigrateIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reopen: %v", err)
 	}
-	st2.Close()
+	_ = st2.Close()
 }
 
 func TestOpenBadPath(t *testing.T) {
@@ -180,7 +180,7 @@ func TestGetTenantEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { st.Close() })
+	t.Cleanup(func() { _ = st.Close() })
 	if _, err := st.GetTenant(); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("GetTenant on empty = %v, want ErrNotFound", err)
 	}
@@ -292,11 +292,11 @@ func TestDeleteUserClearsGrants(t *testing.T) {
 	app := mustApp(t, st, "grant-app")
 	u := mustUser(t, st, "grants@x")
 
-	st.InsertAuthCode(&AuthCode{Code: "gc", AppID: app.ID, UserID: u.ID, RedirectURI: "r",
+	_ = st.InsertAuthCode(&AuthCode{Code: "gc", AppID: app.ID, UserID: u.ID, RedirectURI: "r",
 		Scopes: "openid", ExpiresAt: st.Now() + 60, CreatedAt: st.Now()})
-	st.InsertRefreshToken(&RefreshToken{TokenHash: HashToken("grt"), AppID: app.ID, UserID: u.ID,
+	_ = st.InsertRefreshToken(&RefreshToken{TokenHash: HashToken("grt"), AppID: app.ID, UserID: u.ID,
 		Scopes: "openid", ExpiresAt: st.Now() + 60, CreatedAt: st.Now()})
-	st.InsertDeviceCode(&DeviceCode{DeviceCodeHash: HashToken("gdc"), UserCode: "GC-1", AppID: app.ID,
+	_ = st.InsertDeviceCode(&DeviceCode{DeviceCodeHash: HashToken("gdc"), UserCode: "GC-1", AppID: app.ID,
 		UserID: u.ID, Scopes: "openid", Status: "approved", Interval: 5, ExpiresAt: st.Now() + 60, CreatedAt: st.Now()})
 
 	if err := st.DeleteUser(u.ID); err != nil {
@@ -358,7 +358,7 @@ func TestVerifyPassword(t *testing.T) {
 	// No password hash set.
 	np := mustUser(t, st, "nopass@x")
 	np.PasswordHash = ""
-	st.UpdateUser(np)
+	_ = st.UpdateUser(np)
 	if _, err := st.VerifyPassword("nopass@x", "anything"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("empty hash = %v", err)
 	}
@@ -525,11 +525,11 @@ func TestDeleteAppClearsGrants(t *testing.T) {
 	st := newTestStore(t)
 	app := mustApp(t, st, "grantapp")
 	u := mustUser(t, st, "au@x")
-	st.InsertAuthCode(&AuthCode{Code: "ac", AppID: app.ID, UserID: u.ID, RedirectURI: "r",
+	_ = st.InsertAuthCode(&AuthCode{Code: "ac", AppID: app.ID, UserID: u.ID, RedirectURI: "r",
 		Scopes: "openid", ExpiresAt: st.Now() + 60, CreatedAt: st.Now()})
-	st.InsertRefreshToken(&RefreshToken{TokenHash: HashToken("art"), AppID: app.ID, UserID: u.ID,
+	_ = st.InsertRefreshToken(&RefreshToken{TokenHash: HashToken("art"), AppID: app.ID, UserID: u.ID,
 		Scopes: "openid", ExpiresAt: st.Now() + 60, CreatedAt: st.Now()})
-	st.InsertDeviceCode(&DeviceCode{DeviceCodeHash: HashToken("adc"), UserCode: "AD-1", AppID: app.ID,
+	_ = st.InsertDeviceCode(&DeviceCode{DeviceCodeHash: HashToken("adc"), UserCode: "AD-1", AppID: app.ID,
 		Scopes: "openid", Interval: 5, ExpiresAt: st.Now() + 60, CreatedAt: st.Now()})
 
 	if err := st.DeleteApp(app.ID); err != nil {
@@ -645,7 +645,7 @@ func TestSecrets(t *testing.T) {
 
 	// Expired secret is skipped.
 	expiredHash, _ := HashSecret("expired")
-	st.AddSecret(&AppSecret{ID: NewGUID(), AppID: app.ID, SecretHash: expiredHash,
+	_ = st.AddSecret(&AppSecret{ID: NewGUID(), AppID: app.ID, SecretHash: expiredHash,
 		ExpiresAt: st.Now() - 10, CreatedAt: st.Now() - 100})
 	ok, _ = st.VerifyAppSecret(app.ID, "expired")
 	if ok {
@@ -653,7 +653,7 @@ func TestSecrets(t *testing.T) {
 	}
 	// Never-expiring secret (ExpiresAt 0).
 	neverHash, _ := HashSecret("forever")
-	st.AddSecret(&AppSecret{ID: NewGUID(), AppID: app.ID, SecretHash: neverHash, CreatedAt: st.Now()})
+	_ = st.AddSecret(&AppSecret{ID: NewGUID(), AppID: app.ID, SecretHash: neverHash, CreatedAt: st.Now()})
 	ok, _ = st.VerifyAppSecret(app.ID, "forever")
 	if !ok {
 		t.Fatal("never-expiring secret should verify")
@@ -783,7 +783,7 @@ func TestSigningKeys(t *testing.T) {
 	}
 	k2 := &SigningKey{Kid: "kid-2", TenantID: testTenantID, PublicJWK: "{}", PrivatePKCS8: "pem",
 		IsActive: true, CreatedAt: st.Now() + 1}
-	st.InsertSigningKey(k2)
+	_ = st.InsertSigningKey(k2)
 	// Now active(kid-2) + retired-but-unexpired(kid-1) = 2.
 	keys, _ = st.ListPublishableKeys(testTenantID, st.Now())
 	if len(keys) != 2 {
@@ -884,7 +884,7 @@ func TestRefreshTokenRotationAndRevocation(t *testing.T) {
 	// Rotate t2 -> t4 to form a longer chain, then revoke the whole family.
 	rt4 := &RefreshToken{TokenHash: HashToken("t4"), AppID: app.ID, UserID: u.ID,
 		Scopes: "openid", ExpiresAt: st.Now() + 3600, CreatedAt: st.Now()}
-	st.RotateRefreshToken(HashToken("t2"), rt4)
+	_, _ = st.RotateRefreshToken(HashToken("t2"), rt4)
 
 	if err := st.RevokeRefreshTokenFamily(HashToken("t2")); err != nil {
 		t.Fatalf("RevokeRefreshTokenFamily: %v", err)
@@ -919,7 +919,7 @@ func TestSessions(t *testing.T) {
 	}
 	// Explicit method.
 	sess2 := &Session{ID: NewGUID(), UserID: u.ID, AuthMethod: "fido", CreatedAt: st.Now(), ExpiresAt: st.Now() + 3600}
-	st.CreateSession(sess2)
+	_ = st.CreateSession(sess2)
 	got2, _ := st.GetSession(sess2.ID)
 	if got2.AuthMethod != "fido" {
 		t.Fatalf("session method = %q", got2.AuthMethod)
@@ -1013,7 +1013,7 @@ func TestDeviceCodes(t *testing.T) {
 	// DeleteDeviceCode (denied cleanup / no-op on missing).
 	d2 := &DeviceCode{DeviceCodeHash: HashToken("dc2"), UserCode: "AAAA-0000", AppID: app.ID,
 		Scopes: "openid", Interval: 5, ExpiresAt: st.Now() + 600, CreatedAt: st.Now()}
-	st.InsertDeviceCode(d2)
+	_ = st.InsertDeviceCode(d2)
 	if err := st.DeleteDeviceCode(HashToken("dc2")); err != nil {
 		t.Fatalf("DeleteDeviceCode: %v", err)
 	}
@@ -1026,9 +1026,9 @@ func TestConsumeApprovedDeviceCodeExpired(t *testing.T) {
 	st := newTestStore(t)
 	app := mustApp(t, st, "expdev")
 	u := mustUser(t, st, "expdev@x")
-	st.InsertDeviceCode(&DeviceCode{DeviceCodeHash: HashToken("exp"), UserCode: "EXP-0001", AppID: app.ID,
+	_ = st.InsertDeviceCode(&DeviceCode{DeviceCodeHash: HashToken("exp"), UserCode: "EXP-0001", AppID: app.ID,
 		Scopes: "openid", Status: "approved", Interval: 5, ExpiresAt: st.Now() + 10, CreatedAt: st.Now()})
-	st.SetDeviceCodeDecision("EXP-0001", "approved", u.ID)
+	_ = st.SetDeviceCodeDecision("EXP-0001", "approved", u.ID)
 	// now beyond expiry → nil.
 	res, err := st.ConsumeApprovedDeviceCode(HashToken("exp"), app.ID, st.Now()+100)
 	if err != nil || res != nil {
@@ -1111,7 +1111,7 @@ func TestAppKeyCredentials(t *testing.T) {
 		t.Fatalf("dup keycred = %v", err)
 	}
 	// Null display name path.
-	st.AddAppKeyCredential(&AppKeyCredential{ID: NewGUID(), AppID: app.ID, PublicKey: "-----PEM2-----", CreatedAt: st.Now()})
+	_ = st.AddAppKeyCredential(&AppKeyCredential{ID: NewGUID(), AppID: app.ID, PublicKey: "-----PEM2-----", CreatedAt: st.Now()})
 
 	list, err := st.ListAppKeyCredentials(app.ID)
 	if err != nil || len(list) != 2 {
@@ -1244,7 +1244,7 @@ func TestSeedOnFreshDB(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { st.Close() })
+	t.Cleanup(func() { _ = st.Close() })
 	// No EnsureTenant: the tenant is absent, so Seed reports wasNew=true.
 	wasNew, err := st.Seed(testTenantID, testIssuer)
 	if err != nil {
@@ -1257,7 +1257,7 @@ func TestSeedOnFreshDB(t *testing.T) {
 
 func TestReset(t *testing.T) {
 	st := seededStore(t)
-	st.InsertSigningKey(&SigningKey{Kid: "rk", TenantID: testTenantID, PublicJWK: "{}",
+	_ = st.InsertSigningKey(&SigningKey{Kid: "rk", TenantID: testTenantID, PublicJWK: "{}",
 		PrivatePKCS8: "pem", IsActive: true, CreatedAt: st.Now()})
 
 	// Reset without reseed, keeping keys.
@@ -1289,7 +1289,7 @@ func TestExportImportRoundTrip(t *testing.T) {
 	st := seededStore(t)
 	// Add extra artifacts to exercise all export/import branches.
 	app, _ := st.GetApp(SeedAppSPAID)
-	st.AddRole(&AppRole{ID: NewGUID(), AppID: app.ID, Value: "Reader", DisplayName: "Reader", IsEnabled: true})
+	_ = st.AddRole(&AppRole{ID: NewGUID(), AppID: app.ID, Value: "Reader", DisplayName: "Reader", IsEnabled: true})
 
 	snap, err := st.ExportDirectory()
 	if err != nil {
@@ -1589,7 +1589,7 @@ func TestSeedReseedOverExisting(t *testing.T) {
 	// Mutate a seeded user, then re-seed: INSERT OR IGNORE must not overwrite.
 	u, _ := st.GetUser(SeedUserAliceID)
 	u.DisplayName = "Changed"
-	st.UpdateUser(u)
+	_ = st.UpdateUser(u)
 	if _, err := st.Seed(testTenantID, testIssuer); err != nil {
 		t.Fatalf("re-seed: %v", err)
 	}
@@ -1626,8 +1626,15 @@ func TestHashingHelpers(t *testing.T) {
 		t.Fatal("bad hash b64 should be false")
 	}
 	// HashToken is deterministic.
-	if HashToken("x") != HashToken("x") || HashToken("x") == HashToken("y") {
-		t.Fatal("HashToken not deterministic/distinct")
+	// Hoisted: `HashToken("x") != HashToken("x")` reads to a linter as an
+	// expression compared with itself, and to a reader as a typo. The point is
+	// that two SEPARATE calls agree, so the two calls get names.
+	first, again := HashToken("x"), HashToken("x")
+	if first != again {
+		t.Fatalf("HashToken not deterministic: %q then %q", first, again)
+	}
+	if first == HashToken("y") {
+		t.Fatal("HashToken collided on different inputs")
 	}
 }
 
@@ -1638,8 +1645,8 @@ func TestGUIDAndTokenHelpers(t *testing.T) {
 	if len(g) != 36 || g[14] != '4' {
 		t.Fatalf("NewGUID malformed: %q", g)
 	}
-	if NewGUID() == NewGUID() {
-		t.Fatal("NewGUID should be unique")
+	if other := NewGUID(); g == other {
+		t.Fatalf("NewGUID should be unique, got %q twice", other)
 	}
 	tok := NewOpaqueToken(32)
 	if tok == "" || NewOpaqueToken(32) == tok {

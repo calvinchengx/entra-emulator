@@ -200,7 +200,7 @@ func TestBootAndSubcommandRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("boot: %v", err)
 	}
-	defer st.Close()
+	defer func() { _ = st.Close() }()
 	if srv == nil {
 		t.Fatal("boot returned nil server")
 	}
