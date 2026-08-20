@@ -23,6 +23,24 @@ jobs:
       - run: go vet ./...
       - run: go build ./...
       - run: go test ./...
+      # Every module must be tidy on main. This is not style: `.goreleaser.yaml`
+      # runs `go mod tidy` as a release hook, so an untidy go.mod would be
+      # REWRITTEN during a release and the shipped binary built from a module
+      # state nobody committed — silently, because a successful tidy prints
+      # nothing. Failing here means the release hook can never have anything to
+      # do. Same class as the `go mod download` pre-warm removed in #102.
+      #
+      # -diff reports the change and exits non-zero WITHOUT writing, so the
+      # check cannot itself become the mutation it exists to prevent.
+      - name: go.mod is tidy in every module
+        run: |
+          set -euo pipefail
+          fail=0
+          for m in . ./e2e/go ./samples/externalized-authz/compat ./samples/msal-go; do
+            echo "==> $m"
+            ( cd "$m" && go mod tidy -diff ) || fail=1
+          done
+          exit $fail
 
   portal:
     name: Portal builds from source
