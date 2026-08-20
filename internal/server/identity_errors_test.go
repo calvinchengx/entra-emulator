@@ -112,7 +112,7 @@ func TestRequirePasswordFlow(t *testing.T) {
 	authorize := hts.URL + "/" + tenant + "/oauth2/v2.0/authorize?" + url.Values{
 		"client_id": {spaID}, "redirect_uri": {redirect},
 		"response_type": {"code"}, "scope": {"openid"}, "state": {"s"},
-		"code_challenge": {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
+		"code_challenge":        {"E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"},
 		"code_challenge_method": {"S256"},
 	}.Encode()
 

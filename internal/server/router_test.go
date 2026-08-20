@@ -78,11 +78,11 @@ func TestPortalFallback(t *testing.T) {
 		method, path string
 		wantCode     int
 	}{
-		{"GET", "/admin/api/whatever", 404},                             // API prefix → JSON 404
-		{"GET", "/6f89cf12-978b-4d23-ac18-9ef0c127cf87/oauth2", 404},    // tenant-prefixed → 404
-		{"GET", "/common/oauth2/v2.0/authorize", 404},                   // alias-prefixed → 404
-		{"POST", "/some/spa/route", 404},                                // non-GET non-API → 404
-		{"GET", "/dashboard", 200},                                      // SPA GET → portal
+		{"GET", "/admin/api/whatever", 404},                          // API prefix → JSON 404
+		{"GET", "/6f89cf12-978b-4d23-ac18-9ef0c127cf87/oauth2", 404}, // tenant-prefixed → 404
+		{"GET", "/common/oauth2/v2.0/authorize", 404},                // alias-prefixed → 404
+		{"POST", "/some/spa/route", 404},                             // non-GET non-API → 404
+		{"GET", "/dashboard", 200},                                   // SPA GET → portal
 	}
 	for _, tc := range cases {
 		rec := httptest.NewRecorder()

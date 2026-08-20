@@ -6,9 +6,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/calvinchengx/entra-emulator/samples/externalized-authz/authz"
 	"github.com/casbin/casbin/v2"
 	"github.com/casbin/casbin/v2/model"
-	"github.com/calvinchengx/entra-emulator/samples/externalized-authz/authz"
 )
 
 // Casbin is an in-process RBAC/ABAC library — no container. This harness proves

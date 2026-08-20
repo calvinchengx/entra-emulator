@@ -15,8 +15,8 @@ import (
 // entities, which is fine at emulator data sizes.
 
 type odataQuery struct {
-	Select []string                    // projected fields; empty = all
-	Filter func(map[string]any) bool   // nil = no filter
+	Select []string                  // projected fields; empty = all
+	Filter func(map[string]any) bool // nil = no filter
 	Top    int
 	Skip   int
 	Count  bool

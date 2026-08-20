@@ -110,14 +110,14 @@ func TestValidatorRejections(t *testing.T) {
 	}
 
 	cases := map[string]string{
-		"malformed":       "not.a.jwt.at.all",
-		"two segments":    "aa.bb",
-		"wrong issuer":    tamper(func(c map[string]any) { c["iss"] = "https://evil/v2.0" }),
-		"wrong audience":  tamper(func(c map[string]any) { c["aud"] = "api://other" }),
-		"expired":         tamper(func(c map[string]any) { c["exp"] = 1_500_000_000 }),
-		"not yet valid":   tamper(func(c map[string]any) { c["nbf"] = 1_700_000_000 }),
-		"unknown kid":     signRS256(t, key, "unknown-kid", baseClaims("api://docs-api")),
-		"bad signature":   signRS256(t, other, "kid1", baseClaims("api://docs-api")),
+		"malformed":      "not.a.jwt.at.all",
+		"two segments":   "aa.bb",
+		"wrong issuer":   tamper(func(c map[string]any) { c["iss"] = "https://evil/v2.0" }),
+		"wrong audience": tamper(func(c map[string]any) { c["aud"] = "api://other" }),
+		"expired":        tamper(func(c map[string]any) { c["exp"] = 1_500_000_000 }),
+		"not yet valid":  tamper(func(c map[string]any) { c["nbf"] = 1_700_000_000 }),
+		"unknown kid":    signRS256(t, key, "unknown-kid", baseClaims("api://docs-api")),
+		"bad signature":  signRS256(t, other, "kid1", baseClaims("api://docs-api")),
 	}
 	for name, tok := range cases {
 		if _, err := v.Validate(tok); err == nil {

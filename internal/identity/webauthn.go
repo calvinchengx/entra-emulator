@@ -54,9 +54,9 @@ type waUser struct {
 	creds []webauthn.Credential
 }
 
-func (w *waUser) WebAuthnID() []byte          { return []byte(w.u.ID) }
-func (w *waUser) WebAuthnName() string         { return w.u.UserPrincipalName }
-func (w *waUser) WebAuthnDisplayName() string  { return w.u.DisplayName }
+func (w *waUser) WebAuthnID() []byte                         { return []byte(w.u.ID) }
+func (w *waUser) WebAuthnName() string                       { return w.u.UserPrincipalName }
+func (w *waUser) WebAuthnDisplayName() string                { return w.u.DisplayName }
 func (w *waUser) WebAuthnCredentials() []webauthn.Credential { return w.creds }
 
 // loadWAUser resolves a user by UPN and loads their stored passkeys.

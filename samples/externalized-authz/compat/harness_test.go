@@ -35,9 +35,9 @@ type Check struct {
 // canonicalFacts + canonicalChecks are the single source of truth. Every
 // backend must reproduce this exact allow/deny matrix.
 var canonicalFacts = []Fact{
-	{"user:alice", "reader", "doc:readme"},        // direct user grant
+	{"user:alice", "reader", "doc:readme"},         // direct user grant
 	{"group:eng#member", "reader", "doc:handbook"}, // group (userset) grant
-	{"user:bob", "writer", "doc:draft"},           // direct writer grant
+	{"user:bob", "writer", "doc:draft"},            // direct writer grant
 }
 
 var canonicalChecks = []Check{

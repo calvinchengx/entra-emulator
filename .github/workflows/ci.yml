@@ -20,6 +20,17 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+      # Naming the files matters: `test -z "$(gofmt -l .)"` fails with no
+      # output at all, so the one check whose entire job is "which file" tells
+      # you nothing and you reproduce it locally to find out.
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt would change these files:"
+            echo "$unformatted"
+            exit 1
+          fi
       - run: go vet ./...
       - run: go build ./...
       - run: go test ./...

@@ -15,9 +15,9 @@ import (
 // CheckRequest mirrors an OpenFGA check: "is <subject> related to <object> via
 // <relation>?" (e.g. user:alice is `reader` of doc:readme).
 type CheckRequest struct {
-	Subject  string // e.g. "user:<oid>"
-	Relation string // e.g. "reader" | "writer"
-	Object   string // e.g. "doc:readme"
+	Subject  string   // e.g. "user:<oid>"
+	Relation string   // e.g. "reader" | "writer"
+	Object   string   // e.g. "doc:readme"
 	Groups   []string // group ids the subject belongs to (e.g. "group:<gid>")
 }
 
