@@ -35,10 +35,17 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);
   line-height:1.65;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1000px;margin:0 auto;padding:0 24px}
 a{color:var(--accent)}
-code{font-family:var(--mono);font-size:.9em;background:var(--code);padding:.15em .4em;border-radius:5px}
+/* Long identifiers are the point of this page and several are unbreakable
+   tokens: `Microsoft.AspNetCore.Authentication.WsFederation` is 47
+   characters and, left alone, pushed the whole document wider than a
+   375px viewport. Inline code wraps; code BLOCKS keep scrolling inside
+   their own <pre>, because a wrapped shell command is a command you
+   cannot copy. */
+code{font-family:var(--mono);font-size:.9em;background:var(--code);padding:.15em .4em;
+  border-radius:5px;overflow-wrap:anywhere}
 pre{background:var(--code);border:1px solid var(--line);border-radius:var(--radius);
   padding:18px 20px;overflow-x:auto;font-family:var(--mono);font-size:.88rem;line-height:1.55}
-pre code{background:none;padding:0}
+pre code{background:none;padding:0;overflow-wrap:normal}
 h1,h2,h3{line-height:1.25;letter-spacing:-.02em}
 h2{font-size:1.7rem;margin:0 0 8px}
 .sec{padding:60px 0;border-top:1px solid var(--line)}
