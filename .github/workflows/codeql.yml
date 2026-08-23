@@ -25,6 +25,13 @@ on:
 # which is exactly what the code-scanning tool status page reports. Landing a
 # burst of commits cancelled 11 of our first 43 main runs this way. So main runs
 # to completion; only PR pushes cancel.
+# Least privilege by default. `analyze` overrides this with the wider set it
+# genuinely needs (security-events: write). Without a default here, any job
+# that forgets its own block silently inherits the repository default --
+# which is exactly what happened to `changes` and raised code-scanning #24.
+permissions:
+  contents: read
+
 concurrency:
   group: codeql-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -40,6 +47,12 @@ jobs:
     name: Does this change any code?
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # contents: read for the compare endpoint, pull-requests: read for
+    # pulls/{n}/files. Public-repo data is readable without the latter, so the
+    # gap would only appear if this repo ever went private.
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       code: ${{ steps.filter.outputs.code }}
     steps:
