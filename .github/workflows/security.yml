@@ -30,6 +30,12 @@ jobs:
     name: Does this change any code?
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # contents: read for the compare endpoint, pull-requests: read for
+    # pulls/{n}/files. Public-repo data is readable without the latter, so the
+    # gap would only appear if this repo ever went private.
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       code: ${{ steps.filter.outputs.code }}
     steps:

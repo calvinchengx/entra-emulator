@@ -29,33 +29,8 @@ on:
   workflow_call: # called by release.yml as a release gate
   push:
     branches: [main]
-    paths:
-      # Prose changes do not need the suite. This is `paths` with negations
-      # rather than `paths-ignore`, because paths-ignore cannot re-include
-      # anything, and the last matching pattern wins so every re-include sits
-      # after the exclusions. '*.md' is separate because '**/*.md' needs a
-      # directory and does not match the root README.
-      - '**'
-      - '!docs/**'
-      - '!website/**'
-      - '!site/**'
-      - '!*.md'
-      - '!**/*.md'
-      - 'docs/generated/**'
-      - 'docs/parity.md'
-      - 'docs/witnesses.json'
   pull_request:
 
-    paths:
-      - '**'
-      - '!docs/**'
-      - '!website/**'
-      - '!site/**'
-      - '!*.md'
-      - '!**/*.md'
-      - 'docs/generated/**'
-      - 'docs/parity.md'
-      - 'docs/witnesses.json'
 permissions:
   contents: read
 
@@ -70,6 +45,12 @@ jobs:
     name: Does this change any code?
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # contents: read for the compare endpoint, pull-requests: read for
+    # pulls/{n}/files. Public-repo data is readable without the latter, so the
+    # gap would only appear if this repo ever went private.
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       code: ${{ steps.filter.outputs.code }}
     steps:
