@@ -35,3 +35,6 @@ e2e/build/
 # Playwright
 test-results/
 playwright-report/
+
+# Assembled by scripts/assemble_site.py for the Pages deploy.
+_site/

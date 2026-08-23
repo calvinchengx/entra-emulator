@@ -14,7 +14,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const REPO = join(here, '..', '..');
 const DOCS_SRC = join(REPO, 'docs');
 const OUT = join(here, '..', 'src', 'content', 'docs');
-export const BASE = '/entra-emulator/';
+export const BASE = '/entra-emulator/docs/';
 
 // Parity version data (release tags + the live map), collected once. `version`
 // is e.g. "v0.2.2" on a tag, otherwise "latest-<short sha>".
@@ -109,12 +109,14 @@ function convert(name) {
   return frontmatter + body;
 }
 
-// The site root is NOT this page: site/index.html, a hand-written landing page,
-// is copied over dist/index.html by the docs-site workflow. So the docs get
-// their own front door one level in, at /entra-emulator/overview/, and the
-// Starlight header's home link lands on the landing page rather than looping
-// back here.
-function writeOverview() {
+// The docs' own front door, at /entra-emulator/docs/.
+//
+// It was `overview.md` while Starlight was based at the root, because the
+// landing page took index.html and the two would have collided. With the docs
+// under /docs/ there is no collision, so this is index.md again and the front
+// door is the directory a reader lands on. `/overview/` keeps working: it is in
+// published-routes.txt and gets a stub like every other old path.
+function writeIndex() {
   const body = rewriteLinks(
     `A local, MSAL-compatible emulator of Microsoft Entra ID (Azure AD) in a single Go binary: ` +
       `the OIDC/OAuth 2.0 v2.0 endpoints MSAL talks to, SAML 2.0 and WS-Federation, passkeys, a ` +
@@ -144,7 +146,7 @@ function writeOverview() {
   // "Edit this page" to point at.
   const frontmatter =
     `---\ntitle: Overview\ndescription: A local, MSAL-compatible emulator of Microsoft Entra ID in a single Go binary.\neditUrl: false\n---\n\n`;
-  writeFileSync(join(OUT, 'overview.md'), frontmatter + body);
+  writeFileSync(join(OUT, 'index.md'), frontmatter + body);
 }
 
 rmSync(OUT, { recursive: true, force: true });
@@ -153,7 +155,7 @@ const names = readdirSync(DOCS_SRC).filter((n) => DOC_RE.test(n)).sort();
 for (const name of names) {
   writeFileSync(join(OUT, name), convert(name));
 }
-writeOverview();
+writeIndex();
 const info = writeParityHistory(OUT, PARITY, { convertBody });
 // The top-nav picker is an Astro component and can't shell out to git, so hand
 // it the same points as a build-time manifest.
@@ -161,6 +163,6 @@ const DATA = join(here, '..', 'src', 'data');
 mkdirSync(DATA, { recursive: true });
 writeFileSync(join(DATA, 'parity-versions.json'), JSON.stringify(parityManifest(PARITY), null, 2) + '\n');
 console.log(
-  `sync-docs: wrote ${names.length} docs + overview to src/content/docs/ ` +
+  `sync-docs: wrote ${names.length} docs + index to src/content/docs/ ` +
     `(parity ${info.version}; ${info.snapshots.length} tagged snapshot(s))`,
 );

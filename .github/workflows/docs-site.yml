@@ -7,6 +7,8 @@ on:
       - 'docs/**'
       - 'site/**'
       - 'scripts/coverage_badges.py'
+      - 'scripts/assemble_site.py'
+      - 'website/published-routes.txt'
       - 'scripts/check_witnesses.py'
       - 'website/**'
       - 'pnpm-lock.yaml'
@@ -21,6 +23,8 @@ on:
       - 'docs/**'
       - 'site/**'
       - 'scripts/coverage_badges.py'
+      - 'scripts/assemble_site.py'
+      - 'website/published-routes.txt'
       - 'scripts/check_witnesses.py'
       - 'website/**'
       - 'pnpm-lock.yaml'
@@ -84,33 +88,30 @@ jobs:
       # The witness endpoint rides along with the docs site, served from
       # this project's own origin rather than a third party. Written AFTER
       # the Starlight build, which would otherwise wipe website/dist.
-      - name: Write the badge and manifest endpoints
-        run: python3 scripts/coverage_badges.py --out website/dist
-      # The hand-written landing page becomes the site root, and the docs keep
-      # every URL they already had: Starlight's base stays `/entra-emulator/`,
-      # so nothing published moves. Its own front door is /overview/, which is
-      # why sync-docs.mjs writes overview.md and not index.md -- there is no
-      # Starlight index.html here to overwrite.
+      # THE LANDING PAGE AT THE ROOT, THE DOCS UNDER /docs/, and a redirect
+      # stub at every path the site published before the move. The assembler
+      # holds itself to website/published-routes.txt -- the route list captured
+      # from the build immediately before the base changed -- so a 404 for an
+      # old URL fails the deploy instead of reaching a reader.
       #
-      # AFTER the Starlight build, which would otherwise wipe website/dist,
-      # and after the badge step for the same reason.
-      - name: Put the landing page at the site root
+      # It runs the badge script itself, into the ROOT rather than into the
+      # docs, so the endpoint URLs in README.md are unaffected by the move.
+      #
+      # The self-test runs first: a gate nobody has watched fail is a gate
+      # nobody knows the direction of.
+      - name: Assemble the site, and prove no published URL moved
         run: |
-          set -euo pipefail
-          test -s site/index.html
-          cp site/index.html website/dist/index.html
-          # The hero image is referenced relatively from the landing page, and
-          # /docs is not otherwise copied into the site.
-          cp docs/demo/demo.gif website/dist/demo.gif
+          python3 scripts/assemble_site.py --self-test
+          python3 scripts/assemble_site.py --out _site
       # The landing page is not built by Astro, so nothing else checks its
       # links. Every relative href it carries must resolve inside the
       # assembled tree, and the manifest it fetches must be there too.
       - name: The landing page's links resolve
-        run: python3 scripts/check_landing_page.py --site website/dist
+        run: python3 scripts/check_landing_page.py --site _site
       - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request'
         with:
-          path: website/dist
+          path: _site
 
   deploy:
     name: Deploy to GitHub Pages

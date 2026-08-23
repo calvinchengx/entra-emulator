@@ -6,7 +6,7 @@
 [![CodeQL](https://github.com/calvinchengx/entra-emulator/actions/workflows/codeql.yml/badge.svg)](https://github.com/calvinchengx/entra-emulator/actions/workflows/codeql.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-[![parity claims witnessed](https://img.shields.io/endpoint?url=https%3A%2F%2Fcalvinchengx.github.io%2Fentra-emulator%2Fwitnesses.json)](https://calvinchengx.github.io/entra-emulator/parity/)
+[![parity claims witnessed](https://img.shields.io/endpoint?url=https%3A%2F%2Fcalvinchengx.github.io%2Fentra-emulator%2Fwitnesses.json)](https://calvinchengx.github.io/entra-emulator/docs/parity/)
 [![Flutter e2e](https://github.com/calvinchengx/entra-emulator/actions/workflows/flutter-e2e.yml/badge.svg)](https://github.com/calvinchengx/entra-emulator/actions/workflows/flutter-e2e.yml)
 
 **A local, MSAL-compatible emulator of Microsoft Entra ID (Azure AD), in a single Go
@@ -18,7 +18,7 @@ token acquisition, and protected-API calls offline with no cloud tenant.
 
 🌐 **[calvinchengx.github.io/entra-emulator](https://calvinchengx.github.io/entra-emulator/)**
 — what it does, what proves it, and what it deliberately will not do.
-📖 **[Documentation](https://calvinchengx.github.io/entra-emulator/overview/)** — the full
+📖 **[Documentation](https://calvinchengx.github.io/entra-emulator/docs/)** — the full
 reference, also browsable as Markdown in [`docs/`](docs/).
 
 > ⚠️ **Local development tool only — intentionally insecure.** Open admin API,
