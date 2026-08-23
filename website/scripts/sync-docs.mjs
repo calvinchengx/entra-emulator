@@ -109,26 +109,42 @@ function convert(name) {
   return frontmatter + body;
 }
 
-function writeIndex() {
+// The site root is NOT this page: site/index.html, a hand-written landing page,
+// is copied over dist/index.html by the docs-site workflow. So the docs get
+// their own front door one level in, at /entra-emulator/overview/, and the
+// Starlight header's home link lands on the landing page rather than looping
+// back here.
+function writeOverview() {
   const body = rewriteLinks(
-    `Local, MSAL-compatible emulator of Microsoft Entra ID (Azure AD) in a single Go binary — ` +
-      `the OIDC/OAuth 2.0 v2.0 endpoints MSAL talks to, a minimal read-only Microsoft Graph, and an ` +
-      `unauthenticated admin REST API, so you can develop sign-in, token acquisition, and ` +
-      `protected-API calls offline with no cloud tenant.\n\n` +
-      `:::caution\nLocal development tool only — intentionally insecure (open admin API, publicly known ` +
-      `seeded users/secrets, self-signed TLS, unencrypted signing key). Run it on \`localhost\` only.\n:::\n\n` +
+    `A local, MSAL-compatible emulator of Microsoft Entra ID (Azure AD) in a single Go binary: ` +
+      `the OIDC/OAuth 2.0 v2.0 endpoints MSAL talks to, SAML 2.0 and WS-Federation, passkeys, a ` +
+      `stateful Microsoft Graph, SCIM 2.0 in both directions, and an unauthenticated admin REST ` +
+      `API. Develop sign-in, token acquisition and protected-API calls offline, with no cloud ` +
+      `tenant.\n\n` +
+      `:::caution\nLocal development tool only, and intentionally insecure: open admin API, ` +
+      `publicly known seeded users and secrets, self-signed TLS, unencrypted signing key. Run it ` +
+      `on \`localhost\` only.\n:::\n\n` +
       `## Start here\n\n` +
+      `- [Quick start](01-quickstart.md) — a token out of a local binary in a few minutes\n` +
+      `- [Installation](02-installation.md) — Docker, Homebrew, winget, binaries, source\n` +
       `- [Architecture](03-architecture.md) — how the pieces fit together\n` +
       `- [Configuration](04-configuration.md) — environment and origins\n` +
+      `- [Data model and seed](06-data-model-and-seed.md) — the fixed GUIDs CI fixtures rely on\n\n` +
+      `## The protocol surface\n\n` +
       `- [OIDC endpoints](08-oidc-endpoints.md) — discovery, authorize, token, device code\n` +
-      `- [Admin REST API](11-admin-api.md) — the portal's control surface\n` +
-      `- [Roadmap](17-roadmap.md) — delivered features and what's out of scope\n`,
+      `- [Token service](07-token-service.md) — claim shapes, signing, JWKS\n` +
+      `- [Graph API](09-graph-api.md) and [SCIM provisioning](10-scim-provisioning.md)\n` +
+      `- [Admin REST API](11-admin-api.md) — the portal's control surface\n\n` +
+      `## How the claims are checked\n\n` +
+      `- [Parity map](parity.md) — every claim, and the witness that proves it\n` +
+      `- [E2E SDK matrix](16-e2e-sdk-matrix.md) — which real client drives which flow\n` +
+      `- [Roadmap](17-roadmap.md) — what is delivered, and what is deliberately out of scope\n`,
   );
-  // The landing page is synthesized here (no /docs source), so it has no
-  // "Edit this page" target.
+  // Synthesized here rather than taken from /docs, so there is no file for
+  // "Edit this page" to point at.
   const frontmatter =
-    `---\ntitle: Entra Emulator\ndescription: A local, MSAL-compatible emulator of Microsoft Entra ID in a single Go binary.\neditUrl: false\n---\n\n`;
-  writeFileSync(join(OUT, 'index.md'), frontmatter + body);
+    `---\ntitle: Overview\ndescription: A local, MSAL-compatible emulator of Microsoft Entra ID in a single Go binary.\neditUrl: false\n---\n\n`;
+  writeFileSync(join(OUT, 'overview.md'), frontmatter + body);
 }
 
 rmSync(OUT, { recursive: true, force: true });
@@ -137,7 +153,7 @@ const names = readdirSync(DOCS_SRC).filter((n) => DOC_RE.test(n)).sort();
 for (const name of names) {
   writeFileSync(join(OUT, name), convert(name));
 }
-writeIndex();
+writeOverview();
 const info = writeParityHistory(OUT, PARITY, { convertBody });
 // The top-nav picker is an Astro component and can't shell out to git, so hand
 // it the same points as a build-time manifest.
@@ -145,6 +161,6 @@ const DATA = join(here, '..', 'src', 'data');
 mkdirSync(DATA, { recursive: true });
 writeFileSync(join(DATA, 'parity-versions.json'), JSON.stringify(parityManifest(PARITY), null, 2) + '\n');
 console.log(
-  `sync-docs: wrote ${names.length} docs + index to src/content/docs/ ` +
+  `sync-docs: wrote ${names.length} docs + overview to src/content/docs/ ` +
     `(parity ${info.version}; ${info.snapshots.length} tagged snapshot(s))`,
 );
