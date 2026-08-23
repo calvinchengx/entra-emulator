@@ -11,11 +11,17 @@ permissions:
   contents: read
 
 jobs:
-  # A prose-only change cannot alter what this suite finds. The gate is a job
-  # rather than a `paths:` filter on the workflow: a job skipped by `if:` still
-  # produces a completed check-run (conclusion `skipped`), which branch
-  # protection accepts, while a workflow that never triggers produces no
-  # check-run at all and leaves a required check "Expected" forever.
+  # THE DOCS LANE. Every job below is gated on `code == 'true'` EXCEPT
+  # `witnesses`: that is the job which READS the docs -- the parity claims and
+  # the witnesses they name -- so it must run on a prose change and a code
+  # change alike. The lane removes the jobs that cannot see the change, never
+  # the ones that check it.
+  #
+  # The gate is a job rather than a `paths:` filter on the workflow. A job
+  # skipped by `if:` still produces a completed check-run (conclusion
+  # `skipped`), which branch protection accepts; a workflow that never
+  # triggers produces no check-run at all, so a required check would sit at
+  # "Expected" forever and the pull request could never merge.
   #
   # See .github/changed-files.sh, which fails OPEN on every way of not knowing:
   # force-push, tag, API error, empty list, or a list at the 300-file page cap.
