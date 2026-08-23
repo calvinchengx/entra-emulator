@@ -1,35 +1,36 @@
 #!/usr/bin/env python3
-"""Emit shields.io endpoint JSON for the numbers this repo can honestly claim.
+"""Emit the numbers this repo can honestly claim, for the badges and the landing page.
 
 Self-hosted on purpose: no third-party coverage service, no upload token, no
-account. CI computes the numbers, this writes them as shields `endpoint`
-documents, and the docs site serves them from its own origin — so a badge is
-exactly as trustworthy as the site, and nothing about the project leaves it.
+account. CI computes the numbers, this writes them as JSON, and the docs site
+serves them from its own origin — so a published number is exactly as
+trustworthy as the site, and nothing about the project leaves it.
 
-THE NUMBER THAT MATTERS:
+Two documents, deliberately in two schemas:
 
-  witnesses     parity claims that name a witness which still exists
+  witnesses.json           a shields.io `endpoint` badge document ("55/55").
+                           README.md renders it. Its schema is shields', so it
+                           has room for one string and no room for detail.
+
+  witnesses-manifest.json  this project's own schema, for site/index.html.
+                           Carries the tier split and the ledger grades, which
+                           a badge cannot hold.
+
+WHY THE LANDING PAGE FETCHES RATHER THAN HARDCODES: a number typed into a page
+has no idea a witness was added. The sibling data-agent-service had three go
+stale in one day. The page's fallback is an em dash, never a number, so a
+manifest it cannot read makes it say nothing rather than something untrue.
+
+THE PARSING RULES COME FROM check_witnesses.py BY IMPORT, NOT BY COPY. Which
+parity sections make a capability claim is that script's business, and it is
+the one with teeth. A badge that disagrees with the gate is worse than no
+badge. (This used to scrape the skip list out of the checker's source with a
+regex and ast.literal_eval, which was the same intent held together with
+string matching.)
 
 A go-coverage document is written only when CI passes --go. This repo does not
-measure coverage today, so it publishes the witness endpoint alone rather than
+measure coverage today, so it publishes the witness documents alone rather than
 a badge reading "n/a", which would take up space to say nothing.
-
-The second is the integration measure. "48/48 claims witnessed" says every
-claim of support is backed by something that ran, which is precisely what a
-coverage percentage cannot say: coverage scores the unit suites, while what
-catches consumer-facing defects here is the real-client fleet — the six real-SDK
-suites (msal-node, the Graph SDK, MSAL Go/azidentity, MSAL Python, MSAL.NET,
-MSAL Java), the msal-browser witness, and Flutter on real device emulators.
-
-THE SKIP LIST IS READ FROM check_witnesses.py, NOT COPIED. Which parity
-sections make no capability claim is that script's business, and a second copy
-of the list here would drift the day someone adds a section. A badge that
-disagrees with the gate is worse than no badge, because the gate is the thing
-with teeth.
-
-The percentage is supplied by the caller because only CI knows it. Omit it and
-no coverage document is written at all, rather than publishing an "n/a" badge
-that says nothing a reader can act on.
 
 Usage:
     coverage_badges.py --out DIR [--go PCT]
@@ -37,15 +38,19 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import ast
 import json
-import re
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import check_witnesses  # noqa: E402  (after the path insert, by necessity)
 
 REPO = Path(__file__).resolve().parents[1]
 WITNESSES = REPO / "docs" / "witnesses.json"
-PARITY = REPO / "docs" / "parity.md"
-CHECKER = REPO / "scripts" / "check_witnesses.py"
+
+# The ledger's emoji are unreadable as JSON keys.
+GRADE_NAMES = {"🟢": "real", "🟡": "emulated", "🟠": "bring-your-own-engine", "🔴": "not-implemented"}
 
 
 def colour_for(pct: float) -> str:
@@ -64,58 +69,48 @@ def badge(label: str, message: str, colour: str) -> dict:
     return {"schemaVersion": 1, "label": label, "message": message, "color": colour}
 
 
-def checker_rules() -> tuple[set, set]:
-    """The sections and header cells the gate itself ignores."""
-    skip: set = set()
-    heads: set = set()
-    if not CHECKER.exists():
-        return skip, heads
-    src = CHECKER.read_text(encoding="utf-8")
-    m = re.search(r"SKIP_SECTIONS\s*=\s*(\{.*?\})", src, re.S)
-    if m:
-        try:
-            skip = ast.literal_eval(m.group(1))
-        except (ValueError, SyntaxError):
-            pass
-    m = re.search(r"if cells\[0\] in \(([^)]*)\)", src)
-    if m:
-        try:
-            heads = set(ast.literal_eval("(" + m.group(1) + ",)"))
-        except (ValueError, SyntaxError):
-            pass
-    return skip, heads
-
-
-def witness_counts() -> tuple[int, int]:
-    """(claims that are witnessed, total green claims in the parity map).
+def survey() -> dict:
+    """Everything both documents need, computed once from the parity map.
 
     Counting the MAP rather than the manifest is the point: a claim added to
-    the map with no entry here must show as unwitnessed, not vanish from both
-    numerator and denominator and leave the badge looking perfect.
+    the map with no entry in witnesses.json must show as unwitnessed, not
+    vanish from both numerator and denominator and leave the badge perfect.
+
+    `by_tier` counts each claim ONCE, by its strongest witness. That is not the
+    same number as the checker's per-witness tally and must never be reported
+    as if it were: one claim can cite four witnesses, so counting citations
+    flatters every repo. 52 claims whose best evidence is a CI job is a
+    statement about coverage; 58 `ci:` citations is a statement about nothing.
     """
     manifest = json.loads(WITNESSES.read_text()) if WITNESSES.exists() else {}
-    skip, heads = checker_rules()
+    tiers = {"ci": 0, "sdk": 0, "go": 0, "boundary": 0, "unwitnessed": 0}
+    suites: dict[str, int] = {}
     total = witnessed = 0
-    section = None
-    for line in PARITY.read_text(encoding="utf-8").splitlines():
-        if line.startswith("## "):
-            section = line[3:].strip()
-            continue
-        if not line.startswith("| ") or section is None or section in skip:
-            continue
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) < 3 or cells[0] in heads or set(cells[0]) <= set("-"):
-            continue
-        if "🟢" not in cells[-1]:
-            continue
+
+    for _section, _feature, key in check_witnesses.green_claims():
         total += 1
-        text = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", cells[0])
-        text = re.sub(r"[*`_]", "", text)
-        key = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
-        entry = manifest.get(key) or {}
-        if entry.get("witnesses"):
-            witnessed += 1
-    return witnessed, total
+        cited = [w for w in (manifest.get(key) or {}).get("witnesses", []) if w != "TODO"]
+        if not cited:
+            tiers["unwitnessed"] += 1
+            continue
+        witnessed += 1
+        kinds = {w.partition(":")[0] for w in cited}
+        for tier in ("ci", "sdk", "go", "boundary"):
+            if tier in kinds:
+                tiers[tier] += 1
+                break
+        for w in cited:
+            if w.startswith("ci:"):
+                suites[w] = suites.get(w, 0) + 1
+
+    grades = {GRADE_NAMES[e]: n for e, n in check_witnesses.grade_counts().items()}
+    return {
+        "claims": total,
+        "witnessed": witnessed,
+        "by_tier": tiers,
+        "grades": grades,
+        "suites": dict(sorted(suites.items(), key=lambda kv: (-kv[1], kv[0]))),
+    }
 
 
 def main() -> int:
@@ -134,16 +129,22 @@ def main() -> int:
     else:
         shown = "not written"
 
-    witnessed, total = witness_counts()
-    if not total:
+    s = survey()
+    if not s["claims"]:
         print("FAIL: parsed 0 green claims from docs/parity.md — the map is not "
               "empty, so this is a parsing failure and the badge would lie.")
         return 1
-    colour = "brightgreen" if witnessed == total else "orange"
-    (out / "witnesses.json").write_text(
-        json.dumps(badge("parity claims witnessed", f"{witnessed}/{total}", colour)) + "\n")
 
-    print(f"badges: go={shown} witnesses={witnessed}/{total} → {out}")
+    colour = "brightgreen" if s["witnessed"] == s["claims"] else "orange"
+    (out / "witnesses.json").write_text(
+        json.dumps(badge("parity claims witnessed", f"{s['witnessed']}/{s['claims']}", colour)) + "\n")
+    (out / "witnesses-manifest.json").write_text(json.dumps(s, indent=2) + "\n")
+
+    t = s["by_tier"]
+    print(f"badges: go={shown} witnesses={s['witnessed']}/{s['claims']} → {out}")
+    print(f"  by strongest witness: ci={t['ci']} sdk={t['sdk']} go={t['go']} "
+          f"boundary={t['boundary']} unwitnessed={t['unwitnessed']}")
+    print(f"  ledger grades: {s['grades']}")
     return 0
 
 
