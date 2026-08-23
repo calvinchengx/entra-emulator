@@ -35,8 +35,31 @@ permissions:
   contents: read
 
 jobs:
+  # A docs-only change cannot alter what the Makefile finds. The gate is a job rather
+  # than `paths-ignore:` on the workflow: a job skipped by `if:` reports as
+  # successful to branch protection, while a workflow that never ran leaves its
+  # check "Expected" forever and blocks the merge. See .github/changed-files.sh,
+  # which fails OPEN on every way of not knowing.
+  changes:
+    name: Does this change any code?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      # A plain shallow checkout: this needs one script, and a sparse pattern
+      # that stopped matching would error the job for a reason nobody would
+      # guess. Three seconds against a suite this gate saves twenty minutes of.
+      - uses: actions/checkout@v7
+      - id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./.github/changed-files.sh
+
   make-targets:
     name: make targets (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
