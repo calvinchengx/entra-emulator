@@ -14,33 +14,8 @@ name: CodeQL
 on:
   push:
     branches: [main]
-    paths:
-      # Prose changes do not need the suite. This is `paths` with negations
-      # rather than `paths-ignore`, because paths-ignore cannot re-include
-      # anything, and the last matching pattern wins so every re-include sits
-      # after the exclusions. '*.md' is separate because '**/*.md' needs a
-      # directory and does not match the root README.
-      - '**'
-      - '!docs/**'
-      - '!website/**'
-      - '!site/**'
-      - '!*.md'
-      - '!**/*.md'
-      - 'docs/generated/**'
-      - 'docs/parity.md'
-      - 'docs/witnesses.json'
   pull_request:
     branches: [main]
-    paths:
-      - '**'
-      - '!docs/**'
-      - '!website/**'
-      - '!site/**'
-      - '!*.md'
-      - '!**/*.md'
-      - 'docs/generated/**'
-      - 'docs/parity.md'
-      - 'docs/witnesses.json'
   schedule:
     - cron: '31 7 * * 1' # weekly, Monday 07:31 UTC (parity with Default setup)
 

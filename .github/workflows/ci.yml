@@ -3,41 +3,42 @@ name: CI
 on:
   push:
     branches: [main]
-    paths:
-      # Prose changes do not need the suite. This is `paths` with negations
-      # rather than `paths-ignore`, because paths-ignore cannot re-include
-      # anything, and the last matching pattern wins so every re-include sits
-      # after the exclusions. '*.md' is separate because '**/*.md' needs a
-      # directory and does not match the root README.
-      - '**'
-      - '!docs/**'
-      - '!website/**'
-      - '!site/**'
-      - '!*.md'
-      - '!**/*.md'
-      - 'docs/generated/**'
-      - 'docs/parity.md'
-      - 'docs/witnesses.json'
   pull_request:
 
-    paths:
-      - '**'
-      - '!docs/**'
-      - '!website/**'
-      - '!site/**'
-      - '!*.md'
-      - '!**/*.md'
-      - 'docs/generated/**'
-      - 'docs/parity.md'
-      - 'docs/witnesses.json'
 # Least privilege: every job only checks out and builds — no writes to the repo,
 # packages, or deployments. Set at the top level so it applies to all jobs.
 permissions:
   contents: read
 
 jobs:
+  # A prose-only change cannot alter what this suite finds. The gate is a job
+  # rather than a `paths:` filter on the workflow: a job skipped by `if:` still
+  # produces a completed check-run (conclusion `skipped`), which branch
+  # protection accepts, while a workflow that never triggers produces no
+  # check-run at all and leaves a required check "Expected" forever.
+  #
+  # See .github/changed-files.sh, which fails OPEN on every way of not knowing:
+  # force-push, tag, API error, empty list, or a list at the 300-file page cap.
+  changes:
+    name: Does this change any code?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./.github/changed-files.sh
+
   test:
     name: Build, vet & unit tests
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -80,6 +81,8 @@ jobs:
 
   portal:
     name: Portal builds from source
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -111,6 +114,8 @@ jobs:
 
   sdk-e2e:
     name: Real-SDK e2e (msal-node, Graph SDK, MSAL Go/azidentity/.NET/Java, MSAL Python, node-saml)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -139,6 +144,8 @@ jobs:
 
   docker-smoke:
     name: Docker image smoke test
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -147,6 +154,8 @@ jobs:
 
   samples:
     name: Samples compile
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -171,6 +180,8 @@ jobs:
 
   pdp-compat:
     name: PDP compat (${{ matrix.engine }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest # Docker preinstalled → testcontainers works
     timeout-minutes: 15
     strategy:
@@ -223,6 +234,8 @@ jobs:
 
   browser-e2e:
     name: msal-browser witness (real browser, redirect flow)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -247,6 +260,8 @@ jobs:
 
   passkey-e2e:
     name: Passkey / WebAuthn witness (Chromium + CDP virtual authenticator)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -270,6 +285,8 @@ jobs:
 
   az-cli-e2e:
     name: Azure CLI witness (az cloud register + service-principal login)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -284,6 +301,8 @@ jobs:
 
   fabric-e2e:
     name: Fabric companion witness (workspace-identity handshake)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -299,6 +318,8 @@ jobs:
 
   implicit-e2e:
     name: Implicit / hybrid witness (Chromium front-channel redirect)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -322,6 +343,8 @@ jobs:
 
   scim-e2e:
     name: SCIM witness (scim2-tester, independent RFC checker)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -338,6 +361,8 @@ jobs:
 
   scim-outbound-e2e:
     name: SCIM outbound witness (Microsoft's own reference server)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -357,6 +382,8 @@ jobs:
 
   graph-permissions-e2e:
     name: Graph permission gate witness (real Graph SDK, denied and allowed)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -376,6 +403,8 @@ jobs:
 
   jar-metadata-e2e:
     name: JAR by reference + cloud-instance metadata
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -395,6 +424,8 @@ jobs:
 
   concurrency-e2e:
     name: Concurrency contracts (single-use codes, refresh reuse, races)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -412,6 +443,8 @@ jobs:
 
   persistence-e2e:
     name: Persistence witness (real Graph SDK across a restart)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -430,6 +463,8 @@ jobs:
 
   lint:
     name: golangci-lint
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     # A wedged run must fail rather than sit in GitHub's 6-hour default, where
     # 'pending' and 'stuck' look identical.
