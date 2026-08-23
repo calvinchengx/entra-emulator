@@ -16,7 +16,9 @@ token acquisition, and protected-API calls offline with no cloud tenant.
 
 ![Entra Emulator demo: OIDC discovery, a client-credentials token, and its decoded Entra v2.0 claims — all against a local binary](docs/demo/demo.gif)
 
-📖 **[Documentation site](https://calvinchengx.github.io/entra-emulator/)** — the full
+🌐 **[calvinchengx.github.io/entra-emulator](https://calvinchengx.github.io/entra-emulator/)**
+— what it does, what proves it, and what it deliberately will not do.
+📖 **[Documentation](https://calvinchengx.github.io/entra-emulator/overview/)** — the full
 reference, also browsable as Markdown in [`docs/`](docs/).
 
 > ⚠️ **Local development tool only — intentionally insecure.** Open admin API,
