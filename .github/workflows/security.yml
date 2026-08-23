@@ -20,6 +20,32 @@ permissions:
   contents: read
 
 jobs:
+  # A docs-only change cannot alter what govulncheck finds. The gate is a job rather
+  # than `paths-ignore:` on the workflow: a job skipped by `if:` reports as
+  # successful to branch protection, while a workflow that never ran leaves its
+  # check "Expected" forever and blocks the merge. See .github/changed-files.sh,
+  # which fails OPEN on every way of not knowing.
+  changes:
+    name: Does this change any code?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      # A plain shallow checkout: this needs one script, and a sparse pattern
+      # that stopped matching would error the job for a reason nobody would
+      # guess. Three seconds against a suite this gate saves twenty minutes of.
+      - uses: actions/checkout@v7
+      - id: filter
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./.github/changed-files.sh
+
+  # DELIBERATELY NOT GATED on `changes`. A docs-only commit is a perfectly good
+  # way to leak a secret: a README with a real token pasted into an example is
+  # docs by path and a credential by content. Filtering the secret scan on
+  # `**.md` would skip it on exactly the commits most likely to carry one. It
+  # costs about six seconds.
   secrets:
     name: gitleaks
     runs-on: ubuntu-latest
@@ -55,6 +81,8 @@ jobs:
 
   vulnerabilities:
     name: govulncheck
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     # A wedged run must fail rather than sit in GitHub's 6-hour default,
     # where 'pending' and 'stuck' look identical.

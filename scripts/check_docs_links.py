@@ -40,8 +40,12 @@ DOC_LINK = re.compile(r"\]\((?:\./)?((?:[a-z0-9-]+/)?[a-z0-9][a-z0-9.-]*\.md)(#[
 README_LINK = re.compile(r"\]\(docs/((?:[a-z0-9-]+/)?[a-z0-9][a-z0-9.-]*\.md)(#[^)]*)?\)")
 SIDEBAR_SLUG = re.compile(r"slug:\s*'([^']+)'")
 
-# The landing page is reached by the site root, not by a sidebar entry.
-EXEMPT_FROM_SIDEBAR = {"index"}
+# Pages sync-docs.mjs SYNTHESIZES rather than copies from docs/. They have a
+# sidebar entry and no file behind it, which is correct, so the sidebar check
+# must not report them. Derived from the generator rather than named here: this
+# was the hardcoded string "index", and it went stale the day the page was
+# renamed to overview, reporting the rename as a broken sidebar.
+SYNTHESIZED_RE = re.compile(r"writeFileSync\(join\(OUT, '([a-z0-9-]+)\.md'\)")
 
 # Routes the site GENERATES rather than reads from docs/. `parity-versions.mjs`
 # writes a `parity-history/` index, a `parity-history/changelog`, and one page
@@ -88,9 +92,15 @@ def problems() -> list[str]:
         return found
 
     slugs = set(SIDEBAR_SLUG.findall(CONFIG.read_text()))
+    exempt = set(SYNTHESIZED_RE.findall(SYNC_DOCS.read_text()))
+    if not exempt:
+        # The generator writes at least the site's own front door. Matching
+        # nothing means this regex has stopped tracking it, and every
+        # synthesized page would then be reported as a broken sidebar entry.
+        found.append(f"{SYNC_DOCS.name} synthesizes no page; SYNTHESIZED_RE has stopped matching")
     generated = PARITY_VERSIONS.exists()
     for slug in sorted(slugs):
-        if slug in EXEMPT_FROM_SIDEBAR:
+        if slug in exempt:
             continue
         if generated and (slug == GENERATED_PREFIX or slug.startswith(GENERATED_PREFIX + "/")):
             continue
@@ -99,7 +109,7 @@ def problems() -> list[str]:
 
     published = [p for p in sorted(DOCS.glob("*.md")) if published_re.match(p.name)]
     for page in published:
-        if page.stem in EXEMPT_FROM_SIDEBAR or page.stem in slugs:
+        if page.stem in exempt or page.stem in slugs:
             continue
         found.append(f"{page.name} is not in the sidebar, so nothing on the site links to it")
 

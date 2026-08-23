@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entra Emulator — sign-in you can develop against, offline</title>
+<meta name="description" content="A local, MSAL-compatible emulator of Microsoft Entra ID in a single Go binary. OIDC, SAML, WS-Fed, passkeys, Graph and SCIM, driven in CI by unmodified Microsoft client libraries in six languages.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⬢</text></svg>">
+<style>
+:root{
+  --bg:#fbfbfa; --panel:#fff; --ink:#16181d; --muted:#5c6270; --line:#e3e5e9;
+  --accent:#2f5bd0; --accent-soft:#e8edfc;
+  --ship:#0f6f6b; --ship-bg:#e6f2f1;
+  --wip:#8a5a00; --wip-bg:#fdf3e0;
+  --plan:#5c6270; --plan-bg:#eef0f3;
+  --stop:#a32b2b; --stop-bg:#fbeaea;
+  --code:#f4f5f7; --diagram-line:#828c9c; --diagram-fill:#fff;
+  --radius:14px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0f1115; --panel:#151920; --ink:#e8eaee; --muted:#98a0ae; --line:#262b34;
+    --accent:#8fa8ff; --accent-soft:#1a2036;
+    --ship:#4fd1c5; --ship-bg:#12292b;
+    --wip:#e0a94a; --wip-bg:#2a2114;
+    --plan:#98a0ae; --plan-bg:#1c212a;
+    --stop:#f08a8a; --stop-bg:#2b1717;
+    --code:#11151b; --diagram-line:#5a6575; --diagram-fill:#1c222c;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);
+  line-height:1.65;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1000px;margin:0 auto;padding:0 24px}
+a{color:var(--accent)}
+/* Long identifiers are the point of this page and several are unbreakable
+   tokens: `Microsoft.AspNetCore.Authentication.WsFederation` is 47
+   characters and, left alone, pushed the whole document wider than a
+   375px viewport. Inline code wraps; code BLOCKS keep scrolling inside
+   their own <pre>, because a wrapped shell command is a command you
+   cannot copy. */
+code{font-family:var(--mono);font-size:.9em;background:var(--code);padding:.15em .4em;
+  border-radius:5px;overflow-wrap:anywhere}
+pre{background:var(--code);border:1px solid var(--line);border-radius:var(--radius);
+  padding:18px 20px;overflow-x:auto;font-family:var(--mono);font-size:.88rem;line-height:1.55}
+pre code{background:none;padding:0;overflow-wrap:normal}
+h1,h2,h3{line-height:1.25;letter-spacing:-.02em}
+h2{font-size:1.7rem;margin:0 0 8px}
+.sec{padding:60px 0;border-top:1px solid var(--line)}
+.sec>.wrap>p.lede{color:var(--muted);font-size:1.05rem;max-width:70ch;margin:0 0 32px}
+
+.hero{padding:64px 0 56px}
+.eyebrow{font-family:var(--mono);font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--accent);margin:0 0 18px}
+.hero h1{font-size:clamp(2.1rem,5.2vw,3.4rem);margin:0 0 20px;max-width:20ch}
+.hero p{font-size:1.15rem;color:var(--muted);max-width:64ch;margin:0 0 14px}
+.hero .claim{color:var(--ink);font-weight:600;border-left:3px solid var(--accent);
+  padding-left:16px;margin-top:28px;max-width:62ch}
+.cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:32px}
+.btn{display:inline-block;padding:11px 20px;border-radius:10px;text-decoration:none;
+  font-weight:600;font-size:.94rem;border:1px solid var(--line)}
+.btn.primary{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.btn.ghost{color:var(--ink)}
+.release-pill{display:inline-flex;align-items:center;gap:9px;margin:0 0 20px;padding:6px 14px;
+  border:1px solid var(--line);border-radius:999px;background:var(--panel);
+  text-decoration:none;color:var(--muted);font-size:.86rem}
+.release-pill span{background:var(--accent-soft);color:var(--accent);font-weight:700;
+  border-radius:999px;padding:2px 9px;font-size:.78rem}
+
+.shot{margin:44px 0 0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  background:var(--panel)}
+.shot img{display:block;width:100%;height:auto}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-top:44px}
+.stat{background:var(--panel);padding:20px}
+.stat b{display:block;font-size:1.65rem;letter-spacing:-.03em}
+.stat span{color:var(--muted);font-size:.83rem}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:24px}
+.card h3{font-size:1.08rem;margin:0 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card p{margin:0 0 12px;color:var(--muted);font-size:.94rem}
+.card .ev{font-family:var(--mono);font-size:.78rem;color:var(--ink);background:var(--code);
+  border-radius:8px;padding:9px 12px;display:block}
+.tag{font-size:.68rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  padding:3px 9px;border-radius:999px;white-space:nowrap}
+.t-ship{color:var(--ship);background:var(--ship-bg)}
+.t-wip{color:var(--wip);background:var(--wip-bg)}
+.t-plan{color:var(--plan);background:var(--plan-bg)}
+.t-stop{color:var(--stop);background:var(--stop-bg)}
+
+.tbl{width:100%;border-collapse:collapse;font-size:.92rem;margin-top:8px}
+.tbl th,.tbl td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl th{font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.tbl td:first-child{font-weight:600}
+.scroll{overflow-x:auto}
+
+figure{margin:0}
+figcaption{color:var(--muted);font-size:.85rem;margin-top:12px;text-align:center}
+svg .lbl{font:600 12px var(--font);fill:var(--ink)}
+svg .sub{font:11px var(--mono);fill:var(--muted)}
+svg .bx{fill:var(--diagram-fill);stroke:var(--diagram-line);stroke-width:1.5}
+svg .ac{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5}
+svg .ar{stroke:var(--diagram-line);stroke-width:1.5;fill:none}
+
+.note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:0 var(--radius) var(--radius) 0;padding:20px 24px;margin-top:28px}
+.note b{display:block;margin-bottom:6px}
+.note p{margin:0;color:var(--muted);font-size:.94rem}
+.note.warn{border-left-color:var(--stop)}
+footer{padding:44px 0 60px;border-top:1px solid var(--line);color:var(--muted);font-size:.88rem}
+footer a{text-decoration:none}
+
+.topnav{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:saturate(1.4) blur(8px);border-bottom:1px solid var(--line)}
+.topnav .wrap{display:flex;align-items:center;gap:18px;height:56px}
+.topnav .brand{font-family:var(--mono);font-size:.82rem;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--ink);text-decoration:none;font-weight:600}
+.topnav .links{margin-left:auto;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.topnav .links a{color:var(--muted);text-decoration:none;font-size:.92rem}
+.topnav .links a:hover{color:var(--accent)}
+.topnav .links a.strong{color:var(--accent);font-weight:600}
+@media (max-width:640px){.topnav .links a:not(.strong){display:none}}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="wrap">
+    <a class="brand" href="./">Entra Emulator</a>
+    <div class="links">
+      <a href="./#evidence">Evidence</a>
+      <a href="./#status">Status</a>
+      <a href="./#release">Get it</a>
+      <a href="./#start">Run it</a>
+      <a href="https://github.com/calvinchengx/entra-emulator">GitHub</a>
+      <a class="strong" href="01-quickstart/">Documentation &rarr;</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Entra Emulator</p>
+    <a class="release-pill" href="https://github.com/calvinchengx/entra-emulator/releases/latest"><span>v0.9.0</span> WS-Federation sign-out, and the last two rows without an outside witness &rarr;</a>
+    <h1>Develop against Entra ID sign-in without a tenant.</h1>
+    <p>The OIDC and OAuth 2.0 v2.0 endpoints MSAL talks to, SAML 2.0 and WS-Federation,
+       passkeys, Microsoft Graph and SCIM provisioning, in a single Go binary on your
+       laptop. Point an unmodified MSAL client at it by changing the authority and
+       nothing else.</p>
+    <p>Real RS256 signatures, real WebAuthn ceremonies, real directory state that
+       survives a restart. Not a stub that returns a fixed token.</p>
+    <p class="claim">Every capability claim on this page names the CI job that proves it,
+       and <b><span id="red-count">&mdash;</span> things it does not do</b> are listed
+       just as plainly.</p>
+    <div class="cta">
+      <a class="btn primary" href="01-quickstart/">Quick start</a>
+      <a class="btn ghost" href="https://github.com/calvinchengx/entra-emulator">Source on GitHub</a>
+      <a class="btn ghost" href="#evidence">How it is proved</a>
+      <a class="btn ghost" href="#status">What it will not do</a>
+    </div>
+    <figure class="shot">
+      <img src="demo.gif" width="1200" height="700" loading="lazy"
+           alt="Terminal recording: OIDC discovery against the local emulator, a client-credentials token request, and the decoded Entra v2.0 claims of the resulting JWT.">
+    </figure>
+    <div class="stats">
+      <div class="stat"><b id="witness-count">&mdash;</b><span>parity claims, all witnessed</span></div>
+      <div class="stat"><b id="ci-count">&mdash;</b><span>proved by an external client in CI</span></div>
+      <div class="stat"><b>6</b><span>languages driving it</span></div>
+      <div class="stat"><b>~13<small>MB</small></b><span>distroless image, no cgo</span></div>
+      <div class="stat"><b id="red-count-2">&mdash;</b><span>rows it does not implement</span></div>
+    </div>
+  </div>
+</header>
+
+<section class="sec">
+  <div class="wrap">
+    <h2>The problem this solves</h2>
+    <p class="lede">Identity is the first thing an application does and the last thing anyone
+      can test locally. Three costs follow, and they compound.</p>
+    <div class="grid">
+      <div class="card">
+        <h3>A tenant per developer</h3>
+        <p>Sign-in work needs app registrations, redirect URIs, users, groups, secrets and
+           consent. Getting those provisioned is a ticket, and changing them is another one.
+           So sign-in is the part of the stack nobody refactors.</p>
+        <span class="ev">Fixed GUIDs, seeded on first run, reset in one call</span>
+      </div>
+      <div class="card">
+        <h3>CI that needs the internet, and credentials</h3>
+        <p>A test that acquires a real token needs a real secret in the runner, a real tenant
+           reachable from it, and tolerance for someone else's rate limits. Most teams answer
+           by mocking the token, which stops testing the thing that breaks.</p>
+        <span class="ev">One binary, no network, no secret worth stealing</span>
+      </div>
+      <div class="card">
+        <h3>Tests that pass because you wrote both sides</h3>
+        <p>A hand-rolled fake IdP agrees with the client you wrote against it. It agrees right
+           up to the day a real library refuses the token, and your suite never had an opinion
+           about that.</p>
+        <span class="ev">Microsoft's own clients are the oracle here, not ours</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <h2>How it fits together</h2>
+    <p class="lede">One HTTPS listener, routed by <code>Host</code>. Clients on the left are
+      unmodified and know nothing about this project; the emulators on the right verify the
+      tokens it issues against its published JWKS.</p>
+    <figure>
+      <svg viewBox="0 0 940 392" width="100%" role="img" aria-label="Architecture: unmodified MSAL clients in six languages, plus browsers and federation stacks, authenticate against a single Go binary that serves login, graph and portal origins from one HTTPS listener over a SQLite store; five sibling emulators verify the tokens it issues.">
+        <rect class="bx" x="8" y="26" width="176" height="74" rx="10"/>
+        <text class="lbl" x="96" y="52" text-anchor="middle">MSAL clients</text>
+        <text class="sub" x="96" y="71" text-anchor="middle">node · go · python</text>
+        <text class="sub" x="96" y="86" text-anchor="middle">.NET · java · browser</text>
+
+        <rect class="bx" x="8" y="122" width="176" height="74" rx="10"/>
+        <text class="lbl" x="96" y="148" text-anchor="middle">Federation stacks</text>
+        <text class="sub" x="96" y="167" text-anchor="middle">node-saml · WS-Fed</text>
+        <text class="sub" x="96" y="182" text-anchor="middle">middleware</text>
+
+        <rect class="bx" x="8" y="218" width="176" height="74" rx="10"/>
+        <text class="lbl" x="96" y="244" text-anchor="middle">Browsers</text>
+        <text class="sub" x="96" y="263" text-anchor="middle">Chromium + CDP</text>
+        <text class="sub" x="96" y="278" text-anchor="middle">virtual authenticator</text>
+
+        <rect class="bx" x="8" y="314" width="176" height="60" rx="10"/>
+        <text class="lbl" x="96" y="340" text-anchor="middle">SCIM &amp; CLI</text>
+        <text class="sub" x="96" y="358" text-anchor="middle">az · scim2-tester</text>
+
+        <rect class="ac" x="286" y="60" width="230" height="272" rx="12"/>
+        <text class="lbl" x="401" y="88" text-anchor="middle">entra-emulator</text>
+        <text class="sub" x="401" y="106" text-anchor="middle">one Go binary · one listener</text>
+        <line x1="300" y1="122" x2="502" y2="122" stroke="var(--diagram-line)" stroke-width="1"/>
+        <text class="sub" x="401" y="146" text-anchor="middle">login.entra.localhost</text>
+        <text class="sub" x="401" y="164" text-anchor="middle">oidc · saml2 · wsfed · devicecode</text>
+        <text class="sub" x="401" y="196" text-anchor="middle">graph.entra.localhost</text>
+        <text class="sub" x="401" y="214" text-anchor="middle">users · groups · scim</text>
+        <text class="sub" x="401" y="246" text-anchor="middle">portal.entra.localhost</text>
+        <text class="sub" x="401" y="264" text-anchor="middle">admin REST · svelte portal</text>
+        <line x1="300" y1="286" x2="502" y2="286" stroke="var(--diagram-line)" stroke-width="1"/>
+        <text class="sub" x="401" y="308" text-anchor="middle">SQLite (pure Go) · RSA signing key</text>
+
+        <rect class="bx" x="620" y="60" width="200" height="76" rx="10"/>
+        <text class="lbl" x="720" y="86" text-anchor="middle">Your API</text>
+        <text class="sub" x="720" y="105" text-anchor="middle">validates against JWKS</text>
+        <text class="sub" x="720" y="120" text-anchor="middle">kid = RFC 7638 thumbprint</text>
+
+        <rect class="bx" x="620" y="164" width="200" height="112" rx="10"/>
+        <text class="lbl" x="720" y="190" text-anchor="middle">The emulator family</text>
+        <text class="sub" x="720" y="210" text-anchor="middle">key vault · ARM · fabric</text>
+        <text class="sub" x="720" y="226" text-anchor="middle">APIM · databricks</text>
+        <text class="sub" x="720" y="250" text-anchor="middle">every one of them verifies</text>
+        <text class="sub" x="720" y="265" text-anchor="middle">tokens this issuer mints</text>
+
+        <rect class="bx" x="620" y="304" width="200" height="60" rx="10"/>
+        <text class="lbl" x="720" y="330" text-anchor="middle">Go test process</text>
+        <text class="sub" x="720" y="348" text-anchor="middle">embedded, no port, no server</text>
+
+        <path class="ar" d="M184 63 H240 V180 H280" marker-end="url(#a)"/>
+        <path class="ar" d="M184 159 H280" marker-end="url(#a)"/>
+        <path class="ar" d="M184 255 H240 V196 H280" marker-end="url(#a)"/>
+        <path class="ar" d="M184 344 H240 V212 H280" marker-end="url(#a)"/>
+        <path class="ar" d="M516 120 H560 V98 H614" marker-end="url(#a)"/>
+        <path class="ar" d="M516 196 H560 V220 H614" marker-end="url(#a)"/>
+        <path class="ar" d="M516 300 H560 V334 H614" marker-end="url(#a)"/>
+        <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0 0 L10 5 L0 10 z" fill="currentColor" style="color:var(--diagram-line)"/></marker></defs>
+      </svg>
+      <figcaption>Subdomains need hosts entries; <code>ORIGIN_MODE=compat</code> serves everything
+        from <code>https://localhost:8443</code> instead, which is what CI uses.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="sec" id="evidence">
+  <div class="wrap">
+    <h2>Seven defects our own tests could not see</h2>
+    <p class="lede">A third of this project's parity claims were once witnessed by our own Go
+      tests: our client, on both ends of our own implementation. Replacing that client with
+      Microsoft's found seven interop defects and one data-loss bug. Every one of them had
+      passing tests.</p>
+    <div class="scroll">
+      <table class="tbl">
+        <thead><tr><th>What was green</th><th>What a real client found</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>private_key_jwt</code></td>
+            <td>MSAL signs client assertions with <b>PS256</b>; the emulator verified only RS256.
+                Five Go tests passed while <em>no</em> Microsoft Go client could authenticate with
+                a certificate at all.</td>
+          </tr>
+          <tr>
+            <td>Resource owner password</td>
+            <td>MSAL Go probes <code>/common/UserRealm</code> before it will send credentials, and
+                gives up on a non-200. The route did not exist, so ROPC was unreachable.</td>
+          </tr>
+          <tr>
+            <td>Custom API scopes</td>
+            <td>Clients send <code>api://&lt;app&gt;/&lt;scope&gt;</code>; the emulator echoed the
+                short name, and the narrowing check then compared two different vocabularies.</td>
+          </tr>
+          <tr>
+            <td>Group overage</td>
+            <td>The overage payload points a client at <code>getMemberObjects</code> to recover
+                groups the token could not carry. That route did not exist, and the URL was built
+                without the compat prefix. Dead twice over.</td>
+          </tr>
+          <tr>
+            <td>SCIM discovery</td>
+            <td>Every <code>meta.location</code> pointed at routes that were never mounted, and
+                <code>/Schemas</code> carried no attributes, so no client could learn that
+                <code>userName</code> is required. An independent RFC checker scored it
+                <b>3 passed, 31 errored</b> against a row already graded green.</td>
+          </tr>
+          <tr>
+            <td>SCIM <code>PATCH</code></td>
+            <td>Silently did nothing for <code>name</code>, <code>emails</code> and
+                <code>externalId</code>; <code>remove</code> was a no-op returning
+                <code>200 OK</code>. The worst failure mode, because it looks like success.</td>
+          </tr>
+          <tr>
+            <td>Incremental provisioning</td>
+            <td>The watermark is Unix seconds compared with <code>&lt;=</code>, so a change
+                committed inside a sync's own second was skipped by that sync and every one after
+                it. Not delayed. Lost.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <b>This is why the witness tier is recorded per claim, not averaged.</b>
+      <p>A claim is credited once, by its strongest evidence: a CI job driving a packaged
+        external client beats a Microsoft library linked in-process, which beats our own Go
+        tests. Counting citations instead would flatter every row, because one claim can carry
+        four witnesses. The <a href="parity/">parity map</a> names the witness for each, and CI
+        fails when one goes missing.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <h2>Who drives it in CI</h2>
+    <p class="lede">Unmodified, as published, from the package manager. Two knobs make a custom
+      authority work in every Microsoft SDK: disable instance discovery, and trust the
+      certificate.</p>
+    <div class="grid">
+      <div class="card">
+        <h3>Microsoft's own clients <span class="tag t-ship">witnessed</span></h3>
+        <p><code>@azure/msal-node</code>, <code>@azure/msal-browser</code>, the Microsoft Graph
+           JavaScript client, MSAL Go and <code>azidentity</code>, MSAL Python, MSAL.NET with the
+           Wilson token-validation stack, MSAL4J, and the <code>az</code> CLI registered as a
+           custom cloud.</p>
+        <span class="ev">python3 e2e/run.py</span>
+      </div>
+      <div class="card">
+        <h3>Independent conformance <span class="tag t-ship">witnessed</span></h3>
+        <p><code>node-saml</code> as an unmodified service provider,
+           <code>Microsoft.AspNetCore.Authentication.WsFederation</code> as unmodified middleware,
+           and <code>scim2-tester</code>, an RFC 7643/7644 checker that knows nothing about this
+           project.</p>
+        <span class="ev">A checker we did not write cannot share our assumptions</span>
+      </div>
+      <div class="card">
+        <h3>Microsoft's reference server <span class="tag t-ship">witnessed</span></h3>
+        <p>Outbound SCIM provisioning is proved against
+           <code>AzureAD/SCIMReferenceCode</code>, receiving the full Entra sequence:
+           filter probe, create, <code>externalId</code> correlation, and
+           <code>active:false</code> deprovision.</p>
+        <span class="ev">Both directions of SCIM, neither of them ours</span>
+      </div>
+      <div class="card">
+        <h3>Real browsers <span class="tag t-ship">witnessed</span></h3>
+        <p>Chromium completes the redirect flow, the RP-initiated logout, and the implicit and
+           hybrid front-channel responses. Passkeys register and assert through a CDP virtual
+           authenticator, yielding <code>amr: ["fido"]</code>.</p>
+        <span class="ev">The front-channel logout iframe is really fetched, not just present</span>
+      </div>
+      <div class="card">
+        <h3>Real devices <span class="tag t-wip">nightly, not a PR gate</span></h3>
+        <p>An Android emulator and an iOS simulator run the device-code flow end to end from a
+           Flutter app. No official MSAL exists for Dart, so the automated path uses Dart
+           <code>http</code> and the <code>flutter_appauth</code> screen is manual.</p>
+        <span class="ev">.github/workflows/flutter-e2e.yml</span>
+      </div>
+      <div class="card">
+        <h3>The rest of the family <span class="tag t-ship">witnessed</span></h3>
+        <p>Key Vault, ARM, Fabric, APIM and Databricks emulators all validate tokens this issuer
+           mints. A change to the claim shape here fails there, which is a consumer test no
+           amount of local testing substitutes for.</p>
+        <span class="ev">github.com/calvinchengx/azure-emulators</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec">
+  <div class="wrap">
+    <h2>What it does</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Flows</h3>
+        <p>Authorization Code + PKCE (S256 and plain), Client Credentials with
+           <code>.default</code> and app-role auto-grant, rotating Refresh Tokens with
+           family revocation on reuse, Device Code (RFC 8628) with its human approval page,
+           on-behalf-of, implicit and hybrid, front-channel logout, and UserInfo.</p>
+      </div>
+      <div class="card">
+        <h3>Federation</h3>
+        <p>SAML 2.0 SP-initiated SSO at <code>/{tid}/saml2</code> and WS-Federation passive
+           sign-in and sign-out at <code>/{tid}/wsfed</code>, both advertised on the same
+           FederationMetadata URL real Entra uses. Repointing an SP means changing the host.</p>
+      </div>
+      <div class="card">
+        <h3>Tokens</h3>
+        <p>Real RS256 JWTs with Entra v2.0 claim shapes: <code>tid</code>, <code>oid</code>,
+           <code>scp</code>/<code>roles</code>, pairwise <code>sub</code>,
+           <code>ver: "2.0"</code>, <code>client_info</code>. Optional and group claims per app
+           registration, including the Entra-style overage payload.</p>
+      </div>
+      <div class="card">
+        <h3>Sign-in methods</h3>
+        <p>Account picker and password giving <code>amr: ["pwd"]</code>, and passkeys
+           (FIDO2/WebAuthn) giving <code>amr: ["fido"]</code>, with the relying party built
+           per request from the <code>Host</code> header so passkeys work on any origin.</p>
+      </div>
+      <div class="card">
+        <h3>Directory</h3>
+        <p>A stateful Microsoft Graph: users, groups and membership, app registrations, role
+           assignments, administrative units, invitations, audit and sign-in logs, and
+           soft-delete through the recycle bin. SCIM 2.0 in both directions.</p>
+      </div>
+      <div class="card">
+        <h3>Embeddable in Go tests</h3>
+        <p>The <code>emulator</code> package runs the whole thing in-process, with no external
+           server and no fixed port, so a Go test can point MSAL Go or <code>azidentity</code>
+           straight at it and get a token.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="status">
+  <div class="wrap">
+    <h2>What it will not do</h2>
+    <p class="lede">The line is drawn at the policy engine. Everything below is what separates a
+      development-loop emulator from an identity provider, and none of it is planned.</p>
+    <div class="scroll">
+      <table class="tbl">
+        <thead><tr><th>Capability</th><th>Status</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Conditional Access</td><td><span class="tag t-stop">not implemented</span></td><td>Policies, named locations and authentication strength are the product, not a protocol surface. Emulating them convincingly would mislead.</td></tr>
+          <tr><td>MFA and step-up</td><td><span class="tag t-stop">not implemented</span></td><td>No second factor exists to challenge. <code>amr</code> reports honestly what did happen: <code>pwd</code> or <code>fido</code>.</td></tr>
+          <tr><td>Identity Protection, risky users</td><td><span class="tag t-stop">not implemented</span></td><td>Risk scoring has no meaning against seeded users on a laptop.</td></tr>
+          <tr><td>PIM, entitlement management, access reviews</td><td><span class="tag t-stop">not implemented</span></td><td>Governance surfaces, not sign-in surfaces.</td></tr>
+          <tr><td>B2C user flows, External ID, CIAM</td><td><span class="tag t-stop">not implemented</span></td><td>A separate product with a separate protocol surface.</td></tr>
+          <tr><td>Cross-tenant access policies</td><td><span class="tag t-stop">not implemented</span></td><td>Partner settings and inbound/outbound trust need more than one real tenant to mean anything.</td></tr>
+          <tr><td>Device registration, Intune compliance</td><td><span class="tag t-stop">not implemented</span></td><td>Device-bound tokens require a device identity story this does not have.</td></tr>
+          <tr><td>Sovereign clouds</td><td><span class="tag t-stop">not implemented</span></td><td>US Gov, China and Germany instance routing. The discovery document names this emulator's own coordinates and nothing else.</td></tr>
+          <tr><td>Graph <code>beta</code></td><td><span class="tag t-stop">not implemented</span></td><td><code>v1.0</code> only. A partial <code>beta</code> would be worse than its absence.</td></tr>
+          <tr><td>mTLS, PoP, certificate-bound tokens</td><td><span class="tag t-stop">not implemented</span></td><td>Bearer tokens only.</td></tr>
+          <tr><td>Multi-tenant</td><td><span class="tag t-wip">emulated</span></td><td>Additional tenants exist in the store and route correctly, but there is no cross-tenant consent or guest-object model behind them.</td></tr>
+          <tr><td>Provisioning scheduler</td><td><span class="tag t-wip">emulated</span></td><td>SCIM sync runs on demand. Entra's ~40-minute cycle is not simulated; nothing waits.</td></tr>
+          <tr><td>Fabric control plane</td><td><span class="tag t-plan">bring your own engine</span></td><td>Workspace identity provisioning is real when <code>fabric-emulator</code> is attached, and a toy stands in otherwise.</td></tr>
+          <tr><td>Externalized authorization</td><td><span class="tag t-plan">bring your own engine</span></td><td>Relationship-based authorization is delegated to a real PDP: OpenFGA, OPA, Cedar, SpiceDB, Keto, Casbin or Permify.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note warn">
+      <b>Intentionally insecure, and not a security boundary.</b>
+      <p>Open admin API, publicly known seeded users and secrets, self-signed TLS, and a signing
+        key stored unencrypted on disk. It exists so a laptop can issue tokens that look real
+        enough to develop against. Run it on <code>localhost</code>. Never point real users or
+        real secrets at it.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="release">
+  <div class="wrap">
+    <h2>Get it</h2>
+    <p class="lede">A ~13 MB distroless image with a built-in healthcheck, or a static binary
+      for six platform pairs. Pure Go, no cgo, no runtime dependency.</p>
+<pre><code>docker run -p 8443:8443 -v entra-emulator-data:/app/data \
+  ghcr.io/calvinchengx/entra-emulator:latest
+
+brew install calvinchengx/tap/entra-emulator     # macOS and Linux
+winget install calvinchengx.entra-emulator       # Windows
+go install github.com/calvinchengx/entra-emulator/cmd/entra-emulator@latest</code></pre>
+    <p class="lede" style="margin-top:24px">The image defaults to <code>ORIGIN_MODE=compat</code>
+      and binds <code>0.0.0.0</code>; mount a volume at <code>/app/data</code> to keep the store,
+      the certificate and the signing key stable across restarts. Every install method is in
+      <a href="02-installation/">installation</a>.</p>
+  </div>
+</section>
+
+<section class="sec" id="start">
+  <div class="wrap">
+    <h2>Run it</h2>
+    <p class="lede">Three verbs, the same on Linux, macOS and Windows. <code>run</code> needs no
+      container runtime at all.</p>
+<pre><code>make doctor   # toolchain check, run this first
+make run      # build and serve at https://localhost:8443
+make status   # is it actually serving? probes discovery, JWKS, a real token mint</code></pre>
+    <p class="lede" style="margin-top:28px">Then point a client at it. Only the authority
+      changes; <code>knownAuthorities</code> is what tells MSAL to skip instance discovery
+      against Microsoft's cloud metadata.</p>
+<pre><code>{
+  "auth": {
+    "clientId": "189c7070-78a3-4c13-aa18-20a2ca5755ca",
+    "authority": "https://localhost:8443/6f89cf12-978b-4d23-ac18-9ef0c127cf87",
+    "knownAuthorities": ["localhost:8443"],
+    "redirectUri": "https://localhost:3000"
+  }
+}</code></pre>
+    <p class="lede" style="margin-top:28px">The seed is deterministic and its GUIDs are fixed, so
+      a CI fixture written today still resolves next year:
+      <code>alice@entraemulator.dev</code> and <code>bob@entraemulator.dev</code> with password
+      <code>Password1!</code>, a public SPA, and a confidential daemon holding the
+      <code>Tasks.Read.All</code> app role. Full detail in
+      <a href="06-data-model-and-seed/">data model and seed</a>.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><a href="https://github.com/calvinchengx/entra-emulator">github.com/calvinchengx/entra-emulator</a>
+       &middot; Apache 2.0 &middot; <a href="17-roadmap/">roadmap</a> &middot;
+       <a href="parity/">parity map</a></p>
+    <p>Part of the <a href="https://calvinchengx.github.io/emulators/">emulator family</a>: this is
+       the issuer that <a href="https://github.com/calvinchengx/azure-keyvault-emulator">Key Vault</a>,
+       <a href="https://github.com/calvinchengx/arm-emulator">ARM</a>,
+       <a href="https://github.com/calvinchengx/fabric-emulator">Fabric</a>,
+       <a href="https://github.com/calvinchengx/azure-apim-emulator">APIM</a> and
+       <a href="https://github.com/calvinchengx/databricks-emulator">Databricks</a> validate against.
+       <a href="https://github.com/calvinchengx/azure-emulators">azure-emulators</a> runs them together.</p>
+    <p>An independent developer tool, not affiliated with or endorsed by Microsoft. "Microsoft
+       Entra ID", "Azure AD", "Microsoft Graph" and "MSAL" are Microsoft trademarks. This project
+       emulates publicly documented protocol behaviour for local development and testing only.</p>
+  </div>
+</footer>
+
+<script>
+  // Every number in the stat strip is read from the manifest the docs-site
+  // workflow publishes beside this page, in the manifest's own schema rather
+  // than the badge's. A number typed into a page has no idea a witness was
+  // added: the sibling data-agent-service had three go stale in one day.
+  //
+  // The fallback is the em dash already in the markup. If the manifest cannot
+  // be read, the page says nothing rather than something possibly untrue.
+  fetch('witnesses-manifest.json')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d) { return; }
+      var set = function (id, value) {
+        var el = document.getElementById(id);
+        if (el && value !== undefined && value !== null) { el.textContent = value; }
+      };
+      if (d.claims) { set('witness-count', d.witnessed + '/' + d.claims); }
+      if (d.by_tier) { set('ci-count', d.by_tier.ci); }
+      // The honest counterweight comes from the same source as the flattering
+      // numbers, so it cannot be the one that goes stale.
+      if (d.grades) {
+        set('red-count', d.grades['not-implemented']);
+        set('red-count-2', d.grades['not-implemented']);
+      }
+    })
+    .catch(function () {});
+</script>
+</body>
+</html>
