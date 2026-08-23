@@ -69,6 +69,17 @@ jobs:
           node-version: '22'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Moved here from ci.yml when prose-only commits stopped running it. Its
+      # inputs are docs/ and the sidebar, which trigger THIS workflow and no
+      # longer trigger CI.
+      #
+      # The site build does NOT catch a dangling intra-doc link: measured, it
+      # exits 0 and publishes a 404. Nor can it see a page missing from the
+      # sidebar, which is published but unreachable by navigation.
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.11.32"
+      - run: uv run --no-project --python 3.12 python scripts/check_docs_links.py --strict
       - run: pnpm --filter entra-emulator-docs build
       # The witness endpoint rides along with the docs site, served from
       # this project's own origin rather than a third party. Written AFTER
