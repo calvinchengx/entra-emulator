@@ -8,6 +8,9 @@ on:
       - 'site/**'
       - 'scripts/coverage_badges.py'
       - 'scripts/assemble_site.py'
+      - 'scripts/check_docs_links.py'
+      - 'scripts/check_landing_page.py'
+      - 'Makefile'
       - 'website/published-routes.txt'
       - 'scripts/check_witnesses.py'
       - 'website/**'
@@ -24,6 +27,9 @@ on:
       - 'site/**'
       - 'scripts/coverage_badges.py'
       - 'scripts/assemble_site.py'
+      - 'scripts/check_docs_links.py'
+      - 'scripts/check_landing_page.py'
+      - 'Makefile'
       - 'website/published-routes.txt'
       - 'scripts/check_witnesses.py'
       - 'website/**'
@@ -72,42 +78,22 @@ jobs:
         with:
           node-version: '22'
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      # Moved here from ci.yml when prose-only commits stopped running it. Its
-      # inputs are docs/ and the sidebar, which trigger THIS workflow and no
-      # longer trigger CI.
-      #
-      # The site build does NOT catch a dangling intra-doc link: measured, it
-      # exits 0 and publishes a 404. Nor can it see a page missing from the
-      # sidebar, which is published but unreachable by navigation.
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           version: "0.11.32"
-      - run: uv run --no-project --python 3.12 python scripts/check_docs_links.py --strict
-      - run: pnpm --filter entra-emulator-docs build
-      # The witness endpoint rides along with the docs site, served from
-      # this project's own origin rather than a third party. Written AFTER
-      # the Starlight build, which would otherwise wipe website/dist.
-      # THE LANDING PAGE AT THE ROOT, THE DOCS UNDER /docs/, and a redirect
-      # stub at every path the site published before the move. The assembler
-      # holds itself to website/published-routes.txt -- the route list captured
-      # from the build immediately before the base changed -- so a 404 for an
-      # old URL fails the deploy instead of reaching a reader.
+      # ONE STEP, AND IT IS THE ONE A DEVELOPER RUNS. `make docs-serve` builds
+      # with this same target and then serves the result at the paths it
+      # publishes under, so what is previewed locally is what deploys from
+      # here. Spelling the sequence out in YAML instead is how the two drift:
+      # the local recipe is the one nobody updates, and it is also the only one
+      # anyone looks at before pushing.
       #
-      # It runs the badge script itself, into the ROOT rather than into the
-      # docs, so the endpoint URLs in README.md are unaffected by the move.
-      #
-      # The self-test runs first: a gate nobody has watched fail is a gate
-      # nobody knows the direction of.
-      - name: Assemble the site, and prove no published URL moved
-        run: |
-          python3 scripts/assemble_site.py --self-test
-          python3 scripts/assemble_site.py --out _site
-      # The landing page is not built by Astro, so nothing else checks its
-      # links. Every relative href it carries must resolve inside the
-      # assembled tree, and the manifest it fetches must be there too.
-      - name: The landing page's links resolve
-        run: python3 scripts/check_landing_page.py --site _site
+      # What it runs, and why each part is not redundant, is documented at the
+      # target in the Makefile. In short: the doc links (the Astro build exits
+      # 0 on a dangling one and publishes a 404), the Starlight build, the
+      # assembler with its pre-move route oracle and its self-test, and the
+      # landing page, which Astro never sees.
+      - run: make docs-build
       - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request'
         with:
