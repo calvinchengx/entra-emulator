@@ -31,9 +31,10 @@ concurrency:
 
 jobs:
   # A docs-only change cannot alter what CodeQL finds. The gate is a job rather
-  # than `paths-ignore:` on the workflow: a job skipped by `if:` reports as
-  # successful to branch protection, while a workflow that never ran leaves its
-  # check "Expected" forever and blocks the merge. See .github/changed-files.sh,
+  # than `paths-ignore:` on the workflow: a job skipped by `if:` still produces
+  # a completed check-run (conclusion `skipped`), which branch protection
+  # accepts, while a workflow that never ran produces no check-run at all and
+  # leaves a required check "Expected" forever. See .github/changed-files.sh,
   # which fails OPEN on every way of not knowing.
   changes:
     name: Does this change any code?

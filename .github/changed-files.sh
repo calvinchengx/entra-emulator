@@ -8,12 +8,16 @@
 #     if: needs.changes.outputs.code == 'true'
 #
 # WHY A JOB-LEVEL `if:` AND NOT `paths-ignore:` ON THE WORKFLOW.
-# A workflow that never triggers leaves its check permanently "Expected —
-# waiting for status", so under branch protection the pull request can never
-# merge. A job skipped by an `if:` condition reports as successful to branch
-# protection. This repository has no protection today, which is exactly what
-# makes paths-ignore the dangerous choice: it is a landmine armed later, by a
-# settings change nobody would connect to CI.
+# The mechanism is whether a check-run EXISTS, not what it concludes. A job
+# skipped by `if:` still produces a check-run, `status=completed` with
+# `conclusion=skipped` (verified on PR #123, not assumed) -- a terminal result
+# branch protection accepts. A workflow that never triggers produces NO
+# check-run at all, so a required check sits at "Expected — waiting for status"
+# forever and the pull request can never merge.
+#
+# This repository has no branch protection today (`/protection` 404s, rulesets
+# are `[]`), which is exactly what makes paths-ignore the dangerous choice: it
+# is a landmine armed later, by a settings change nobody would connect to CI.
 #
 # THIS FAILS OPEN, ALWAYS. `github.event.before` is all zeros on a first push
 # and unreliable after a force-push; both file endpoints cap a page at 300; a
