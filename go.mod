@@ -4,7 +4,7 @@ go 1.26.6
 
 require (
 	github.com/beevik/etree v1.7.1
-	github.com/brianvoe/gofakeit/v7 v7.15.0
+	github.com/brianvoe/gofakeit/v7 v7.16.0
 	github.com/descope/virtualwebauthn v1.0.5
 	github.com/go-webauthn/webauthn v0.17.4
 	github.com/russellhaering/goxmldsig v1.6.1
