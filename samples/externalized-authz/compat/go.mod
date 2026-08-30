@@ -22,7 +22,7 @@ require (
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/beevik/etree v1.7.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.6.1 // indirect
-	github.com/brianvoe/gofakeit/v7 v7.15.0 // indirect
+	github.com/brianvoe/gofakeit/v7 v7.16.0 // indirect
 	github.com/casbin/govaluate v1.3.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
