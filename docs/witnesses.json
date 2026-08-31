@@ -29,6 +29,7 @@
     "section": "Token service (`07-token-service`)",
     "claim": "Entra v2.0 claim shapes (`tid`/`oid`/`azp`/`appid`/`scp`/`roles`/`ver`/`idtyp`, pairwise `sub`)",
     "witnesses": [
+      "diff:token-claims-client-credentials",
       "ci:sdk-e2e",
       "ci:az-cli-e2e",
       "go:TestAppRoleAssignmentDrivesRolesClaim"
@@ -103,6 +104,7 @@
     "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
     "claim": "`client_credentials`",
     "witnesses": [
+      "diff:token-client-credentials",
       "ci:sdk-e2e",
       "ci:az-cli-e2e",
       "go:TestClientCredentials"
@@ -483,6 +485,16 @@
       "go:TestPriyaCompletesTasksAPIWSFedSignIn",
       "go:TestUnregisteredWreplyDoesNotReceiveAToken",
       "go:TestUnsolicitedWresultIsRefused"
+    ]
+  },
+  "token-endpoint-error-envelope-error-errordescription-errorcodes-aadsts-number": {
+    "section": "Token service (`07-token-service`)",
+    "claim": "Token-endpoint error envelope (`error` / `error_description` / `error_codes` / AADSTS number)",
+    "witnesses": [
+      "diff:token-error-invalid-client",
+      "diff:token-error-invalid-scope",
+      "diff:token-error-unsupported-grant-type",
+      "diff:token-error-unknown-client"
     ]
   }
 }
