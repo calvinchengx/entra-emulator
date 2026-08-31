@@ -10,8 +10,15 @@ This checker makes the mapping explicit and verifiable.
 
 Witness kinds, deliberately distinguished because they are not equal evidence:
 
-  ci:<job>      a CI job driving a real external client (strongest — this is
-                what the rule in doc 24 actually asks for)
+  diff:<id>     a scenario diffed against REAL ENTRA — the recorded response
+                from a live tenant, compared field by field. Strongest, and the
+                only kind that evidences parity rather than client compatibility:
+                a ci: witness proves an unmodified client accepted us, never
+                that Entra would have answered the same way. Must name a
+                scenario in e2e/differential/testdata/fixture-manifest.json
+                whose status is `captured`; a `planned` one is not evidence.
+  ci:<job>      a CI job driving a real external client (this is what the rule
+                in doc 24 actually asks for)
   go:<Test>     a Go test: real HTTP, real signed JWTs, real RBAC, but our own
                 client rather than a third party's
   boundary:...  the claim is scoped by a documented limitation, with the reason
@@ -31,6 +38,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 PARITY = ROOT / "docs" / "parity.md"
 MANIFEST = ROOT / "docs" / "witnesses.json"
 CI = ROOT / ".github" / "workflows" / "ci.yml"
+FIXTURES = ROOT / "e2e" / "differential" / "testdata" / "fixture-manifest.json"
 
 # Sections that do not make capability claims: the legend, the conformance
 # table (itself a list of witnesses), emulator-only helpers, and the explicit
@@ -125,6 +133,19 @@ def ci_job_ids() -> set:
     return set(re.findall(r"^  ([a-z0-9-]+):$", CI.read_text(), re.M))
 
 
+def differential_scenarios() -> set:
+    """Scenario ids that have actually been captured from real Entra.
+
+    `planned` is deliberately excluded. The fixture manifest lists a scenario
+    before it is recorded, on purpose, so the gap between planned and captured
+    is visible — counting a planned row as a witness would erase exactly that.
+    """
+    if not FIXTURES.exists():
+        return set()
+    data = json.loads(FIXTURES.read_text())
+    return {s["id"] for s in data.get("scenarios", []) if s.get("status") == "captured"}
+
+
 def go_test_names() -> set:
     out = subprocess.run(
         ["grep", "-rhoE", r"^func (Test[A-Za-z0-9_]+)", "--include=*_test.go", str(ROOT / "internal"), str(ROOT / "cmd")],
@@ -136,10 +157,10 @@ def go_test_names() -> set:
 def main() -> int:
     strict = "--strict" in sys.argv
     manifest = json.loads(MANIFEST.read_text()) if MANIFEST.exists() else {}
-    jobs, tests = ci_job_ids(), go_test_names()
+    jobs, tests, captured = ci_job_ids(), go_test_names(), differential_scenarios()
 
     missing, dangling, todo = [], [], []
-    kinds = {"ci": 0, "go": 0, "boundary": 0}
+    kinds = {"diff": 0, "ci": 0, "go": 0, "boundary": 0}
     # Which claims lean on each witness — a witness covering many claims is
     # where bundling hides.
     shared: dict[str, list[str]] = {}
@@ -161,8 +182,13 @@ def main() -> int:
                 dangling.append(f"{key} → {witness} (no such CI job)")
             elif kind == "go" and name not in tests:
                 dangling.append(f"{key} → {witness} (no such Go test)")
+            elif kind == "diff" and name not in captured:
+                # Unvalidated kinds are the failure this checker exists to stop:
+                # they increment a counter and prove nothing.
+                dangling.append(f"{key} → {witness} (no captured differential scenario)")
 
     print(f"🟢 capability claims: {len(claims)}")
+    print(f"  diffed against real Entra (diff:)         : {kinds.get('diff', 0)}")
     print(f"  witnessed by a real external client (ci:) : {kinds.get('ci', 0)}")
     print(f"  witnessed by our own Go tests (go:)       : {kinds.get('go', 0)}")
     print(f"  scoped by a documented boundary           : {kinds.get('boundary', 0)}")
