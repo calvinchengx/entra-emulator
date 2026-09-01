@@ -34,7 +34,7 @@ jobs:
         run: |
           go build -o /tmp/entra-emulator ./cmd/entra-emulator
           mkdir -p /tmp/emu && cd /tmp/emu
-          TLS_ENABLED=false PORT=8443 ORIGIN_MODE=compat \
+          TLS_ENABLED=false PORT=8443 ORIGIN_MODE=compat REQUEST_LOG=true \
             PUBLIC_ORIGIN=http://10.0.2.2:8443 \
             nohup /tmp/entra-emulator > server.log 2>&1 &
           for i in $(seq 1 50); do curl -s http://localhost:8443/health && break; sleep 0.2; done
@@ -72,7 +72,7 @@ jobs:
         run: |
           go build -o /tmp/entra-emulator ./cmd/entra-emulator
           mkdir -p /tmp/emu && cd /tmp/emu
-          TLS_ENABLED=false PORT=8443 ORIGIN_MODE=compat \
+          TLS_ENABLED=false PORT=8443 ORIGIN_MODE=compat REQUEST_LOG=true \
             nohup /tmp/entra-emulator > server.log 2>&1 &
           for i in $(seq 1 50); do curl -s http://localhost:8443/health && break; sleep 0.2; done
       - uses: subosito/flutter-action@v2
@@ -114,11 +114,32 @@ jobs:
       - name: What the simulator was doing when it hung
         if: failure()
         run: |
-          echo "::group::recent simulator log"
+          # SCOPED TO THE APP. The first version of this dumped everything
+          # and came back 300 lines of `apsd` push-daemon network chatter with
+          # nothing about the test in it, which is a capture that runs and
+          # tells you nothing. Filtering on the bundle id and on the crash and
+          # launch services leaves the processes that could actually explain a
+          # stall between "Xcode build done" and the first request.
+          echo "::group::app log (com.example.entraEmulatorE2e)"
           xcrun simctl spawn ${{ steps.sim.outputs.udid }} log show \
-            --last 20m --style compact 2>/dev/null | tail -300 || \
-            echo "(no simulator log available)"
+            --last 20m --style compact \
+            --predicate 'subsystem CONTAINS "entraEmulatorE2e"
+                      OR process CONTAINS "Runner"
+                      OR process == "SpringBoard"
+                      OR process == "launchd_sim"
+                      OR eventMessage CONTAINS "entraEmulatorE2e"' \
+            2>/dev/null | tail -200 || echo "(no app log available)"
           echo "::endgroup::"
-          echo "::group::emulator server log"
+          echo "::group::did the app crash"
+          ls -la ~/Library/Logs/DiagnosticReports/ 2>/dev/null | tail -20 || true
+          cat ~/Library/Logs/DiagnosticReports/Runner*.ips 2>/dev/null | head -60 \
+            || echo "(no crash report)"
+          echo "::endgroup::"
+          # REQUEST_LOG=true above, so this now records one line per request.
+          # An empty log below therefore means the app never reached the
+          # emulator, which it did NOT mean before: the server used to log
+          # only startup, so silence and "not recorded" were indistinguishable.
+          echo "::group::emulator server log (one line per request)"
+          echo "requests served: $(grep -cE ' -> [0-9]{3} ' /tmp/emu/server.log 2>/dev/null || echo 0)"
           tail -100 /tmp/emu/server.log 2>/dev/null || echo "(no server log)"
           echo "::endgroup::" 

@@ -3,6 +3,7 @@
 package server
 
 import (
+	"bufio"
 	"crypto/tls"
 	"fmt"
 	"log"
@@ -187,10 +188,71 @@ func looksLikeGUID(s string) bool {
 	return true
 }
 
+// logRequests prints one line per request: method, path, status, duration.
+//
+// WHY THIS EXISTS, AND WHY IT IS OFF BY DEFAULT. The iOS e2e hangs after a
+// successful Xcode build, and the emulator's log showed nothing after startup.
+// That silence was UNREADABLE: it could mean the app never reached the
+// emulator, or that the emulator simply does not record what it serves. Those
+// are different faults and the log could not distinguish them. With this on,
+// silence means the first thing and only the first thing.
+//
+// Off by default because this is a dev server people leave running, and a line
+// per token refresh is noise the moment you are not debugging.
+func logRequests(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(rec, r)
+		log.Printf("%s %s%s -> %d (%s)",
+			r.Method, r.Host, r.URL.RequestURI(), rec.status,
+			time.Since(start).Round(time.Millisecond))
+	})
+}
+
+// statusRecorder remembers the status so the line can report it. Without this
+// the log would say a request arrived and not whether it was answered, which
+// is half the question.
+type statusRecorder struct {
+	http.ResponseWriter
+	status  int
+	written bool
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	if !r.written {
+		r.status, r.written = code, true
+	}
+	r.ResponseWriter.WriteHeader(code)
+}
+
+// Flush and Hijack are forwarded because the handler chain below uses both:
+// dropping them turns a streaming or upgrading endpoint into a broken one, and
+// the breakage would only appear when the log is enabled, which is exactly
+// when somebody is already debugging something else.
+func (r *statusRecorder) Flush() {
+	if f, ok := r.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func (r *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	h, ok := r.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("the underlying ResponseWriter cannot hijack")
+	}
+	return h.Hijack()
+}
+
 // Listen starts serving (TLS unless disabled) and blocks.
 func (s *Server) Listen() error {
 	addr := fmt.Sprintf("%s:%d", s.Cfg.Host, s.Cfg.Port)
-	srv := &http.Server{Addr: addr, Handler: s.Handler}
+	handler := s.Handler
+	if s.Cfg.RequestLog {
+		handler = logRequests(handler)
+		log.Printf("request logging on (REQUEST_LOG)")
+	}
+	srv := &http.Server{Addr: addr, Handler: handler}
 	if !s.Cfg.TLSEnabled {
 		return srv.ListenAndServe()
 	}
