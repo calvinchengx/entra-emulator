@@ -58,6 +58,13 @@ type Config struct {
 	// valid Graph-audience token, so enabling it is opt-in.
 	GraphPermissions bool
 	SeedOnStart      bool
+	// RequestLog prints one line per HTTP request. OFF by default: this is a
+	// dev server people leave running, and a request line per token refresh is
+	// noise. It exists because the ABSENCE of requests was unreadable: the iOS
+	// e2e hangs after a successful build, and the emulator's log showed only
+	// startup, which could mean nothing arrived OR that nothing is recorded.
+	// Those are different diagnoses and the log could not tell them apart.
+	RequestLog bool
 	Lifetimes        TokenLifetimes
 	DeviceInterval   int
 	GraphResourceID  string
@@ -86,6 +93,7 @@ type fileConfig struct {
 	RequireConsent   *bool           `json:"requireConsent"`
 	GraphPermissions *bool           `json:"graphPermissions"`
 	SeedOnStart      *bool           `json:"seedOnStart"`
+	RequestLog       *bool           `json:"requestLog"`
 	DeviceInterval   *int            `json:"deviceCodeInterval"`
 	GraphResourceID  *string         `json:"graphResourceId"`
 	LogLevel         *string         `json:"logLevel"`
@@ -151,6 +159,7 @@ func Load(getenv func(string) string) (*Config, error) {
 	c.RequireConsent = resolveBool(getenv("REQUIRE_CONSENT"), file.RequireConsent, false, "REQUIRE_CONSENT", fail)
 	c.GraphPermissions = resolveBool(getenv("GRAPH_PERMISSIONS"), file.GraphPermissions, false, "GRAPH_PERMISSIONS", fail)
 	c.SeedOnStart = resolveBool(getenv("SEED_ON_START"), file.SeedOnStart, true, "SEED_ON_START", fail)
+	c.RequestLog = resolveBool(getenv("REQUEST_LOG"), file.RequestLog, false, "REQUEST_LOG", fail)
 
 	if file.TLS != nil {
 		if file.TLS.CertPath != nil {
