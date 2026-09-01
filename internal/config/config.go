@@ -64,11 +64,11 @@ type Config struct {
 	// e2e hangs after a successful build, and the emulator's log showed only
 	// startup, which could mean nothing arrived OR that nothing is recorded.
 	// Those are different diagnoses and the log could not tell them apart.
-	RequestLog bool
-	Lifetimes        TokenLifetimes
-	DeviceInterval   int
-	GraphResourceID  string
-	LogLevel         string
+	RequestLog      bool
+	Lifetimes       TokenLifetimes
+	DeviceInterval  int
+	GraphResourceID string
+	LogLevel        string
 
 	// Managed-identity emulation (App Service protocol; roadmap #3).
 	ManagedIdentitySecret   string // matched against the X-IDENTITY-HEADER
