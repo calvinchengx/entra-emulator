@@ -123,25 +123,31 @@ jobs:
           # is the system shell, so it narrates every housekeeping task on the
           # device and drowns the app it was meant to frame.
           #
-          # `launchd_sim` IS KEPT BUT SCOPED, and this is the part that would
-          # have gone wrong. It is what reports a launch that never completed,
-          # so it belongs here, but unfiltered it is far louder than the
-          # SpringBoard noise it replaces: MEASURED ON AN IDLE SIMULATOR,
-          # 12,942 lines against SpringBoard's 415, and 2 once scoped to this
-          # app. Keeping it whole would have swapped one flood for a bigger
-          # one, under a `tail -200` that would have hidden the app entirely.
+          # `launchd_sim` IS UNCONDITIONAL, DELIBERATELY. It is what reports a
+          # launch that never completed, and "launchd_sim spawned exactly one
+          # process" is only a usable negative if the predicate would have
+          # shown more. Scoping it to the bundle id makes the absence of
+          # evidence indistinguishable from the filter having removed it.
           #
-          # What is left: the app itself (`Runner` is what Flutter names the
-          # iOS target), anything naming the bundle id, and launchd_sim only
-          # where it is talking about this app.
+          # IT WAS BRIEFLY SCOPED, ON A MEASUREMENT FROM THE WRONG MACHINE. An
+          # idle simulator on a laptop emits ~12,900 launchd_sim lines in 20
+          # minutes against SpringBoard's ~400, which made scoping it look
+          # necessary. The runner is the other way round: in the capture from
+          # run 33510528300 SpringBoard dominated the 200 captured lines and
+          # launchd_sim contributed almost nothing. Measure the environment the
+          # code runs in, not the one it was written on.
+          #
+          # SpringBoard stays out. That was the actual noise here: page after
+          # page of UserNotifications bookkeeping for `com.apple.Health`, which
+          # is the system shell narrating housekeeping and never the test.
           echo "::group::app log (com.example.entraEmulatorE2e)"
           xcrun simctl spawn ${{ steps.sim.outputs.udid }} log show \
             --last 20m --style compact \
             --predicate 'subsystem CONTAINS "entraEmulatorE2e"
                       OR process CONTAINS "Runner"
-                      OR eventMessage CONTAINS "entraEmulatorE2e"
-                      OR (process == "launchd_sim"
-                          AND eventMessage CONTAINS "entraEmulatorE2e")' \
+                      OR process == "launchd_sim"
+                      OR process == "installd"
+                      OR eventMessage CONTAINS "entraEmulatorE2e"' \
             2>/dev/null | tail -200 || echo "(no app log available)"
           echo "::endgroup::"
           # LINE COUNTS, so the next reader can see whether the filter is still
@@ -150,7 +156,8 @@ jobs:
           echo "::group::is the filter still the right width"
           for p in 'process CONTAINS "Runner"' \
                    'process == "launchd_sim"' \
-                   '(process == "launchd_sim" AND eventMessage CONTAINS "entraEmulatorE2e")'; do
+                   'process == "installd"' \
+                   'process == "SpringBoard"'; do
             n=$(xcrun simctl spawn ${{ steps.sim.outputs.udid }} log show \
                   --last 20m --style compact --predicate "$p" 2>/dev/null | wc -l)
             echo "  $n  <- $p"
