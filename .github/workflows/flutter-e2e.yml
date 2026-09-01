@@ -133,6 +133,42 @@ jobs:
         env:
           UDID: ${{ steps.sim.outputs.udid }}
           BUNDLE_ID: com.example.entraEmulatorE2e
+          # WHY THE HANG HAPPENED, and why these five variables end it.
+          #
+          # A simulator build is never signed. But this project carries
+          # `CODE_SIGN_STYLE = Automatic` on three targets and a real
+          # `DEVELOPMENT_TEAM` (Runner.xcodeproj), and automatic signing makes
+          # Xcode evaluate provisioning anyway -- an evaluation that asks the
+          # Apple Developer PORTAL which capabilities the app id has. This
+          # runner has no Apple account to authenticate that with, so the query
+          # does not fail, it waits.
+          #
+          # Measured, not guessed. Run 33514608182 stalled for the full 15m
+          # after `Fetching from https://github.com/openid/AppAuth-iOS...`, and
+          # the watchdog below caught xcodebuild parked in:
+          #
+          #   -[IDEProvisioningManager evaluateProvisioningForProvisionable:...]
+          #     +[IDEProvisionableSnapshot appIDFeaturesFromProvisionable:...]
+          #       -[Xcode3TargetCapabilitiesContext(DVTPortalAppIDFeatures) ...]
+          #         IDECapabilityQuerySelection.loadInitialCapabilities(...)
+          #           IDECapabilityCachedPortalItemLocator.items(query:)
+          #
+          # with dart blocked in `__wait4` on that child -- flutter was not
+          # stuck, it was waiting for Xcode, which was waiting for the portal.
+          # That also explains the negative the previous run recorded: nothing
+          # was ever installed because the build never finished.
+          #
+          # OVERRIDE, DO NOT EDIT THE PROJECT. flutter forwards any
+          # `FLUTTER_XCODE_<SETTING>` to xcodebuild as `<SETTING>=<value>`
+          # (flutter_tools `ios/mac.dart`, via
+          # `environmentVariablesAsXcodeBuildSettings`). Overriding here keeps
+          # the change scoped to CI: a developer building for a real device
+          # still gets the automatic signing and the team the project declares.
+          FLUTTER_XCODE_CODE_SIGN_STYLE: Manual
+          FLUTTER_XCODE_DEVELOPMENT_TEAM: ''
+          FLUTTER_XCODE_CODE_SIGNING_ALLOWED: 'NO'
+          FLUTTER_XCODE_CODE_SIGNING_REQUIRED: 'NO'
+          FLUTTER_XCODE_CODE_SIGN_IDENTITY: ''
         run: |
           set -o pipefail
           flutter test integration_test -d "$UDID" \
