@@ -87,6 +87,38 @@ jobs:
         uses: futureware-tech/simulator-action@v5
         with:
           os: iOS
+      # TIMED OUT AT THE STEP, NOT AT THE JOB, AND IT SAYS WHAT IT SAW.
+      #
+      # This step hangs intermittently AFTER a successful Xcode build: on
+      # 2026-09-01 the log reads `Xcode build done. 156.1s` at 08:54:10 and
+      # then nothing at all until the job's 45-minute budget killed it at
+      # 09:29. Same shape on 2026-08-28. It is not a slow job that needs a
+      # bigger budget: the runs that pass take 6 to 11 minutes, and the two
+      # that hung both ran 45.4, which is the ceiling rather than a duration.
+      #
+      # Cancelled is the worst possible outcome to report, because it is
+      # neither pass nor fail: it reads as infrastructure, it costs 45 minutes
+      # of a macOS runner, and it leaves no evidence of where it stopped. 15
+      # minutes is comfortably above every passing run and turns the hang into
+      # a FAILURE that arrives three times sooner.
+      #
+      # The simulator log is dumped on the way out, because the next
+      # occurrence is otherwise as undiagnosable as this one: everything up to
+      # `Xcode build done` succeeds, so whatever stalls is in app launch or
+      # the test run, and nothing in the step's own output describes it.
       - name: Run integration test on the iOS simulator
         working-directory: e2e/flutter
+        timeout-minutes: 15
         run: flutter test integration_test -d ${{ steps.sim.outputs.udid }} --dart-define=EMU_ORIGIN=http://localhost:8443
+
+      - name: What the simulator was doing when it hung
+        if: failure()
+        run: |
+          echo "::group::recent simulator log"
+          xcrun simctl spawn ${{ steps.sim.outputs.udid }} log show \
+            --last 20m --style compact 2>/dev/null | tail -300 || \
+            echo "(no simulator log available)"
+          echo "::endgroup::"
+          echo "::group::emulator server log"
+          tail -100 /tmp/emu/server.log 2>/dev/null || echo "(no server log)"
+          echo "::endgroup::" 
