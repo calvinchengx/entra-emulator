@@ -171,7 +171,17 @@ jobs:
           FLUTTER_XCODE_CODE_SIGN_IDENTITY: ''
         run: |
           set -o pipefail
-          flutter test integration_test -d "$UDID" \
+          # --verbose, and it is the whole point rather than a habit. In the
+          # hang #147 did NOT fix (run 33527434921), the tool printed nothing
+          # at all between `Xcode build done. 83.2s` and the 15-minute cap --
+          # eleven minutes in which the one thing nobody could see was what
+          # flutter itself believed it was doing. The stacks say where a
+          # process is parked; only the tool says which step it is parked in.
+          #
+          # The cost is a noisier log on runs that pass. That is worth it for a
+          # failure that has now cost six runs and taken two rounds of
+          # instrumentation to get this far.
+          flutter test integration_test -d "$UDID" --verbose \
             --dart-define=EMU_ORIGIN=http://localhost:8443 &
           test_pid=$!
 
@@ -198,6 +208,35 @@ jobs:
               /usr/bin/sample "$pid" 3 -mayDie 2>/dev/null | head -60 \
                 || echo "(sample failed for $pid)"
             done
+
+            # WHICH HANG IS THIS? There are two, and telling them apart took a
+            # side-by-side reading of two full job logs. Saying it here costs
+            # nothing and makes the next one a one-line answer:
+            #
+            #   A  xcodebuild alive, IDEProvisioningManager in its stack. The
+            #      signing stall #147 fixed by forcing manual signing. Seeing
+            #      it again means that override stopped taking effect.
+            #   B  no xcodebuild, Runner alive and idle in UIApplicationMain,
+            #      dart waiting. The build finished and the app launched; the
+            #      tool never drove it. NOT addressed by #147, seen once on
+            #      run 33527434921, and the reason --verbose is on above.
+            #
+            # Derived from what is actually running, so a mode nobody has seen
+            # yet reports as unrecognised rather than being forced into A or B.
+            echo "--- which hang is this?"
+            if pgrep -x xcodebuild >/dev/null 2>&1; then
+              echo "mode A (signing): xcodebuild is still running -- check its stack"
+              echo "                  for IDEProvisioningManager. #147's override may"
+              echo "                  have stopped applying."
+            elif pgrep -f 'Runner.app/Runner' >/dev/null 2>&1; then
+              echo "mode B (never driven): the app is running and the tool is not"
+              echo "                  driving it. #147 does not address this one."
+              echo "                  Read the --verbose output above for the last"
+              echo "                  step flutter reported."
+            else
+              echo "UNRECOGNISED: neither xcodebuild nor Runner is alive. Not mode A"
+              echo "                  or mode B -- read the stacks above from scratch."
+            fi
             echo "::endgroup::"
           ) &
           watchdog_pid=$!
