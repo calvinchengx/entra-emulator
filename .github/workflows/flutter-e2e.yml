@@ -49,7 +49,29 @@ jobs:
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      # A STEP CAP, for the reason the iOS side already records: a hang that
+      # burns the job's 45 minutes reports `cancelled`, which is neither pass
+      # nor fail and leaves no evidence to read afterwards.
+      #
+      # Run 33754052774 did exactly that, and the shape is worth writing down.
+      # The test PASSED at 5m48s; `adb emu kill` answered `OK: killing
+      # emulator, bye bye`; and then the job sat for 39 more minutes until the
+      # cap cancelled it. The orphans the runner reaped say where it was:
+      # `qemu-system-x86_64-headless`, `netsimd`, `adb` and two `java` were all
+      # still alive. So the emulator does not exit when told to, and this
+      # action waits on it.
+      #
+      # I DO NOT KNOW WHY YET, and the obvious guess is already wrong: a
+      # snapshot save on shutdown would explain it, but this action's default
+      # `emulator-options` already contains `-no-snapshot`, so snapshots are
+      # off before we say anything. Verified against the action's own
+      # action.yml rather than assumed.
+      #
+      # 15 minutes against a job that takes 5 every time it passes. This does
+      # not fix the hang; it turns a 45-minute `cancelled` with no evidence
+      # into a failure that arrives three times sooner and names this step.
       - name: Run integration test on the Android emulator
+        timeout-minutes: 15
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
