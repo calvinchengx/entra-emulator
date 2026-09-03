@@ -171,84 +171,77 @@ jobs:
           FLUTTER_XCODE_CODE_SIGN_IDENTITY: ''
         run: |
           set -o pipefail
-          # --verbose, and it is the whole point rather than a habit. In the
-          # hang #147 did NOT fix (run 33527434921), the tool printed nothing
-          # at all between `Xcode build done. 83.2s` and the 15-minute cap --
-          # eleven minutes in which the one thing nobody could see was what
-          # flutter itself believed it was doing. The stacks say where a
-          # process is parked; only the tool says which step it is parked in.
-          #
-          # The cost is a noisier log on runs that pass. That is worth it for a
-          # failure that has now cost six runs and taken two rounds of
-          # instrumentation to get this far.
-          flutter test integration_test -d "$UDID" --verbose \
-            --dart-define=EMU_ORIGIN=http://localhost:8443 &
-          test_pid=$!
 
-          (
-            sleep 600
-            kill -0 "$test_pid" 2>/dev/null || exit 0
-            echo "::group::watchdog: still running after 10m"
+          # ONE ATTEMPT, so the retry below is the same code path rather than a
+          # second copy of it that can drift.
+          attempt() {
+            local log="$1"
+            # --verbose is what turned the hang from silence into a named step.
+            # In run 33527434921 the tool printed NOTHING between
+            # `Xcode build done. 83.2s` and the 15-minute cap; with it, the last
+            # line is `Waiting for VM Service port to be available...`, which is
+            # what the watchdog below keys on.
+            flutter test integration_test -d "$UDID" --verbose \
+              --dart-define=EMU_ORIGIN=http://localhost:8443 2>&1 | tee "$log" &
+            local pid=$!
 
-            # WAS IT EVER INSTALLED? simctl answers from its own records rather
-            # than from the log store, so this does not depend on any process
-            # having logged. `get_app_container` failing is the difference
-            # between "flutter never got that far" and "installed, never ran".
-            echo "--- is the app installed on the simulator?"
-            xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" 2>&1 \
-              || echo "(not installed — flutter never handed it to the simulator)"
-
-            # WHERE IS IT BLOCKED. `sample` names the call stack, which is the
-            # one thing 11 minutes of silence cannot tell you. Dart and flutter
-            # both, since the hang may be in either.
-            echo "--- processes"
-            ps -ax -o pid,etime,command | grep -E '[d]art|[f]lutter|[x]codebuild' || true
-            for pid in $(pgrep -f 'dart|flutter' | head -4); do
-              echo "--- sample $pid"
-              /usr/bin/sample "$pid" 3 -mayDie 2>/dev/null | head -60 \
-                || echo "(sample failed for $pid)"
-            done
-
-            # WHICH HANG IS THIS? There are two, and telling them apart took a
-            # side-by-side reading of two full job logs. Saying it here costs
-            # nothing and makes the next one a one-line answer:
+            # THE TARGETED WATCHDOG. Not "the test is slow" -- that is the 10m
+            # one below, which only reports. This fires on ONE signature:
+            # flutter said it was waiting for the VM service and never found it.
             #
-            #   A  xcodebuild alive, IDEProvisioningManager in its stack. The
-            #      signing stall #147 fixed by forcing manual signing. Seeing
-            #      it again means that override stopped taking effect.
-            #   B  no xcodebuild, Runner alive and idle in UIApplicationMain,
-            #      dart waiting. The build finished and the app launched; the
-            #      tool never drove it. NOT addressed by #147, seen once on
-            #      run 33527434921, and the reason --verbose is on above.
+            # `flutter test` has no flag for this. There is no
+            # --host-vmservice-port and no connection timeout; --timeout applies
+            # to individual tests, not to device discovery. So the tool waits
+            # forever by design and the only lever we have is to stop waiting.
             #
-            # Derived from what is actually running, so a mode nobody has seen
-            # yet reports as unrecognised rather than being forced into A or B.
-            echo "--- which hang is this?"
-            if pgrep -x xcodebuild >/dev/null 2>&1; then
-              echo "mode A (signing): xcodebuild is still running -- check its stack"
-              echo "                  for IDEProvisioningManager. #147's override may"
-              echo "                  have stopped applying."
-            elif pgrep -f 'Runner.app/Runner' >/dev/null 2>&1; then
-              echo "mode B (never driven): the app is running and the tool is not"
-              echo "                  driving it. #147 does not address this one."
-              echo "                  Read the --verbose output above for the last"
-              echo "                  step flutter reported."
-            else
-              echo "UNRECOGNISED: neither xcodebuild nor Runner is alive. Not mode A"
-              echo "                  or mode B -- read the stacks above from scratch."
-            fi
-            echo "::endgroup::"
-          ) &
-          watchdog_pid=$!
+            # 120s against a measured 1463ms. On the passing run the URL arrived
+            # `[+1463 ms]` after the Waiting line, so this is ~80x the observed
+            # discovery time -- slow enough that a merely sluggish runner is
+            # never cut off, fast enough that a stall costs two minutes instead
+            # of fifteen.
+            (
+              for _ in $(seq 1 120); do
+                sleep 1
+                kill -0 "$pid" 2>/dev/null || exit 0
+                if grep -q 'VM Service URL on device' "$log" 2>/dev/null; then exit 0; fi
+              done
+              kill -0 "$pid" 2>/dev/null || exit 0
+              if grep -q 'Waiting for VM Service port' "$log" 2>/dev/null \
+                 && ! grep -q 'VM Service URL on device' "$log" 2>/dev/null; then
+                echo "::warning::VM service never appeared 120s after flutter began waiting."
+                echo "::warning::This is the mode-B stall; abandoning this attempt."
+                kill "$pid" 2>/dev/null || true
+              fi
+            ) &
+            local vmwatch=$!
 
-          # `|| status=$?` because the step runs under `bash -e`: a bare
-          # `wait` on a failing test would exit the script right there, and
-          # the lines below -- including the watchdog cleanup and the explicit
-          # exit -- would never run. The test's own status is still what this
-          # step reports.
+            local st=0
+            wait "$pid" || st=$?
+            kill "$vmwatch" 2>/dev/null || true
+            return "$st"
+          }
+
+          # WAS IT THE STALL, or a real test failure? Only the first earns a
+          # second attempt. A blanket retry would re-run genuine failures and
+          # turn a deterministic bug into a flaky one, which is worse than the
+          # failure it hides.
+          stalled() {
+            grep -q 'Waiting for VM Service port' "$1" 2>/dev/null \
+              && ! grep -q 'VM Service URL on device' "$1" 2>/dev/null
+          }
+
           status=0
-          wait "$test_pid" || status=$?
-          kill "$watchdog_pid" 2>/dev/null || true
+          attempt /tmp/flutter-1.log || status=$?
+          if [ "$status" != 0 ] && stalled /tmp/flutter-1.log; then
+            echo "::warning::Retrying once: the VM service never appeared, which is"
+            echo "::warning::a discovery stall rather than a test failure."
+            status=0
+            attempt /tmp/flutter-2.log || status=$?
+            if [ "$status" != 0 ] && stalled /tmp/flutter-2.log; then
+              echo "::error::The VM service never appeared on either attempt."
+              echo "::error::That is no longer intermittent -- read the samples above."
+            fi
+          fi
           exit "$status"
 
       - name: What the simulator was doing when it hung
