@@ -151,7 +151,12 @@ jobs:
       # the FIRST thing to say something.
       - name: Run integration test on the iOS simulator
         working-directory: e2e/flutter
-        timeout-minutes: 15
+        # TWO ATTEMPTS MUST FIT, or the retry is decorative. A build is ~7m and
+        # the stall costs 2m more, so a stalled-then-clean pair is ~16m and the
+        # worst case (phase-1 cap twice) is 24m. 15m could not hold even one
+        # stalled attempt, which is the second reason the retry never ran.
+        # The job cap stays 45m, leaving room for setup and the diagnostics.
+        timeout-minutes: 30
         env:
           UDID: ${{ steps.sim.outputs.udid }}
           BUNDLE_ID: com.example.entraEmulatorE2e
@@ -216,24 +221,52 @@ jobs:
             # to individual tests, not to device discovery. So the tool waits
             # forever by design and the only lever we have is to stop waiting.
             #
-            # 120s against a measured 1463ms. On the passing run the URL arrived
-            # `[+1463 ms]` after the Waiting line, so this is ~80x the observed
-            # discovery time -- slow enough that a merely sluggish runner is
-            # never cut off, fast enough that a stall costs two minutes instead
-            # of fifteen.
+            # TWO PHASES, because 120s from LAUNCH is not 120s from the WAIT.
+            #
+            # The first version counted its 120 seconds from the moment flutter
+            # started, then asked whether the Waiting line had appeared. It
+            # never had: the Xcode build alone takes ~5-7 minutes, so the window
+            # closed while the build was still running, the grep missed, and the
+            # watchdog exited without arming. Nothing then killed the hung
+            # flutter, `attempt` never returned, and the retry below was
+            # unreachable -- every stall ran to the step timeout instead.
+            # Measured on real runs: step start -> Waiting line is 5m20s on the
+            # passing run 34020469770 and 6m52s on the stalled 34100185589, so
+            # the 120s window had expired minutes before the event it watched
+            # for could occur, on passing and failing runs alike.
+            #
+            # So: wait for the wait, THEN time it.
+            #   phase 1  up to 10m for `Waiting for VM Service port` to appear
+            #   phase 2  120s from that line for `VM Service URL on device`
+            #
+            # 120s is against a measured 1603ms on the passing run, ~75x the
+            # observed discovery time: slow enough that a sluggish runner is
+            # never cut off, fast enough that a stall costs two minutes.
             (
+              seen=0
+              for _ in $(seq 1 600); do
+                sleep 1
+                kill -0 "$pid" 2>/dev/null || exit 0
+                if grep -q 'VM Service URL on device' "$log" 2>/dev/null; then exit 0; fi
+                if grep -q 'Waiting for VM Service port' "$log" 2>/dev/null; then seen=1; break; fi
+              done
+              if [ "$seen" != 1 ]; then
+                # Say so rather than exiting quietly: a silent no-op watchdog is
+                # exactly the bug this replaces.
+                kill -0 "$pid" 2>/dev/null || exit 0
+                echo "::warning::Build did not reach VM-service discovery within 10m;"
+                echo "::warning::the stall watchdog never armed. Raise phase 1 if this recurs."
+                exit 0
+              fi
               for _ in $(seq 1 120); do
                 sleep 1
                 kill -0 "$pid" 2>/dev/null || exit 0
                 if grep -q 'VM Service URL on device' "$log" 2>/dev/null; then exit 0; fi
               done
               kill -0 "$pid" 2>/dev/null || exit 0
-              if grep -q 'Waiting for VM Service port' "$log" 2>/dev/null \
-                 && ! grep -q 'VM Service URL on device' "$log" 2>/dev/null; then
-                echo "::warning::VM service never appeared 120s after flutter began waiting."
-                echo "::warning::This is the mode-B stall; abandoning this attempt."
-                kill "$pid" 2>/dev/null || true
-              fi
+              echo "::warning::VM service never appeared 120s after flutter began waiting."
+              echo "::warning::This is the mode-B stall; abandoning this attempt."
+              kill "$pid" 2>/dev/null || true
             ) &
             local vmwatch=$!
 
