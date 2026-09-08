@@ -1,6 +1,6 @@
 {
   "scenario": "graph-application-shape",
-  "capturedAt": "2026-09-08T22:25:58Z",
+  "capturedAt": "2026-09-08T23:26:57Z",
   "kind": "shape",
   "url": "https://graph.microsoft.com/v1.0/applications/{guid}",
   "note": "Key set of Graph's default projection. Values are NOT compared: the two directories hold counterparts, not copies.",

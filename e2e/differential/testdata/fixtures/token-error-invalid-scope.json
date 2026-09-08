@@ -1,6 +1,6 @@
 {
   "scenario": "token-error-invalid-scope",
-  "capturedAt": "2026-09-08T22:25:57Z",
+  "capturedAt": "2026-09-08T23:26:54Z",
   "response": {
     "status": 400,
     "body": {

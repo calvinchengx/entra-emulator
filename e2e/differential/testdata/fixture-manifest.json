@@ -16,7 +16,7 @@
     "",
     "`normalizations` is the contract between capture.sh and the harness: capture",
     "folds these to placeholders, the harness is permitted to ignore exactly",
-    "these and nothing else. Widening it makes diffs pass \u2014 see the mutation",
+    "these and nothing else. Widening it makes diffs pass — see the mutation",
     "check in the harness, which exists because over-normalising fails silently.",
     "",
     "Graph scenarios come in two kinds, because two different things are comparable.",
@@ -31,7 +31,7 @@
     "returned on any of these paths."
   ],
   "schemaVersion": "1",
-  "capturedAt": "2026-09-08T22:26:00Z",
+  "capturedAt": "2026-09-08T23:27:02Z",
   "maxAgeDays": 90,
   "normalizations": [
     "tenant-id",
@@ -61,7 +61,7 @@
       "id": "token-error-invalid-client",
       "status": "captured",
       "azureRequired": true,
-      "what": "wrong client secret \u2014 envelope, error_codes, AADSTS number",
+      "what": "wrong client secret — envelope, error_codes, AADSTS number",
       "fixture": "token-error-invalid-client.json"
     },
     {
@@ -151,24 +151,27 @@
     },
     {
       "id": "graph-select-known-property",
-      "status": "planned",
+      "status": "captured",
       "azureRequired": true,
       "kind": "projection",
-      "what": "single entity with $select naming a REAL property: does id come back? the emulator now assumes not"
+      "what": "single entity with $select naming a REAL property: does id come back? the emulator now assumes not",
+      "fixture": "graph-select-known-property.json"
     },
     {
       "id": "graph-collection-select",
-      "status": "planned",
+      "status": "captured",
       "azureRequired": true,
       "kind": "projection",
-      "what": "collection read with $select: applySelect still retains id here, and that is unwitnessed"
+      "what": "collection read with $select: applySelect still retains id here, and that is unwitnessed",
+      "fixture": "graph-collection-select.json"
     },
     {
       "id": "graph-users-collection-default",
-      "status": "planned",
+      "status": "captured",
       "azureRequired": true,
       "kind": "projection",
-      "what": "does the DEFAULT projection apply to a collection read as it does to a single entity? the emulator now assumes yes"
+      "what": "does the DEFAULT projection apply to a collection read as it does to a single entity? the emulator now assumes yes",
+      "fixture": "graph-users-collection-default.json"
     }
   ]
 }

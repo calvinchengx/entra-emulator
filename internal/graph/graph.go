@@ -4,7 +4,6 @@ package graph
 
 import (
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -284,16 +283,10 @@ func (g *Graph) selectEntity(r *http.Request, shape map[string]any) map[string]a
 			fields = append(fields, f)
 		}
 	}
-	out := applySelect(shape, fields)
-	// Entra does NOT re-add id to a projected single entity: a recorded
-	// ?$select=noSuchProperty came back as the context document and nothing
-	// else. applySelect keeps id for collections, which is a separate case and
-	// is not witnessed, so the difference is deliberate rather than an
-	// oversight.
-	if !slices.Contains(fields, "id") {
-		delete(out, "id")
-	}
-	return out
+	// applySelect no longer re-adds id, on either surface, so nothing further is
+	// needed here. Both cases are recorded: graph-select-known-property (entity)
+	// and graph-collection-select (collection) each came back without id.
+	return applySelect(shape, fields)
 }
 
 func (g *Graph) handleUsers(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {

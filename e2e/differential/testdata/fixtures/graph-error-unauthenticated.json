@@ -1,6 +1,6 @@
 {
   "scenario": "graph-error-unauthenticated",
-  "capturedAt": "2026-09-08T22:26:00Z",
+  "capturedAt": "2026-09-08T23:26:59Z",
   "response": {
     "status": 401,
     "body": {
