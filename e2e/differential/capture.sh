@@ -52,11 +52,16 @@ rm -f "$FIXTURES"/token-*.json
 # Ordering matters: the tenant GUID is substituted before the generic GUID rule,
 # or it would be flattened into {guid} and stop being recognisable.
 normalise() {
-  jq --arg tenant "$TENANT_ID" --arg app "$DAEMON_APPID" '
+  jq --arg tenant "$TENANT_ID" --arg app "$DAEMON_APPID" --arg domain "$EXPECTED_DOMAIN" '
     walk(
       if type == "string" then
           gsub($tenant; "{tenant-id}")
         | gsub($app; "{daemon-app-id}")
+        # UPNs and mail carry the verified domain, and the two directories use
+        # different ones. Fold both sides to the same placeholder, or every
+        # identity string reads as a difference. NOTE: no apostrophes in here,
+        # a single quote closes the jq program this comment lives inside.
+        | gsub($domain; "{domain}")
         # request-scoped identifiers: different on every call, never a difference
         | gsub("(?<a>[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})"; "{guid}")
         | gsub("(?<t>\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}:\\d{2}Z?)"; "{timestamp}")
@@ -203,6 +208,85 @@ post_token \
   --data-urlencode "scope=https://graph.microsoft.com/.default"
 record "token-error-unknown-client" "$HTTP_STATUS" "$HTTP_BODY"
 
+# ---- Graph -----------------------------------------------------------------
+# Two kinds of scenario, because two different things are comparable.
+#
+# SHAPES record the KEY SET only. The capture tenant and the emulator hold
+# deliberate counterparts, not copies: alice is `emudiff-alice` here and
+# `Alice Example` there. Diffing bodies would bury the protocol differences,
+# which are the only ones that matter, under content differences that are
+# correct on both sides. What an emulator has to get right is the DEFAULT
+# PROJECTION: which fields Graph returns when the caller asks for none.
+#
+# ERRORS record the whole body, because an error envelope IS protocol. Graph's
+# carries `error.code`, `error.message` and an `innerError` with request ids,
+# and omitting innerError entirely is the classic emulator divergence. No
+# secret is returned on any of these paths.
+#
+# Authenticated as the signed-in admin via `az rest`, the same way seed.sh
+# writes. The daemon SP has no consented Graph application permissions, so an
+# app-only token would 403 on every one of these and record a permission
+# envelope instead of the object.
+
+ALICE_ID=$(jq -r .azure.alice.objectId "$IDENTITY_FILE")
+GROUP_ID=$(jq -r .azure.group.objectId "$IDENTITY_FILE")
+DAEMON_OBJID=$(jq -r .azure.daemon.objectId "$IDENTITY_FILE")
+GRAPH="https://graph.microsoft.com/v1.0"
+
+# record_shape <scenario-id> <url> -- the sorted key set of the default projection
+record_shape() {
+  local id="$1" url="$2" body keys
+  if ! body=$(az rest --url "$url" -o json 2>/dev/null); then
+    echo "  SKIPPED $id (Graph call failed; is the admin session still valid?)" >&2
+    return 0
+  fi
+  keys=$(printf '%s' "$body" | jq -c '[keys[]] | sort')
+  jq -n --arg id "$id" --arg capturedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        --arg url "$(printf '%s' "$url" | sed "s|$ALICE_ID|{guid}|; s|$GROUP_ID|{guid}|; s|$DAEMON_OBJID|{guid}|")" \
+        --argjson keys "$keys" \
+    '{scenario: $id, capturedAt: $capturedAt, kind: "shape", url: $url,
+      note: "Key set of Graph'"'"'s default projection. Values are NOT compared: the two directories hold counterparts, not copies.",
+      keys: $keys}' > "$FIXTURES/$id.json"
+  echo "  captured $id ($(printf '%s' "$keys" | jq 'length') keys)"
+}
+
+# graph_get <url> [--no-auth] -> HTTP_STATUS / HTTP_BODY
+graph_get() {
+  local url="$1" out token
+  if [ "${2:-}" = "--no-auth" ]; then
+    out=$(curl -s -w '\n%{http_code}' "$url")
+  else
+    token=$(az account get-access-token --resource https://graph.microsoft.com --query accessToken -o tsv)
+    out=$(curl -s -w '\n%{http_code}' -H "Authorization: Bearer $token" "$url")
+  fi
+  HTTP_STATUS="${out##*$'\n'}"
+  HTTP_BODY="${out%$'\n'*}"
+}
+
+echo "capturing Graph shapes"
+record_shape "graph-user-shape"             "$GRAPH/users/$ALICE_ID"
+record_shape "graph-group-shape"            "$GRAPH/groups/$GROUP_ID"
+record_shape "graph-application-shape"      "$GRAPH/applications/$DAEMON_OBJID"
+record_shape "graph-serviceprincipal-shape" "$GRAPH/servicePrincipals(appId='$DAEMON_APPID')"
+
+echo "capturing Graph error envelopes"
+# A well-formed id that belongs to nobody.
+graph_get "$GRAPH/users/00000000-0000-0000-0000-000000000000"
+record "graph-error-not-found" "$HTTP_STATUS" "$HTTP_BODY"
+
+# A syntactically invalid id. Graph and a naive emulator disagree about whether
+# this is 400 or 404, which is exactly the kind of thing only a recording settles.
+graph_get "$GRAPH/users/not-a-valid-object-id"
+record "graph-error-invalid-id" "$HTTP_STATUS" "$HTTP_BODY"
+
+# No Authorization header at all.
+graph_get "$GRAPH/users/$ALICE_ID" --no-auth
+record "graph-error-unauthenticated" "$HTTP_STATUS" "$HTTP_BODY"
+
+# $select naming a property that does not exist on the resource.
+graph_get "$GRAPH/users/$ALICE_ID?\$select=noSuchProperty"
+record "graph-error-bad-select" "$HTTP_STATUS" "$HTTP_BODY"
+
 # ---- stamp the manifest --------------------------------------------------
 # capturedAt drives the staleness rule: the harness reports STALE rather than
 # passing once a fixture ages out, so an old recording cannot silently certify
@@ -221,9 +305,8 @@ jq --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson ids "$ids_json" '
       .id as $sid |
       if ($ids | index($sid)) != null
         then .status = "captured" | .fixture = ($sid + ".json")
-        elif ($sid | startswith("token-"))
-        then .status = "planned" | del(.fixture)
-        else . end))
+        else .status = "planned" | del(.fixture)
+        end))
 ' "$MANIFEST" > "$tmp" && mv "$tmp" "$MANIFEST"
 
 echo

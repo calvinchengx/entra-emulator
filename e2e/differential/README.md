@@ -126,6 +126,42 @@ and carry no secrets — `error_codes`, the AADSTS number, `trace_id` and
 `correlation_id` are exactly what a from-the-docs implementation omits, and no
 local test can tell us we omitted them.
 
+## Graph: two kinds of scenario, because two things are comparable
+
+The token endpoint could be diffed body-for-body. Graph cannot, and pretending
+otherwise would produce a harness that fails constantly for reasons nobody
+should act on.
+
+**`kind: shape` records the KEY SET only.** `seed.sh` builds deliberate
+*counterparts* of `internal/store/seed.go`, not copies: alice is
+`emudiff-alice` in the capture tenant and `Alice Example` in the emulator.
+Diffing bodies would bury the protocol differences, the only ones that matter,
+under content differences that are correct on both sides. What an emulator has
+to get right is the **default projection**: which fields Graph returns when the
+caller selects none. That is a real contract, it is invisible to our own tests,
+and it is exactly the kind of thing a client notices before we do.
+
+**`kind: error` records the whole body**, because an error envelope *is*
+protocol. Graph's carries `error.code`, `error.message`, and an `innerError`
+with `date`, `request-id` and `client-request-id`. Omitting `innerError`
+entirely is the classic emulator divergence, and no secret is returned on any
+of these paths, which is what makes errors the cheapest high-value capture.
+
+Two of the error scenarios exist because the answer is genuinely not
+predictable from the documentation:
+
+- **`graph-error-invalid-id`**: a syntactically invalid object id. Whether
+  Graph answers 400 or 404 is exactly the kind of question only a recording
+  settles, and guessing it is how an emulator ends up confidently wrong.
+- **`graph-error-unauthenticated`**: sends **no** `Authorization` header, not
+  an empty one. Graph distinguishes them, so the harness uses `getJSON` here
+  rather than `graphGet`, which always sets the header.
+
+Capture is authenticated as the signed-in admin through `az rest`, the same way
+`seed.sh` writes. The daemon service principal has no consented Graph
+application permissions, so an app-only token would `403` on every one of these
+and record a permission envelope instead of the object.
+
 ## Checking, which is separate from capturing
 
 `internal/server/differential_test.go` replays the fixtures against the
