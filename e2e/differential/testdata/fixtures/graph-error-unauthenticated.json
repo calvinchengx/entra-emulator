@@ -1,0 +1,18 @@
+{
+  "scenario": "graph-error-unauthenticated",
+  "capturedAt": "2026-09-08T22:26:00Z",
+  "response": {
+    "status": 401,
+    "body": {
+      "error": {
+        "code": "InvalidAuthenticationToken",
+        "message": "Access token is empty.",
+        "innerError": {
+          "date": "{timestamp}",
+          "request-id": "{guid}",
+          "client-request-id": "{guid}"
+        }
+      }
+    }
+  }
+}

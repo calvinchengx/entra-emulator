@@ -1,6 +1,6 @@
 {
   "scenario": "token-error-invalid-client",
-  "capturedAt": "2026-08-13T21:24:29Z",
+  "capturedAt": "2026-09-08T22:25:56Z",
   "response": {
     "status": 401,
     "body": {

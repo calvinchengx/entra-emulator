@@ -4,6 +4,7 @@ package graph
 
 import (
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -63,6 +64,12 @@ type handler func(w http.ResponseWriter, r *http.Request, tok *tokens.ValidatedT
 
 func (g *Graph) validate(r *http.Request) (*tokens.ValidatedToken, string) {
 	auth := r.Header.Get("Authorization")
+	if auth == "" {
+		// Entra distinguishes a MISSING header from a malformed one, and says
+		// exactly this for the former (recorded in e2e/differential). Only the
+		// absent case is witnessed, so the malformed case keeps its wording.
+		return nil, "Access token is empty."
+	}
 	if !strings.HasPrefix(auth, "Bearer ") {
 		return nil, "Access token is empty or invalid."
 	}
@@ -76,6 +83,7 @@ func (g *Graph) validate(r *http.Request) (*tokens.ValidatedToken, string) {
 
 func (g *Graph) requireBearer(next handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		httpx.GraphRequestIDs(w, r)
 		tok, msg := g.validate(r)
 		if tok == nil {
 			httpx.WriteGraphError(w, http.StatusUnauthorized, "InvalidAuthenticationToken", msg)
@@ -201,11 +209,23 @@ func (g *Graph) handleMe(w http.ResponseWriter, r *http.Request, tok *tokens.Val
 		return
 	}
 	shape := g.selectEntity(r, userShape(u))
-	shape["@odata.context"] = g.contextURL("users/$entity")
+	shape["@odata.context"] = g.entityContext(r, "users")
 	httpx.WriteJSON(w, http.StatusOK, shape)
 }
 
-// selectEntity applies $select to a single entity, always keeping id.
+// entityContext builds the @odata.context for a single entity, reflecting the
+// projection when one was asked for. Entra answers a selected read with
+// `#users(noSuchProperty)/$entity`, not `#users/$entity`: the context describes
+// what was actually returned, so a client can tell a projected entity from a
+// full one.
+func (g *Graph) entityContext(r *http.Request, set string) string {
+	if sel := strings.TrimSpace(r.URL.Query().Get("$select")); sel != "" {
+		return g.contextURL(set + "(" + sel + ")/$entity")
+	}
+	return g.contextURL(set + "/$entity")
+}
+
+// selectEntity applies $select to a single entity.
 func (g *Graph) selectEntity(r *http.Request, shape map[string]any) map[string]any {
 	sel := r.URL.Query().Get("$select")
 	// Graph returns customSecurityAttributes ONLY when explicitly selected, so
@@ -226,7 +246,16 @@ func (g *Graph) selectEntity(r *http.Request, shape map[string]any) map[string]a
 			fields = append(fields, f)
 		}
 	}
-	return applySelect(shape, fields)
+	out := applySelect(shape, fields)
+	// Entra does NOT re-add id to a projected single entity: a recorded
+	// ?$select=noSuchProperty came back as the context document and nothing
+	// else. applySelect keeps id for collections, which is a separate case and
+	// is not witnessed, so the difference is deliberate rather than an
+	// oversight.
+	if !slices.Contains(fields, "id") {
+		delete(out, "id")
+	}
+	return out
 }
 
 func (g *Graph) handleUsers(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
@@ -254,11 +283,11 @@ func (g *Graph) handleUserByID(w http.ResponseWriter, r *http.Request, _ *tokens
 		u, err = g.Store.GetUserByUPN(id) // Graph accepts GUID or UPN
 	}
 	if err != nil {
-		httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound", "Resource '"+id+"' does not exist.")
+		httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound", httpx.GraphResourceNotFound(id))
 		return
 	}
 	shape := g.selectEntity(r, userShape(u))
-	shape["@odata.context"] = g.contextURL("users/$entity")
+	shape["@odata.context"] = g.entityContext(r, "users")
 	httpx.WriteJSON(w, http.StatusOK, shape)
 }
 
@@ -287,7 +316,7 @@ func (g *Graph) handleGroupByID(w http.ResponseWriter, r *http.Request, _ *token
 		return
 	}
 	shape := g.selectEntity(r, groupShape(gr))
-	shape["@odata.context"] = g.contextURL("groups/$entity")
+	shape["@odata.context"] = g.entityContext(r, "groups")
 	httpx.WriteJSON(w, http.StatusOK, shape)
 }
 
@@ -329,7 +358,7 @@ func (g *Graph) handleMemberOf(w http.ResponseWriter, r *http.Request, tok *toke
 		userID = tok.OID
 	}
 	if _, err := g.Store.GetUser(userID); err != nil {
-		httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound", "Resource '"+userID+"' does not exist.")
+		httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound", httpx.GraphResourceNotFound(userID))
 		return
 	}
 	groups, err := g.Store.ListGroupsForUser(userID)

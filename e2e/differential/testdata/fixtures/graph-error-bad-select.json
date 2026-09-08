@@ -1,0 +1,10 @@
+{
+  "scenario": "graph-error-bad-select",
+  "capturedAt": "2026-09-08T22:26:00Z",
+  "response": {
+    "status": 200,
+    "body": {
+      "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users(noSuchProperty)/$entity"
+    }
+  }
+}

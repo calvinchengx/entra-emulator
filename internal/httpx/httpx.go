@@ -139,9 +139,63 @@ func WriteAdminError(w http.ResponseWriter, status int, code, message string, de
 }
 
 // WriteGraphError emits the Graph-shaped error body.
+// GraphRequestIDs stamps the correlation headers Graph returns on every
+// response, echoing the caller's client-request-id when it supplies one.
+// WriteGraphError reads them back out to build innerError, so a handler that
+// runs behind this gets a correlated error envelope for free.
+func GraphRequestIDs(w http.ResponseWriter, r *http.Request) {
+	if w.Header().Get("request-id") == "" {
+		w.Header().Set("request-id", store.NewGUID())
+	}
+	if w.Header().Get("client-request-id") == "" {
+		if c := r.Header.Get("client-request-id"); c != "" {
+			w.Header().Set("client-request-id", c)
+		} else {
+			w.Header().Set("client-request-id", store.NewGUID())
+		}
+	}
+}
+
+// GraphResourceNotFound is Entra's exact wording for a missing directory
+// object. The trailing clause about reference-property objects is not padding:
+// it is what Entra returns, recorded in e2e/differential, and callers match on
+// these strings. Kept in one place so the emulator cannot drift per handler.
+func GraphResourceNotFound(id string) string {
+	return "Resource '" + id + "' does not exist or one of its queried reference-property objects are not present."
+}
+
+// WriteGraphError writes Graph's error envelope.
+//
+// innerError is NOT optional decoration. Real Entra sends it on every error,
+// carrying date, request-id and client-request-id, and those ids are what
+// Microsoft support and SDK logging middleware correlate on. Omitting it was a
+// divergence found by diffing four recorded Graph errors against this emulator
+// (e2e/differential): all four matched on code and status and differed only
+// here, which is precisely the kind of gap our own tests cannot report.
+//
+// The ids are taken from the response headers when GraphRequestIDs has run, so
+// the envelope and the headers agree. A direct call still produces a complete
+// envelope rather than a half-populated one.
 func WriteGraphError(w http.ResponseWriter, status int, code, message string) {
 	if status == http.StatusUnauthorized {
 		w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token", error_description="`+message+`"`)
 	}
-	WriteJSON(w, status, map[string]any{"error": map[string]string{"code": code, "message": message}})
+	reqID := w.Header().Get("request-id")
+	if reqID == "" {
+		reqID = store.NewGUID()
+	}
+	clientReqID := w.Header().Get("client-request-id")
+	if clientReqID == "" {
+		clientReqID = store.NewGUID()
+	}
+	WriteJSON(w, status, map[string]any{"error": map[string]any{
+		"code":    code,
+		"message": message,
+		"innerError": map[string]any{
+			// Entra's own format here is a local timestamp with no zone offset.
+			"date":              time.Now().UTC().Format("2006-01-02T15:04:05"),
+			"request-id":        reqID,
+			"client-request-id": clientReqID,
+		},
+	}})
 }

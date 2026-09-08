@@ -283,6 +283,16 @@ record "graph-error-invalid-id" "$HTTP_STATUS" "$HTTP_BODY"
 graph_get "$GRAPH/users/$ALICE_ID" --no-auth
 record "graph-error-unauthenticated" "$HTTP_STATUS" "$HTTP_BODY"
 
+# $select naming a REAL property. Settles whether Entra returns id alongside it:
+# the emulator now assumes it does not, inferred from the unknown-property case
+# below, and this is the recording that confirms or overturns that.
+graph_get "$GRAPH/users/$ALICE_ID?\$select=displayName"
+record "graph-select-known-property" "$HTTP_STATUS" "$HTTP_BODY"
+
+# The same question for a COLLECTION, where applySelect still retains id.
+graph_get "$GRAPH/users?\$select=displayName&\$top=1"
+record "graph-collection-select" "$HTTP_STATUS" "$HTTP_BODY"
+
 # $select naming a property that does not exist on the resource.
 graph_get "$GRAPH/users/$ALICE_ID?\$select=noSuchProperty"
 record "graph-error-bad-select" "$HTTP_STATUS" "$HTTP_BODY"

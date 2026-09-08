@@ -104,7 +104,16 @@ func TestGraphODataBoolAndNullFilter(t *testing.T) {
 	if _, ok := one["userPrincipalName"]; ok {
 		t.Fatalf("single-entity $select should drop userPrincipalName: %v", one)
 	}
-	if _, ok := one["id"]; !ok {
-		t.Fatalf("single-entity $select must keep id: %v", one)
+	// id is returned only when selected. This assertion used to require the
+	// opposite; a recorded ?$select=noSuchProperty came back as the context
+	// document and NOTHING else, disproving "Graph always returns id".
+	//
+	// Evidence boundary, stated because it matters: the recording covers an
+	// UNKNOWN property. That id is likewise withheld for a KNOWN one is the
+	// simplest rule consistent with it, not something witnessed, so
+	// e2e/differential carries a graph-select-known-property scenario whose
+	// capture will confirm or overturn exactly this line.
+	if _, ok := one["id"]; ok {
+		t.Fatalf("single-entity $select must not re-add id: %v", one)
 	}
 }

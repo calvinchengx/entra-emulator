@@ -178,14 +178,103 @@ func TestWriteGraphError_Unauthorized(t *testing.T) {
 	if wa != `Bearer error="invalid_token", error_description="token expired"` {
 		t.Fatalf("WWW-Authenticate = %q", wa)
 	}
+	// map[string]any, not map[string]string: the envelope carries innerError,
+	// which is an object. A string-typed map silently stopped parsing when
+	// innerError was added, which is what this comment is here to prevent
+	// someone "fixing" by dropping the field again.
 	var raw struct {
-		Error map[string]string `json:"error"`
+		Error map[string]any `json:"error"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
 		t.Fatalf("body not JSON: %v", err)
 	}
 	if raw.Error["code"] != "InvalidAuthenticationToken" || raw.Error["message"] != "token expired" {
 		t.Fatalf("body = %+v", raw.Error)
+	}
+}
+
+// TestWriteGraphErrorCarriesInnerError pins the field real Entra sends on EVERY
+// error and this emulator omitted entirely until a recorded diff found it.
+// request-id is what Microsoft support and SDK logging middleware correlate on,
+// so an envelope without it is not merely terser, it is unusable for the thing
+// the field exists for.
+func TestWriteGraphErrorCarriesInnerError(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status int
+		code   string
+	}{
+		{"not found", http.StatusNotFound, "Request_ResourceNotFound"},
+		{"unauthorized", http.StatusUnauthorized, "InvalidAuthenticationToken"},
+		{"forbidden", http.StatusForbidden, "Authorization_RequestDenied"},
+		{"bad request", http.StatusBadRequest, "BadRequest"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			WriteGraphError(rec, tc.status, tc.code, "boom")
+			var raw struct {
+				Error struct {
+					Code       string            `json:"code"`
+					Message    string            `json:"message"`
+					InnerError map[string]string `json:"innerError"`
+				} `json:"error"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
+				t.Fatalf("body not JSON: %v", err)
+			}
+			if raw.Error.InnerError == nil {
+				t.Fatalf("innerError missing entirely from %s: %s", tc.code, rec.Body)
+			}
+			for _, k := range []string{"date", "request-id", "client-request-id"} {
+				if raw.Error.InnerError[k] == "" {
+					t.Errorf("innerError.%s empty: %v", k, raw.Error.InnerError)
+				}
+			}
+		})
+	}
+}
+
+// TestGraphRequestIDsEchoesClientRequestID: the caller supplies
+// client-request-id to correlate its own logs with the service's. Generating a
+// fresh one instead would look correct in isolation and break exactly the
+// correlation the header exists for.
+func TestGraphRequestIDsEchoes(t *testing.T) {
+	rec := httptest.NewRecorder()
+	r := httptest.NewRequest("GET", "/graph/v1.0/users", nil)
+	r.Header.Set("client-request-id", "caller-supplied-id")
+	GraphRequestIDs(rec, r)
+	if got := rec.Header().Get("client-request-id"); got != "caller-supplied-id" {
+		t.Errorf("client-request-id = %q, want the caller's", got)
+	}
+	if rec.Header().Get("request-id") == "" {
+		t.Error("request-id not stamped")
+	}
+
+	// And the envelope agrees with the headers, rather than inventing its own.
+	WriteGraphError(rec, http.StatusNotFound, "Request_ResourceNotFound", "nope")
+	var raw struct {
+		Error struct {
+			InnerError map[string]string `json:"innerError"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
+		t.Fatalf("body not JSON: %v", err)
+	}
+	if raw.Error.InnerError["client-request-id"] != "caller-supplied-id" {
+		t.Errorf("innerError disagrees with the header: %v", raw.Error.InnerError)
+	}
+	if raw.Error.InnerError["request-id"] != rec.Header().Get("request-id") {
+		t.Errorf("innerError request-id disagrees with the header")
+	}
+}
+
+// TestGraphResourceNotFoundWording pins Entra's exact string. Callers match on
+// it, and the trailing clause is not padding: it is what Entra returns.
+func TestGraphResourceNotFoundWording(t *testing.T) {
+	got := GraphResourceNotFound("abc")
+	want := "Resource 'abc' does not exist or one of its queried reference-property objects are not present."
+	if got != want {
+		t.Errorf("got  %q\nwant %q", got, want)
 	}
 }
 

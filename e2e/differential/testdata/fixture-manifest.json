@@ -31,7 +31,7 @@
     "returned on any of these paths."
   ],
   "schemaVersion": "1",
-  "capturedAt": "2026-08-13T21:24:30Z",
+  "capturedAt": "2026-09-08T22:26:00Z",
   "maxAgeDays": 90,
   "normalizations": [
     "tenant-id",
@@ -87,59 +87,81 @@
     },
     {
       "id": "graph-user-shape",
-      "status": "planned",
+      "status": "captured",
       "azureRequired": true,
       "kind": "shape",
-      "what": "the default projection Graph returns for a user when no $select is given"
+      "what": "the default projection Graph returns for a user when no $select is given",
+      "fixture": "graph-user-shape.json"
     },
     {
       "id": "graph-group-shape",
-      "status": "planned",
+      "status": "captured",
       "azureRequired": true,
       "kind": "shape",
-      "what": "the default projection for a group"
+      "what": "the default projection for a group",
+      "fixture": "graph-group-shape.json"
     },
     {
       "id": "graph-application-shape",
-      "status": "planned",
+      "status": "captured",
       "azureRequired": true,
       "kind": "shape",
-      "what": "the default projection for an application registration"
+      "what": "the default projection for an application registration",
+      "fixture": "graph-application-shape.json"
     },
     {
       "id": "graph-serviceprincipal-shape",
-      "status": "planned",
+      "status": "captured",
       "azureRequired": true,
       "kind": "shape",
-      "what": "the default projection for a service principal, addressed by appId key"
+      "what": "the default projection for a service principal, addressed by appId key",
+      "fixture": "graph-serviceprincipal-shape.json"
     },
     {
       "id": "graph-error-not-found",
-      "status": "planned",
+      "status": "captured",
       "azureRequired": true,
       "kind": "error",
-      "what": "a well-formed object id belonging to nobody: code, message, innerError"
+      "what": "a well-formed object id belonging to nobody: code, message, innerError",
+      "fixture": "graph-error-not-found.json"
     },
     {
       "id": "graph-error-invalid-id",
-      "status": "planned",
+      "status": "captured",
       "azureRequired": true,
       "kind": "error",
-      "what": "a syntactically invalid object id; 400 vs 404 is exactly what a recording settles"
+      "what": "a syntactically invalid object id; 400 vs 404 is exactly what a recording settles",
+      "fixture": "graph-error-invalid-id.json"
     },
     {
       "id": "graph-error-unauthenticated",
-      "status": "planned",
+      "status": "captured",
       "azureRequired": true,
       "kind": "error",
-      "what": "no Authorization header at all"
+      "what": "no Authorization header at all",
+      "fixture": "graph-error-unauthenticated.json"
     },
     {
       "id": "graph-error-bad-select",
-      "status": "planned",
+      "status": "captured",
       "azureRequired": true,
       "kind": "error",
-      "what": "$select naming a property the resource does not have"
+      "what": "$select naming a property the resource does not have",
+      "fixture": "graph-error-bad-select.json"
+    },
+    {
+      "id": "graph-select-known-property",
+      "status": "planned",
+      "azureRequired": true,
+      "kind": "projection",
+      "what": "single entity with $select naming a REAL property: does id come back? the emulator now assumes not"
+    },
+    {
+      "id": "graph-collection-select",
+      "status": "planned",
+      "azureRequired": true,
+      "kind": "projection",
+      "what": "collection read with $select: applySelect still retains id here, and that is unwitnessed"
     }
   ]
 }

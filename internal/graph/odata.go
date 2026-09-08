@@ -118,8 +118,13 @@ func fieldString(shape map[string]any, field string) string {
 	return fmt.Sprint(v)
 }
 
-// applySelect projects a shape to the selected fields. Graph always returns
-// id, so it is retained even when not explicitly selected.
+// applySelect projects a shape to the selected fields, retaining id.
+//
+// The id retention is DELIBERATELY still here for collections. A recording
+// showed Entra withholding id from a single entity projected by $select, and
+// selectEntity now matches that, but no collection read has been recorded, so
+// extending the same rule here would be inference rather than evidence. See
+// selectEntity and the collection scenario noted in e2e/differential.
 func applySelect(shape map[string]any, fields []string) map[string]any {
 	if len(fields) == 0 {
 		return shape

@@ -63,7 +63,7 @@ func fido2MethodShape(c *store.WebAuthnCredential) map[string]any {
 func (g *Graph) userMethods(w http.ResponseWriter, userID string) (hasPassword bool, creds []*store.WebAuthnCredential, ok bool) {
 	u, err := g.Store.GetUser(userID)
 	if err != nil {
-		httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound", "Resource '"+userID+"' does not exist.")
+		httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound", httpx.GraphResourceNotFound(userID))
 		return false, nil, false
 	}
 	creds, err = g.Store.ListWebAuthnCredentials(userID)
