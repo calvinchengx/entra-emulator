@@ -365,7 +365,14 @@ async function main() {
   check('create invitation', !!guestID && invite.status === 'PendingAcceptance' &&
     typeof invite.inviteRedeemUrl === 'string');
 
-  const guest = await api(`${GRAPH}/users/${guestID}`).get();
+  // userType and externalUserState are real user properties but sit OUTSIDE
+  // Graph's default projection, so the SDK has to ask for them by name. This
+  // used to work without a select because the emulator over-returned them; a
+  // recorded capture showed Entra withholds them, so the emulator now does too
+  // and this call mirrors what the same code must look like against Azure.
+  // userPrincipalName is selected explicitly because a select is exhaustive.
+  const guest = await api(`${GRAPH}/users/${guestID}`)
+    .select('userType,externalUserState,userPrincipalName').get();
   check('guest is a real directory user with the #EXT# UPN',
     guest.userType === 'Guest' && guest.externalUserState === 'PendingAcceptance' &&
     guest.userPrincipalName.includes('#EXT#@'));
@@ -376,7 +383,8 @@ async function main() {
   check('redeem link redirects to the inviting app',
     redeemed.status === 302 &&
     (redeemed.headers.get('location') ?? '').startsWith('https://app.example/welcome'));
-  const acceptedGuest = await api(`${GRAPH}/users/${guestID}`).get();
+  const acceptedGuest = await api(`${GRAPH}/users/${guestID}`)
+    .select('externalUserState').get();
   check('redeeming flips externalUserState to Accepted',
     acceptedGuest.externalUserState === 'Accepted');
 
