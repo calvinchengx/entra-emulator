@@ -570,3 +570,184 @@ func TestDifferentialTokenClaims(t *testing.T) {
 		}
 	}
 }
+
+// --- Graph -----------------------------------------------------------------
+//
+// Two comparisons, because two different things are comparable.
+//
+// SHAPES compare the KEY SET of the default projection. The capture tenant
+// holds deliberate counterparts of the emulator's seed rather than copies
+// (alice is `emudiff-alice` there and `Alice Example` here), so diffing bodies
+// would bury the protocol differences under content differences that are
+// correct on both sides. What an emulator has to get right is which fields
+// Graph returns when the caller selects none.
+//
+// ERRORS compare the whole normalised body, because an error envelope IS
+// protocol: `error.code`, `error.message`, and an `innerError` carrying request
+// ids that a from-the-docs implementation omits entirely.
+
+type capturedShape struct {
+	Scenario   string   `json:"scenario"`
+	CapturedAt string   `json:"capturedAt"`
+	Kind       string   `json:"kind"`
+	URL        string   `json:"url"`
+	Keys       []string `json:"keys"`
+}
+
+func loadShapeFixture(t *testing.T, name string) capturedShape {
+	t.Helper()
+	raw, err := os.ReadFile(differentialPath("testdata", "fixtures", name))
+	if err != nil {
+		t.Fatalf("read shape fixture %s: %v", name, err)
+	}
+	var fx capturedShape
+	if err := json.Unmarshal(raw, &fx); err != nil {
+		t.Fatalf("parse shape fixture %s: %v", name, err)
+	}
+	return fx
+}
+
+// graphShapePaths maps a scenario to the emulator path holding its counterpart.
+// The ids are the emulator's own seed constants: the identity map that pairs
+// them with the capture tenant's GUIDs lives in .capture-identity.json, which
+// is gitignored, so the pairing has to be expressed here by construction.
+func graphShapePaths() map[string]string {
+	return map[string]string{
+		"graph-user-shape":             "/graph/v1.0/users/" + aliceID,
+		"graph-group-shape":            "/graph/v1.0/groups/" + store.SeedGroupEngID,
+		"graph-application-shape":      "/graph/v1.0/applications/" + daemonID,
+		"graph-serviceprincipal-shape": "/graph/v1.0/servicePrincipals(appId='" + daemonID + "')",
+	}
+}
+
+// keyDiff reports keys present on only one side. Missing and extra are reported
+// separately because they are different defects: a field Graph returns and we
+// do not is a gap a client will hit, while one we invent is a field no client
+// will ever ask about but that may collide with a future Graph property.
+func keyDiff(want, got []string) (missing, extra []string) {
+	w := map[string]bool{}
+	for _, k := range want {
+		w[k] = true
+	}
+	g := map[string]bool{}
+	for _, k := range got {
+		g[k] = true
+	}
+	for _, k := range want {
+		if !g[k] {
+			missing = append(missing, k)
+		}
+	}
+	for _, k := range got {
+		if !w[k] {
+			extra = append(extra, k)
+		}
+	}
+	sort.Strings(missing)
+	sort.Strings(extra)
+	return missing, extra
+}
+
+func TestDifferentialGraphShapes(t *testing.T) {
+	m := loadManifest(t)
+	paths := graphShapePaths()
+	ran := 0
+	for _, s := range m.Scenarios {
+		if s.Status != "captured" || !strings.HasPrefix(s.ID, "graph-") {
+			continue
+		}
+		path, ok := paths[s.ID]
+		if !ok {
+			continue // an error scenario, compared by TestDifferentialGraphErrors
+		}
+		s := s
+		t.Run(s.ID, func(t *testing.T) {
+			ran++
+			fx := loadShapeFixture(t, s.Fixture)
+			if len(fx.Keys) == 0 {
+				t.Fatalf("%s: fixture records no keys; recapture it", s.ID)
+			}
+			hts, _, _ := newTestServer(t)
+			code, body := graphGet(t, hts.URL, path, appGraphToken(t, hts.URL))
+			if code != http.StatusOK {
+				t.Fatalf("%s: emulator answered %d, want 200: %v", s.ID, code, body)
+			}
+			got := make([]string, 0, len(body))
+			for k := range body {
+				got = append(got, k)
+			}
+			sort.Strings(got)
+			missing, extra := keyDiff(fx.Keys, got)
+			for _, k := range missing {
+				t.Errorf("%s: Entra returns %q, emulator does not", s.ID, k)
+			}
+			for _, k := range extra {
+				t.Errorf("%s: emulator returns %q, Entra does not", s.ID, k)
+			}
+		})
+	}
+	if ran == 0 {
+		t.Skip("no captured Graph shape fixtures yet — run e2e/differential/capture.sh")
+	}
+}
+
+// graphErrorRequests maps a scenario to the request that provokes it. `bearer`
+// false is the unauthenticated case, which must send no header at all rather
+// than an empty one: Graph distinguishes them.
+func graphErrorRequests() map[string]struct {
+	path   string
+	bearer bool
+} {
+	type req = struct {
+		path   string
+		bearer bool
+	}
+	return map[string]req{
+		"graph-error-not-found":       {"/graph/v1.0/users/00000000-0000-0000-0000-000000000000", true},
+		"graph-error-invalid-id":      {"/graph/v1.0/users/not-a-valid-object-id", true},
+		"graph-error-unauthenticated": {"/graph/v1.0/users/" + aliceID, false},
+		"graph-error-bad-select":      {"/graph/v1.0/users/" + aliceID + "?$select=noSuchProperty", true},
+	}
+}
+
+func TestDifferentialGraphErrors(t *testing.T) {
+	m := loadManifest(t)
+	reqs := graphErrorRequests()
+	ran := 0
+	for _, s := range m.Scenarios {
+		if s.Status != "captured" {
+			continue
+		}
+		r, ok := reqs[s.ID]
+		if !ok {
+			continue
+		}
+		s := s
+		t.Run(s.ID, func(t *testing.T) {
+			ran++
+			fx := loadFixture(t, s.Fixture)
+			hts, _, _ := newTestServer(t)
+			// The unauthenticated case must send NO Authorization header, not an
+			// empty one: Graph answers those differently, and graphGet always sets
+			// the header. getJSON sends none.
+			var code int
+			var body map[string]any
+			if r.bearer {
+				code, body = graphGet(t, hts.URL, r.path, appGraphToken(t, hts.URL))
+			} else {
+				code, body = getJSON(t, hts.URL+r.path)
+			}
+			if code != fx.Response.Status {
+				t.Errorf("%s: HTTP status: Entra %d, emulator %d", s.ID, fx.Response.Status, code)
+			}
+			want := normaliseValue(fx.Response.Body, "", "").(map[string]any)
+			got := normaliseValue(body, tenant, daemonID).(map[string]any)
+			for _, d := range diffKeys(want, got, "") {
+				t.Errorf("%s: %s", s.ID, d)
+			}
+		})
+	}
+	if ran == 0 {
+		t.Skip("no captured Graph error fixtures yet — run e2e/differential/capture.sh")
+	}
+}

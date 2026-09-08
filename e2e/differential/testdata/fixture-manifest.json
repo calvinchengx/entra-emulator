@@ -16,8 +16,19 @@
     "",
     "`normalizations` is the contract between capture.sh and the harness: capture",
     "folds these to placeholders, the harness is permitted to ignore exactly",
-    "these and nothing else. Widening it makes diffs pass — see the mutation",
-    "check in the harness, which exists because over-normalising fails silently."
+    "these and nothing else. Widening it makes diffs pass \u2014 see the mutation",
+    "check in the harness, which exists because over-normalising fails silently.",
+    "",
+    "Graph scenarios come in two kinds, because two different things are comparable.",
+    "kind=shape records the KEY SET only. The capture tenant holds deliberate",
+    "counterparts of the emulator's seed, not copies, so diffing bodies would bury",
+    "the protocol differences under content differences that are correct on both",
+    "sides. What an emulator must get right is the default projection: which fields",
+    "Graph returns when the caller selects none.",
+    "kind=error records the whole body, because an error envelope IS protocol.",
+    "Graph carries error.code, error.message and an innerError with request ids;",
+    "omitting innerError is the classic emulator divergence, and no secret is",
+    "returned on any of these paths."
   ],
   "schemaVersion": "1",
   "capturedAt": "2026-08-13T21:24:30Z",
@@ -28,7 +39,8 @@
     "guids",
     "timestamps",
     "token-lifetimes",
-    "access-token-redacted"
+    "access-token-redacted",
+    "verified-domain"
   ],
   "scenarios": [
     {
@@ -49,7 +61,7 @@
       "id": "token-error-invalid-client",
       "status": "captured",
       "azureRequired": true,
-      "what": "wrong client secret — envelope, error_codes, AADSTS number",
+      "what": "wrong client secret \u2014 envelope, error_codes, AADSTS number",
       "fixture": "token-error-invalid-client.json"
     },
     {
@@ -72,6 +84,62 @@
       "azureRequired": true,
       "what": "a well-formed client_id belonging to no application",
       "fixture": "token-error-unknown-client.json"
+    },
+    {
+      "id": "graph-user-shape",
+      "status": "planned",
+      "azureRequired": true,
+      "kind": "shape",
+      "what": "the default projection Graph returns for a user when no $select is given"
+    },
+    {
+      "id": "graph-group-shape",
+      "status": "planned",
+      "azureRequired": true,
+      "kind": "shape",
+      "what": "the default projection for a group"
+    },
+    {
+      "id": "graph-application-shape",
+      "status": "planned",
+      "azureRequired": true,
+      "kind": "shape",
+      "what": "the default projection for an application registration"
+    },
+    {
+      "id": "graph-serviceprincipal-shape",
+      "status": "planned",
+      "azureRequired": true,
+      "kind": "shape",
+      "what": "the default projection for a service principal, addressed by appId key"
+    },
+    {
+      "id": "graph-error-not-found",
+      "status": "planned",
+      "azureRequired": true,
+      "kind": "error",
+      "what": "a well-formed object id belonging to nobody: code, message, innerError"
+    },
+    {
+      "id": "graph-error-invalid-id",
+      "status": "planned",
+      "azureRequired": true,
+      "kind": "error",
+      "what": "a syntactically invalid object id; 400 vs 404 is exactly what a recording settles"
+    },
+    {
+      "id": "graph-error-unauthenticated",
+      "status": "planned",
+      "azureRequired": true,
+      "kind": "error",
+      "what": "no Authorization header at all"
+    },
+    {
+      "id": "graph-error-bad-select",
+      "status": "planned",
+      "azureRequired": true,
+      "kind": "error",
+      "what": "$select naming a property the resource does not have"
     }
   ]
 }
