@@ -162,6 +162,13 @@
       "azureRequired": true,
       "kind": "projection",
       "what": "collection read with $select: applySelect still retains id here, and that is unwitnessed"
+    },
+    {
+      "id": "graph-users-collection-default",
+      "status": "planned",
+      "azureRequired": true,
+      "kind": "projection",
+      "what": "does the DEFAULT projection apply to a collection read as it does to a single entity? the emulator now assumes yes"
     }
   ]
 }

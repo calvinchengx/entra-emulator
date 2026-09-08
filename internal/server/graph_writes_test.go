@@ -70,7 +70,11 @@ func TestGraphUserWrites(t *testing.T) {
 	if status != 204 {
 		t.Fatalf("patch user: %d", status)
 	}
-	_, got = graphGet(t, hts.URL, "/graph/v1.0/users/"+id, app)
+	// accountEnabled is a user property but NOT in Graph's default projection,
+	// so it has to be selected. The emulator used to hand it back unasked; a
+	// recorded capture showed Entra does not, and this read now mirrors what a
+	// client must actually write against Azure.
+	_, got = graphGet(t, hts.URL, "/graph/v1.0/users/"+id+"?$select=displayName,accountEnabled", app)
 	if got["displayName"] != "Carol Renamed" || got["accountEnabled"] != false {
 		t.Fatalf("patch not reflected: %v", got)
 	}

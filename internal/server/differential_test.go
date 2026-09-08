@@ -719,9 +719,11 @@ var graphNotYetModelled = map[string][]string{
 // the emulator hands back a shape Azure will not: code written against us can
 // read a field that is absent in production.
 var graphOverReturned = map[string][]string{
-	"graph-user-shape": {
-		"accountEnabled", "externalUserState", "userType",
-	},
+	// Empty on purpose. It held accountEnabled, externalUserState and userType
+	// for graph-user-shape until defaultUserProjection closed that divergence.
+	// An entry appearing here again means the emulator has started returning a
+	// field Entra withholds, which is the direction that fails only after a
+	// caller ships.
 }
 
 func sortedCopy(ss []string) []string {

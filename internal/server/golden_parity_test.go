@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -178,7 +179,19 @@ func TestGoldenParityGraph(t *testing.T) {
 		{"servicePrincipal", "/graph/v1.0/servicePrincipals"},
 	}
 	for _, c := range cases {
-		status, list := graphGet(t, hts.URL, c.path, app)
+		// Ask for the properties EXPLICITLY. This golden is about property-name
+		// drift (its provenance is Graph's official OpenAPI, i.e. the resource's
+		// properties), which is a different question from what Graph returns
+		// when the caller selects nothing. A recorded capture showed Entra's
+		// DEFAULT projection for a user is narrower than its property set, so
+		// the emulator now projects, and comparing a default response against
+		// the property list would assert something Entra itself does not do.
+		//
+		// The default projection is covered where it belongs, against the
+		// recording: TestDifferentialGraphShapes in differential_test.go.
+		spec0, _ := resources[c.resource].(map[string]any)
+		sel := strings.Join(asStrings(spec0["properties"]), ",")
+		status, list := graphGet(t, hts.URL, c.path+"?$select="+sel, app)
 		if status != http.StatusOK {
 			t.Errorf("%s: list status %d", c.resource, status)
 			continue

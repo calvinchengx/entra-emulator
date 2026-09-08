@@ -144,7 +144,13 @@ func applySelect(shape map[string]any, fields []string) map[string]any {
 // writeCollection applies $filter, $count, $top/$skiptoken paging, and $select
 // to a fully-materialized slice of shaped entities, then writes the OData
 // collection envelope.
-func (g *Graph) writeCollection(w http.ResponseWriter, r *http.Request, contextSuffix string, shapes []map[string]any, q odataQuery) {
+// The optional project narrows each entity to its resource DEFAULT PROJECTION,
+// and is applied after filtering and paging, which is the only correct order:
+// $filter addresses the resource's properties whether or not they are
+// projected, so narrowing first makes `$filter=accountEnabled eq true` match
+// nothing. Variadic so the callers that need no projection are untouched.
+func (g *Graph) writeCollection(w http.ResponseWriter, r *http.Request, contextSuffix string, shapes []map[string]any, q odataQuery,
+	project ...func(*http.Request, map[string]any) map[string]any) {
 	if q.Filter != nil {
 		kept := make([]map[string]any, 0, len(shapes))
 		for _, s := range shapes {
@@ -168,6 +174,9 @@ func (g *Graph) writeCollection(w http.ResponseWriter, r *http.Request, contextS
 
 	value := make([]map[string]any, 0, len(page))
 	for _, s := range page {
+		if len(project) > 0 && project[0] != nil {
+			s = project[0](r, s)
+		}
 		value = append(value, applySelect(s, q.Select))
 	}
 	resp := map[string]any{"@odata.context": g.contextURL(contextSuffix), "value": value}

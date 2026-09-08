@@ -283,6 +283,12 @@ record "graph-error-invalid-id" "$HTTP_STATUS" "$HTTP_BODY"
 graph_get "$GRAPH/users/$ALICE_ID" --no-auth
 record "graph-error-unauthenticated" "$HTTP_STATUS" "$HTTP_BODY"
 
+# The DEFAULT projection for a COLLECTION read. The emulator now applies the
+# single-entity projection to the list too, which is an inference: only the
+# single-entity read is recorded. This settles it.
+graph_get "$GRAPH/users?\$top=1"
+record "graph-users-collection-default" "$HTTP_STATUS" "$HTTP_BODY"
+
 # $select naming a REAL property. Settles whether Entra returns id alongside it:
 # the emulator now assumes it does not, inferred from the unknown-property case
 # below, and this is the recording that confirms or overturns that.
