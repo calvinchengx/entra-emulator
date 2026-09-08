@@ -1,0 +1,18 @@
+{
+  "scenario": "graph-error-not-found",
+  "capturedAt": "2026-09-08T22:25:59Z",
+  "response": {
+    "status": 404,
+    "body": {
+      "error": {
+        "code": "Request_ResourceNotFound",
+        "message": "Resource '{guid}' does not exist or one of its queried reference-property objects are not present.",
+        "innerError": {
+          "date": "{timestamp}",
+          "request-id": "{guid}",
+          "client-request-id": "{guid}"
+        }
+      }
+    }
+  }
+}

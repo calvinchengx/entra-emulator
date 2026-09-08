@@ -1,6 +1,6 @@
 {
   "scenario": "token-error-unknown-client",
-  "capturedAt": "2026-08-13T21:24:30Z",
+  "capturedAt": "2026-09-08T22:25:57Z",
   "response": {
     "status": 400,
     "body": {

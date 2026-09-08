@@ -1,0 +1,21 @@
+{
+  "scenario": "graph-user-shape",
+  "capturedAt": "2026-09-08T22:25:57Z",
+  "kind": "shape",
+  "url": "https://graph.microsoft.com/v1.0/users/{guid}",
+  "note": "Key set of Graph's default projection. Values are NOT compared: the two directories hold counterparts, not copies.",
+  "keys": [
+    "@odata.context",
+    "businessPhones",
+    "displayName",
+    "givenName",
+    "id",
+    "jobTitle",
+    "mail",
+    "mobilePhone",
+    "officeLocation",
+    "preferredLanguage",
+    "surname",
+    "userPrincipalName"
+  ]
+}

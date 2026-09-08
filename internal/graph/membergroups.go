@@ -39,7 +39,7 @@ func (g *Graph) getMemberObjects(withRoles bool) func(http.ResponseWriter, *http
 		}
 		if _, err := g.Store.GetUser(userID); err != nil {
 			httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound",
-				"Resource '"+userID+"' does not exist.")
+				httpx.GraphResourceNotFound(userID))
 			return
 		}
 

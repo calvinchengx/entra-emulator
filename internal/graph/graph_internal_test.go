@@ -157,8 +157,17 @@ func TestApplySelect(t *testing.T) {
 		t.Fatalf("empty fields should return full shape, got %v", got)
 	}
 	got := applySelect(shape, []string{"displayName", "absent"})
-	if got["id"] != "1" || got["displayName"] != "Alice" {
-		t.Fatalf("select missing id/displayName: %v", got)
+	if got["displayName"] != "Alice" {
+		t.Fatalf("select dropped the selected field: %v", got)
+	}
+	// applySelect serves COLLECTION reads and still retains id. That is
+	// deliberate and unwitnessed: the recording that disproved "Graph always
+	// returns id" was a SINGLE ENTITY read, so selectEntity drops id and this
+	// does not. See TestSelectEntity for the other half, and the
+	// graph-collection-select scenario in e2e/differential, whose capture
+	// settles whether this line should change too.
+	if got["id"] != "1" {
+		t.Fatalf("collection select should still carry id until a recording says otherwise: %v", got)
 	}
 	if _, ok := got["mail"]; ok {
 		t.Fatalf("mail should be projected out: %v", got)
@@ -254,8 +263,12 @@ func TestSelectEntity(t *testing.T) {
 		t.Fatalf("no select returns full shape: %v", got)
 	}
 	got := g.selectEntity(req("GET", "/x?$select=displayName"), shape)
-	if got["displayName"] != "Alice" || got["id"] != "1" {
+	if got["displayName"] != "Alice" {
 		t.Fatalf("selected = %v", got)
+	}
+	// See TestApplySelect: id is returned only when selected.
+	if _, ok := got["id"]; ok {
+		t.Fatalf("id must not be re-added when it was not selected: %v", got)
 	}
 	if _, ok := got["mail"]; ok {
 		t.Fatalf("mail should be gone: %v", got)
@@ -449,7 +462,10 @@ func TestHandleMe(t *testing.T) {
 	if body["displayName"] != "Alice Example" {
 		t.Fatalf("me = %v", body)
 	}
-	if !strings.Contains(body["@odata.context"].(string), "users/$entity") {
+	// The context reflects the PROJECTION when one was asked for: Entra answers
+	// a selected read with `#users(displayName)/$entity`, so a client can tell a
+	// projected entity from a full one.
+	if !strings.Contains(body["@odata.context"].(string), "users(displayName)/$entity") {
 		t.Fatalf("context = %v", body["@odata.context"])
 	}
 

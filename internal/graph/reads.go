@@ -2,6 +2,7 @@ package graph
 
 import (
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/calvinchengx/entra-emulator/internal/httpx"
@@ -30,6 +31,12 @@ func (g *Graph) registerReads(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc("GET "+prefix+"/v1.0/applications/{id}", g.requireBearer(g.getApplication))
 	mux.HandleFunc("GET "+prefix+"/v1.0/servicePrincipals", g.requireBearer(g.listServicePrincipals))
 	mux.HandleFunc("GET "+prefix+"/v1.0/servicePrincipals/{id}", g.requireBearer(g.getServicePrincipal))
+	// Alternate-key addressing, plus a Graph-shaped 404 for anything else that
+	// is a single unknown segment under /v1.0/. Registered as a whole-segment
+	// wildcard because http.ServeMux cannot mix a literal and a wildcard inside
+	// one segment, so `servicePrincipals(appId='{id}')` is not expressible as a
+	// pattern. Literal routes are more specific and still win.
+	mux.HandleFunc("GET "+prefix+"/v1.0/{key}", g.requireBearer(g.getByAlternateKey))
 }
 
 // oauth2ScopeShapes renders an app's exposed delegated scopes.
@@ -124,7 +131,7 @@ func (g *Graph) getApplication(w http.ResponseWriter, r *http.Request, _ *tokens
 		return
 	}
 	shape := g.selectEntity(r, g.applicationDTO(a))
-	shape["@odata.context"] = g.contextURL("applications/$entity")
+	shape["@odata.context"] = g.entityContext(r, "applications")
 	httpx.WriteJSON(w, http.StatusOK, shape)
 }
 
@@ -146,6 +153,37 @@ func (g *Graph) listServicePrincipals(w http.ResponseWriter, r *http.Request, _ 
 	g.writeCollection(w, r, "servicePrincipals", shapes, q)
 }
 
+// spByAppID matches Graph's alternate-key form for a service principal.
+var spByAppID = regexp.MustCompile(`^servicePrincipals\(appId='([^']+)'\)$`)
+
+// getByAlternateKey serves `servicePrincipals(appId='...')`, which is how Graph
+// lets a caller address a service principal by its appId instead of its object
+// id. The SDKs reach for it because it saves a $filter round trip, and the
+// emulator answered 404 with a NON-Graph body ("No such API route."), found by
+// diffing a recorded Graph read (e2e/differential).
+//
+// Anything else landing here is an unknown single-segment resource, and it now
+// gets Graph's own envelope rather than the router's: an SDK parsing the error
+// should not have to special-case us.
+func (g *Graph) getByAlternateKey(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
+	key := r.PathValue("key")
+	m := spByAppID.FindStringSubmatch(key)
+	if m == nil {
+		httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound",
+			httpx.GraphResourceNotFound(key))
+		return
+	}
+	a, err := g.Store.GetApp(m[1])
+	if err != nil {
+		httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound",
+			httpx.GraphResourceNotFound(m[1]))
+		return
+	}
+	shape := g.selectEntity(r, g.servicePrincipalDTO(a))
+	shape["@odata.context"] = g.entityContext(r, "servicePrincipals")
+	httpx.WriteJSON(w, http.StatusOK, shape)
+}
+
 func (g *Graph) getServicePrincipal(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
 	a, err := g.Store.GetApp(r.PathValue("id"))
 	if err != nil {
@@ -153,6 +191,6 @@ func (g *Graph) getServicePrincipal(w http.ResponseWriter, r *http.Request, _ *t
 		return
 	}
 	shape := g.selectEntity(r, g.servicePrincipalDTO(a))
-	shape["@odata.context"] = g.contextURL("servicePrincipals/$entity")
+	shape["@odata.context"] = g.entityContext(r, "servicePrincipals")
 	httpx.WriteJSON(w, http.StatusOK, shape)
 }
