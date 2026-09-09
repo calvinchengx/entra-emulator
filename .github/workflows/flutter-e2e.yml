@@ -215,8 +215,23 @@ jobs:
             # `Xcode build done. 83.2s` and the 15-minute cap; with it, the last
             # line is `Waiting for VM Service port to be available...`, which is
             # what the watchdog below keys on.
+            # `> >(tee ...)`, NOT `| tee`, so that $! is FLUTTER.
+            #
+            # After a pipeline, $! is the LAST stage -- tee -- so the watchdog
+            # below was killing tee and leaving flutter running. Worse, `wait`
+            # on a pipeline waits for the whole JOB, and a stalled flutter
+            # writes nothing, so it never takes SIGPIPE from tee's death and
+            # never exits: `wait` blocked forever and the retry underneath was
+            # unreachable. Run 34327775534 is that exactly -- the watchdog
+            # fired on time at 08:22:21, killed tee, and the step then sat
+            # silent for 21 more minutes until the 30-minute cap, with no
+            # second attempt.
+            #
+            # Process substitution makes $! the flutter process, so the kill
+            # lands on it and `wait` returns. It also makes the status
+            # unambiguously flutter's rather than the pipeline's last stage.
             flutter test integration_test -d "$UDID" --verbose \
-              --dart-define=EMU_ORIGIN=http://localhost:8443 2>&1 | tee "$log" &
+              --dart-define=EMU_ORIGIN=http://localhost:8443 > >(tee "$log") 2>&1 &
             local pid=$!
 
             # THE TARGETED WATCHDOG. Not "the test is slow" -- that is the 10m
