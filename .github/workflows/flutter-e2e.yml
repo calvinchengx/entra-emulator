@@ -235,10 +235,26 @@ jobs:
         run: |
           b="$RUNNER_TEMP/ios-e2e.xcresult"
           [ -d "$b" ] || { echo "(no result bundle at $b)"; exit 0; }
-          xcrun xcresulttool get test-results tests --path "$b" 2>/dev/null \
-            | head -200 \
-            || xcrun xcresulttool get --format json --path "$b" 2>/dev/null | head -200 \
-            || echo "(could not read the bundle)"
+          # PARSE, DO NOT `head`. The first version piped the tree through
+          # `head -200` and cut it off above every failureText, so the step
+          # printed the failing test's NAME and never its message -- the one
+          # thing it exists to show.
+          xcrun xcresulttool get test-results tests --path "$b" > /tmp/tests.json 2>/dev/null || {
+            echo "(could not read the bundle)"; exit 0; }
+          python3 - <<'PARSE'
+          import json
+          d = json.load(open("/tmp/tests.json"))
+          def walk(n, trail=()):
+              name = n.get("name", "")
+              here = trail + (name,) if name else trail
+              if n.get("failureText"):
+                  print(" > ".join(here))
+                  print("    " + n["failureText"].replace("\n", "\n    "))
+              for c in n.get("children", []):
+                  walk(c, here)
+          for t in d.get("testNodes", []):
+              walk(t)
+          PARSE
 
       - name: What the simulator was doing when it hung
         if: failure()
