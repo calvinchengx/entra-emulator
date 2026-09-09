@@ -149,6 +149,55 @@ jobs:
       # a merely-slow run is unharmed and still passes -- and the 15-minute cap
       # remains the thing that ends a hang. This only makes sure the cap is not
       # the FIRST thing to say something.
+      # HOW LONG DOES `log stream` TAKE TO START DELIVERING?
+      #
+      # This is a MEASUREMENT, not a fix, and it exists to separate the two
+      # mechanisms that survive the evidence in run 34327775534. There, the app
+      # published its VM-service URL at 08:20:03.362, which is 6.0s after
+      # flutter spawned `simctl spawn ... log stream` and 1.8s AFTER flutter
+      # said it was waiting -- and flutter never saw it. Either:
+      #
+      #   (a) the stream had not begun delivering yet, 6s in, or
+      #   (b) it was delivering and the unified log dropped the message.
+      #
+      # Those need different fixes -- (a) can be pre-warmed, (b) cannot -- and
+      # nothing so far distinguishes them. Spawning our own stream at a known
+      # instant and timestamping its FIRST delivered line measures (a)
+      # directly. Three samples, because one number from one boot is an
+      # anecdote.
+      #
+      # `date +%s.%N` is GNU-only; BSD date prints a literal N, so the clock
+      # here is python3. Runs on every run, not just failures: attach latency
+      # is a property of the runner, and a passing run is a sample too.
+      - name: How long does the device log stream take to attach
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          UDID: ${{ steps.sim.outputs.udid }}
+        run: |
+          now() { python3 -c 'import time;print(f"{time.time():.3f}")'; }
+          for i in 1 2 3; do
+            out=$(mktemp)
+            t0=$(now)
+            xcrun simctl spawn "$UDID" log stream --style compact \
+              --predicate 'eventType = logEvent' > "$out" 2>/dev/null &
+            probe=$!
+            t1=""
+            for _ in $(seq 1 300); do
+              if [ -s "$out" ]; then t1=$(now); break; fi
+              sleep 0.1
+            done
+            kill "$probe" 2>/dev/null || true
+            if [ -n "$t1" ]; then
+              # argv, NOT interpolation: nesting the shell's quotes inside an
+              # f-string is a SyntaxError, and the step would have printed
+              # nothing but tracebacks.
+              python3 -c 'import sys;print(f"  sample {sys.argv[1]}: first line after {float(sys.argv[3])-float(sys.argv[2]):.2f}s")' "$i" "$t0" "$t1"
+            else
+              echo "  sample $i: NO line within 30s"
+            fi
+          done
+
       - name: Run integration test on the iOS simulator
         working-directory: e2e/flutter
         # TWO ATTEMPTS MUST FIT, or the retry is decorative. A build is ~7m and
