@@ -206,12 +206,30 @@ jobs:
             -configuration Debug \
             -destination "platform=iOS Simulator,id=$UDID" \
             -resultBundlePath "$RUNNER_TEMP/ios-e2e.xcresult" \
+            -disable-clone-simulator \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY= \
             DEVELOPMENT_TEAM= \
             | tee "$RUNNER_TEMP/xcodebuild.log"
+
+      # THE FAILURE MESSAGE IS IN THE BUNDLE, NOT ON STDOUT. xcodebuild prints
+      # "Test case ... failed" and the name, and nothing about WHY: the Dart
+      # assertion text reaches XCTest through the macro's
+      # `XCTAssertTrue(success, @"%@", failureMessage)` and lands in the
+      # xcresult. Without this the log says a test failed and refuses to say
+      # what it expected.
+      - name: What the failing test actually said
+        if: failure()
+        continue-on-error: true
+        run: |
+          b="$RUNNER_TEMP/ios-e2e.xcresult"
+          [ -d "$b" ] || { echo "(no result bundle at $b)"; exit 0; }
+          xcrun xcresulttool get test-results tests --path "$b" 2>/dev/null \
+            | head -200 \
+            || xcrun xcresulttool get --format json --path "$b" 2>/dev/null | head -200 \
+            || echo "(could not read the bundle)"
 
       - name: What the simulator was doing when it hung
         if: failure()
