@@ -1,0 +1,26 @@
+{
+  "scenario": "graph-users-collection-default",
+  "capturedAt": "2026-09-08T23:26:59Z",
+  "response": {
+    "status": 200,
+    "body": {
+      "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users",
+      "@odata.nextLink": "https://graph.microsoft.com/v1.0/users?$top=1&$skiptoken=RFNwdAIAAQAAABI6Y2FsdmluQG9kZW9uY2cuYWkpVXNlcl9jMTc2N2EwMS01NWM5LTRkYTYtOWQzNS1kMWVmOWZmNGM3Mja5AAAAAAAAAAAAAA",
+      "value": [
+        {
+          "businessPhones": [],
+          "displayName": "Calvin Cheng",
+          "givenName": "Calvin",
+          "jobTitle": null,
+          "mail": null,
+          "mobilePhone": null,
+          "officeLocation": null,
+          "preferredLanguage": null,
+          "surname": "Cheng",
+          "userPrincipalName": "calvin_odeoncg.ai#EXT#@{domain}",
+          "id": "{guid}"
+        }
+      ]
+    }
+  }
+}

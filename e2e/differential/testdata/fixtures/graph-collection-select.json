@@ -1,0 +1,16 @@
+{
+  "scenario": "graph-collection-select",
+  "capturedAt": "2026-09-08T23:27:01Z",
+  "response": {
+    "status": 200,
+    "body": {
+      "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users(displayName)",
+      "@odata.nextLink": "https://graph.microsoft.com/v1.0/users?$select=displayName&$top=1&$skiptoken=RFNwdAIAAQAAABI6Y2FsdmluQG9kZW9uY2cuYWkpVXNlcl9jMTc2N2EwMS01NWM5LTRkYTYtOWQzNS1kMWVmOWZmNGM3Mja5AAAAAAAAAAAAAA",
+      "value": [
+        {
+          "displayName": "Calvin Cheng"
+        }
+      ]
+    }
+  }
+}

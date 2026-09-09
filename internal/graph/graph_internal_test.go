@@ -160,14 +160,13 @@ func TestApplySelect(t *testing.T) {
 	if got["displayName"] != "Alice" {
 		t.Fatalf("select dropped the selected field: %v", got)
 	}
-	// applySelect serves COLLECTION reads and still retains id. That is
-	// deliberate and unwitnessed: the recording that disproved "Graph always
-	// returns id" was a SINGLE ENTITY read, so selectEntity drops id and this
-	// does not. See TestSelectEntity for the other half, and the
-	// graph-collection-select scenario in e2e/differential, whose capture
-	// settles whether this line should change too.
-	if got["id"] != "1" {
-		t.Fatalf("collection select should still carry id until a recording says otherwise: %v", got)
+	// The capture that this comment used to await has happened.
+	// graph-collection-select recorded `/users?$select=displayName` coming back
+	// with entities holding displayName ALONE, so a projected collection drops
+	// id exactly as a projected entity does, and applySelect no longer retains
+	// it on either surface.
+	if _, ok := got["id"]; ok {
+		t.Fatalf("id must not be re-added when it was not selected: %v", got)
 	}
 	if _, ok := got["mail"]; ok {
 		t.Fatalf("mail should be projected out: %v", got)

@@ -1,0 +1,11 @@
+{
+  "scenario": "graph-select-known-property",
+  "capturedAt": "2026-09-08T23:27:00Z",
+  "response": {
+    "status": 200,
+    "body": {
+      "@odata.context": "https://graph.microsoft.com/v1.0/$metadata#users(displayName)/$entity",
+      "displayName": "emudiff alice"
+    }
+  }
+}

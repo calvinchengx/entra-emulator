@@ -1,8 +1,8 @@
 {
   "scenario": "graph-serviceprincipal-shape",
-  "capturedAt": "2026-09-08T22:25:59Z",
+  "capturedAt": "2026-09-08T23:26:57Z",
   "kind": "shape",
-  "url": "https://graph.microsoft.com/v1.0/servicePrincipals(appId='6f24699b-0b20-4e13-a13f-68725dac370e')",
+  "url": "https://graph.microsoft.com/v1.0/servicePrincipals(appId='ac2aa9de-22a4-448f-9677-976fe5b378c6')",
   "note": "Key set of Graph's default projection. Values are NOT compared: the two directories hold counterparts, not copies.",
   "keys": [
     "@odata.context",

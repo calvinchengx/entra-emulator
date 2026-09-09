@@ -1,6 +1,6 @@
 {
   "scenario": "graph-error-bad-select",
-  "capturedAt": "2026-09-08T22:26:00Z",
+  "capturedAt": "2026-09-08T23:27:01Z",
   "response": {
     "status": 200,
     "body": {

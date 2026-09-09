@@ -1,6 +1,6 @@
 {
   "scenario": "graph-group-shape",
-  "capturedAt": "2026-09-08T22:25:58Z",
+  "capturedAt": "2026-09-08T23:26:56Z",
   "kind": "shape",
   "url": "https://graph.microsoft.com/v1.0/groups/{guid}",
   "note": "Key set of Graph's default projection. Values are NOT compared: the two directories hold counterparts, not copies.",

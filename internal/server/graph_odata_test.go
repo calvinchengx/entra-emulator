@@ -88,8 +88,11 @@ func TestGraphODataSelectFilterCount(t *testing.T) {
 	if _, ok := first["userPrincipalName"]; ok {
 		t.Fatalf("$select should have dropped userPrincipalName: %v", first)
 	}
-	if _, ok := first["id"]; !ok {
-		t.Fatalf("$select must always keep id: %v", first)
+	// Recorded: a projected COLLECTION comes back without id unless selected
+	// (graph-collection-select in e2e/differential). "Graph always returns id"
+	// was the belief this suite was written from, and it is wrong.
+	if _, ok := first["id"]; ok {
+		t.Fatalf("$select must not re-add id: %v", first)
 	}
 
 	// $filter eq on a string field.

@@ -144,7 +144,13 @@
       "ci:sdk-e2e",
       "go:TestAdminUserCRUD",
       "go:TestAdminGroupCRUDAndMembers",
-      "go:TestGoldenParityGraph"
+      "go:TestGoldenParityGraph",
+      "diff:graph-user-shape",
+      "diff:graph-group-shape",
+      "diff:graph-application-shape",
+      "diff:graph-serviceprincipal-shape",
+      "diff:graph-users-collection-default",
+      "go:TestGraphUserDefaultProjectionWithholdsNonDefaultFields"
     ]
   },
   "directory-writes-users-groups-applications-group-membership-ref": {
@@ -179,7 +185,11 @@
     "witnesses": [
       "go:TestGraphODataSelectFilterCount",
       "go:TestGraphODataBoolAndNullFilter",
-      "ci:sdk-e2e"
+      "ci:sdk-e2e",
+      "diff:graph-select-known-property",
+      "diff:graph-collection-select",
+      "diff:graph-error-bad-select",
+      "go:TestGraphUserFilterSeesNonProjectedFields"
     ]
   },
   "scim-service-provider-inbound-serviceproviderconfig-resourcetypes-schemas-users-groups-crud-patchop": {
@@ -495,6 +505,17 @@
       "diff:token-error-invalid-scope",
       "diff:token-error-unsupported-grant-type",
       "diff:token-error-unknown-client"
+    ]
+  },
+  "graph-error-envelope-error-code-error-message-innererror": {
+    "section": "Microsoft Graph (`08-graph`)",
+    "claim": "Graph error envelope (`error.code` / `error.message` / `innerError`)",
+    "witnesses": [
+      "diff:graph-error-not-found",
+      "diff:graph-error-invalid-id",
+      "diff:graph-error-unauthenticated",
+      "go:TestGraphErrorsCarryInnerErrorOverTheWire",
+      "go:TestWriteGraphErrorCarriesInnerError"
     ]
   }
 }

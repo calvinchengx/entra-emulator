@@ -1,6 +1,6 @@
 {
   "scenario": "graph-error-not-found",
-  "capturedAt": "2026-09-08T22:25:59Z",
+  "capturedAt": "2026-09-08T23:26:58Z",
   "response": {
     "status": 404,
     "body": {

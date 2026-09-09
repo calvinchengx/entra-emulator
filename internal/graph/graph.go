@@ -4,7 +4,6 @@ package graph
 
 import (
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -156,6 +155,44 @@ func userShape(u *store.User) map[string]any {
 	}
 }
 
+// entraUserDefaultProjection is the field set Graph returns for a user when the
+// caller selects nothing. Taken from a RECORDING rather than from the
+// reference: e2e/differential/testdata/fixtures/graph-user-shape.json.
+//
+// It exists to stop this emulator OVER-returning. accountEnabled, userType and
+// externalUserState are real user properties and stay reachable with $select,
+// but Entra does not put them in the default projection. Returning them unasked
+// taught callers a shape Azure will not give: code reading user.accountEnabled
+// worked here and found the field absent in production. That direction is worse
+// than a missing field, because a missing field fails loudly at the caller
+// while an extra one fails only after they ship.
+//
+// Fields listed here that the emulator does not model are simply still absent.
+// Closing THAT gap is a separate decision, recorded as a ratchet in
+// internal/server/differential_test.go.
+var entraUserDefaultProjection = map[string]bool{
+	"businessPhones": true, "displayName": true, "givenName": true,
+	"id": true, "jobTitle": true, "mail": true, "mobilePhone": true,
+	"officeLocation": true, "preferredLanguage": true, "surname": true,
+	"userPrincipalName": true,
+}
+
+// defaultUserProjection narrows a user shape to what Graph returns unasked.
+// A $select is left alone: the caller has named what it wants, and the extra
+// properties are legitimately reachable that way.
+func defaultUserProjection(r *http.Request, shape map[string]any) map[string]any {
+	if strings.TrimSpace(r.URL.Query().Get("$select")) != "" {
+		return shape
+	}
+	out := make(map[string]any, len(shape))
+	for k, v := range shape {
+		if entraUserDefaultProjection[k] || strings.HasPrefix(k, "@odata.") {
+			out[k] = v
+		}
+	}
+	return out
+}
+
 func groupShape(gr *store.Group) map[string]any {
 	return map[string]any{
 		"id":              gr.ID,
@@ -208,7 +245,7 @@ func (g *Graph) handleMe(w http.ResponseWriter, r *http.Request, tok *tokens.Val
 		httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound", "The signed-in user no longer exists.")
 		return
 	}
-	shape := g.selectEntity(r, userShape(u))
+	shape := g.selectEntity(r, defaultUserProjection(r, userShape(u)))
 	shape["@odata.context"] = g.entityContext(r, "users")
 	httpx.WriteJSON(w, http.StatusOK, shape)
 }
@@ -246,16 +283,10 @@ func (g *Graph) selectEntity(r *http.Request, shape map[string]any) map[string]a
 			fields = append(fields, f)
 		}
 	}
-	out := applySelect(shape, fields)
-	// Entra does NOT re-add id to a projected single entity: a recorded
-	// ?$select=noSuchProperty came back as the context document and nothing
-	// else. applySelect keeps id for collections, which is a separate case and
-	// is not witnessed, so the difference is deliberate rather than an
-	// oversight.
-	if !slices.Contains(fields, "id") {
-		delete(out, "id")
-	}
-	return out
+	// applySelect no longer re-adds id, on either surface, so nothing further is
+	// needed here. Both cases are recorded: graph-select-known-property (entity)
+	// and graph-collection-select (collection) each came back without id.
+	return applySelect(shape, fields)
 }
 
 func (g *Graph) handleUsers(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
@@ -273,7 +304,12 @@ func (g *Graph) handleUsers(w http.ResponseWriter, r *http.Request, _ *tokens.Va
 	for _, u := range users {
 		shapes = append(shapes, userShape(u))
 	}
-	g.writeCollection(w, r, "users", shapes, q)
+	// Projection AFTER filtering, never before: $filter operates on the
+	// resource's properties regardless of what is projected, so narrowing the
+	// shape first made `$filter=accountEnabled eq true` match nothing. The
+	// collection case is not itself witnessed; see the graph-collection-select
+	// scenario in e2e/differential.
+	g.writeCollection(w, r, "users", shapes, q, defaultUserProjection)
 }
 
 func (g *Graph) handleUserByID(w http.ResponseWriter, r *http.Request, _ *tokens.ValidatedToken) {
@@ -286,7 +322,7 @@ func (g *Graph) handleUserByID(w http.ResponseWriter, r *http.Request, _ *tokens
 		httpx.WriteGraphError(w, http.StatusNotFound, "Request_ResourceNotFound", httpx.GraphResourceNotFound(id))
 		return
 	}
-	shape := g.selectEntity(r, userShape(u))
+	shape := g.selectEntity(r, defaultUserProjection(r, userShape(u)))
 	shape["@odata.context"] = g.entityContext(r, "users")
 	httpx.WriteJSON(w, http.StatusOK, shape)
 }

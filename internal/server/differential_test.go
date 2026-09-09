@@ -708,6 +708,14 @@ var graphNotYetModelled = map[string][]string{
 		"samlSingleSignOnSettings", "signInAudience", "tags",
 		"tokenEncryptionKeyId", "verifiedPublisher",
 	},
+	// Same five as graph-user-shape, and necessarily so: the collection read
+	// applies the same default projection, which graph-users-collection-default
+	// confirmed. Listed separately rather than aliased so that if the two ever
+	// diverge, the ratchet says which surface moved.
+	"graph-users-collection-default": {
+		"businessPhones", "jobTitle", "mobilePhone", "officeLocation",
+		"preferredLanguage",
+	},
 	"graph-user-shape": {
 		"businessPhones", "jobTitle", "mobilePhone", "officeLocation",
 		"preferredLanguage",
@@ -719,9 +727,11 @@ var graphNotYetModelled = map[string][]string{
 // the emulator hands back a shape Azure will not: code written against us can
 // read a field that is absent in production.
 var graphOverReturned = map[string][]string{
-	"graph-user-shape": {
-		"accountEnabled", "externalUserState", "userType",
-	},
+	// Empty on purpose. It held accountEnabled, externalUserState and userType
+	// for graph-user-shape until defaultUserProjection closed that divergence.
+	// An entry appearing here again means the emulator has started returning a
+	// field Entra withholds, which is the direction that fails only after a
+	// caller ships.
 }
 
 func sortedCopy(ss []string) []string {
@@ -859,5 +869,125 @@ func TestDifferentialGraphErrors(t *testing.T) {
 	}
 	if ran == 0 {
 		t.Skip("no captured Graph error fixtures yet — run e2e/differential/capture.sh")
+	}
+}
+
+// --- projections -------------------------------------------------------------
+//
+// These three were captured to settle inferences the emulator had been built
+// on, and one of them overturned its inference: a projected COLLECTION comes
+// back without id, exactly as a projected entity does, where the code had kept
+// id for collections on the grounds that only the entity case was witnessed.
+//
+// They are compared by KEY SET rather than by body: a collection response
+// carries @odata.nextLink, whose origin differs between Entra and a localhost
+// emulator for the same reason @odata.context does.
+func graphProjectionPaths() map[string]string {
+	return map[string]string{
+		"graph-select-known-property":    "/graph/v1.0/users/" + aliceID + "?$select=displayName",
+		"graph-collection-select":        "/graph/v1.0/users?$select=displayName&$top=1",
+		"graph-users-collection-default": "/graph/v1.0/users?$top=1",
+	}
+}
+
+// sortedKeysOfEntity is local to the differential comparison; the package
+// already has a keysOf with different semantics.
+func sortedKeysOfEntity(m map[string]any) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// entityOf returns the entity to compare: a collection response's first element,
+// or the body itself for a single entity.
+func entityOf(body map[string]any) map[string]any {
+	if vals, ok := body["value"].([]any); ok {
+		if len(vals) == 0 {
+			return nil
+		}
+		first, _ := vals[0].(map[string]any)
+		return first
+	}
+	return body
+}
+
+func TestDifferentialGraphProjections(t *testing.T) {
+	m := loadManifest(t)
+	paths := graphProjectionPaths()
+	ran := 0
+	for _, s := range m.Scenarios {
+		if s.Status != "captured" {
+			continue
+		}
+		path, ok := paths[s.ID]
+		if !ok {
+			continue
+		}
+		s := s
+		t.Run(s.ID, func(t *testing.T) {
+			ran++
+			fx := loadFixture(t, s.Fixture)
+			wantEntity := entityOf(fx.Response.Body)
+			if wantEntity == nil {
+				t.Fatalf("%s: recording has no entity to compare", s.ID)
+			}
+			hts, _, _ := newTestServer(t)
+			code, body := graphGet(t, hts.URL, path, appGraphToken(t, hts.URL))
+			if code != fx.Response.Status {
+				t.Fatalf("%s: HTTP status: Entra %d, emulator %d (%v)", s.ID, fx.Response.Status, code, body)
+			}
+			gotEntity := entityOf(body)
+			if gotEntity == nil {
+				t.Fatalf("%s: emulator returned no entity: %v", s.ID, body)
+			}
+			missing, extra := keyDiff(sortedKeysOfEntity(wantEntity), sortedKeysOfEntity(gotEntity))
+			diffAgainstRecordedGap(t, s.ID, missing, extra)
+		})
+	}
+	if ran == 0 {
+		t.Skip("no captured projection fixtures yet — run e2e/differential/capture.sh")
+	}
+}
+
+// TestEveryCapturedFixtureIsCompared closes the gap that lets a recording be
+// captured and then silently ignored.
+//
+// Capture writes a fixture for every scenario it knows; the comparisons find
+// their work by looking scenarios up in per-test maps, and a scenario in
+// NEITHER map is skipped by a `continue` that says nothing. Three fixtures sat
+// in exactly that state for one commit: recorded evidence, compared by nothing,
+// and every test still green.
+func TestEveryCapturedFixtureIsCompared(t *testing.T) {
+	m := loadManifest(t)
+	compared := map[string]bool{}
+	for id := range graphShapePaths() {
+		compared[id] = true
+	}
+	for id := range graphErrorRequests() {
+		compared[id] = true
+	}
+	for id := range graphProjectionPaths() {
+		compared[id] = true
+	}
+	// The token scenarios are matched by their own map inside
+	// TestDifferentialTokenScenarios, plus the claims comparison.
+	for _, id := range []string{
+		"token-client-credentials", "token-claims-client-credentials",
+		"token-error-invalid-client", "token-error-invalid-scope",
+		"token-error-unsupported-grant-type", "token-error-unknown-client",
+	} {
+		compared[id] = true
+	}
+	for _, s := range m.Scenarios {
+		if s.Status != "captured" {
+			continue
+		}
+		if !compared[s.ID] {
+			t.Errorf("%s is captured but no comparison claims it: a recording nothing reads "+
+				"is evidence that cannot fail. Add it to one of the scenario maps in this file.", s.ID)
+		}
 	}
 }

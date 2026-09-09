@@ -36,7 +36,10 @@ func TestB2BGuestInvitations(t *testing.T) {
 	}
 
 	t.Run("creates a real directory user with Entra's external shape", func(t *testing.T) {
-		status, u := graphGet(t, hts.URL, "/graph/v1.0/users/"+guestID, app)
+		// userType and externalUserState are outside Graph's default projection
+		// (recorded in e2e/differential), so a client selects them explicitly.
+		status, u := graphGet(t, hts.URL,
+			"/graph/v1.0/users/"+guestID+"?$select=userType,externalUserState,userPrincipalName,mail,displayName", app)
 		if status != http.StatusOK {
 			t.Fatalf("get guest: %d %v", status, u)
 		}
@@ -69,7 +72,7 @@ func TestB2BGuestInvitations(t *testing.T) {
 			t.Errorf("redirect target = %q", loc)
 		}
 
-		_, u := graphGet(t, hts.URL, "/graph/v1.0/users/"+guestID, app)
+		_, u := graphGet(t, hts.URL, "/graph/v1.0/users/"+guestID+"?$select=userType,externalUserState,userPrincipalName,mail,displayName", app)
 		if u["externalUserState"] != "Accepted" {
 			t.Fatalf("externalUserState after redemption = %v, want Accepted", u["externalUserState"])
 		}
@@ -99,7 +102,7 @@ func TestB2BGuestInvitations(t *testing.T) {
 	t.Run("ordinary members are not guests", func(t *testing.T) {
 		// The seeded users must still report Member with no external state, or
 		// the new fields would silently mislabel the whole directory.
-		status, alice := graphGet(t, hts.URL, "/graph/v1.0/users/"+aliceID, app)
+		status, alice := graphGet(t, hts.URL, "/graph/v1.0/users/"+aliceID+"?$select=userType,externalUserState,userPrincipalName,mail,displayName", app)
 		if status != http.StatusOK {
 			t.Fatalf("get alice: %d", status)
 		}
