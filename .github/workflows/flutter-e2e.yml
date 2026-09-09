@@ -200,13 +200,22 @@ jobs:
           date '+%Y-%m-%d %H:%M:%S' > /tmp/ios-attempt-start
           # `-destination id=<udid>` targets the simulator this job booted,
           # rather than letting xcodebuild pick one and boot a second.
+          #
+          # PARALLEL TESTING IS WHAT CLONES THE DEVICE. Left on, xcodebuild ran
+          # the tests on "Clone 1 of iPhone 17 Pro" and discarded it, so the
+          # diagnostics below inspected a simulator the tests never touched and
+          # `log show` returned zero lines for EVERY predicate, SpringBoard
+          # included. There is no `-disable-clone-simulator`; that is not an
+          # xcodebuild flag and passing it exits 64 with the usage text. The
+          # real levers are these two.
           xcodebuild test \
             -workspace Runner.xcworkspace \
             -scheme Runner \
             -configuration Debug \
             -destination "platform=iOS Simulator,id=$UDID" \
             -resultBundlePath "$RUNNER_TEMP/ios-e2e.xcresult" \
-            -disable-clone-simulator \
+            -parallel-testing-enabled NO \
+            -maximum-concurrent-test-simulator-destinations 1 \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
