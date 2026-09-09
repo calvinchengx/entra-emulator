@@ -45,7 +45,31 @@ Map<String, dynamic> decodeJwtPayload(String jwt) {
 }
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  // LET THE PLATFORM FINISH TURNING SEMANTICS ON BEFORE THE TEST STARTS.
+  //
+  // Under xcodebuild, XCTest attaches to the app and enables accessibility.
+  // The framework answers that by taking a SemanticsHandle OF ITS OWN --
+  // `_semanticsHandle ??= ensureSemantics()` in semantics/binding.dart's
+  // `_handleSemanticsEnabledChanged` -- and flutter_test compares the handle
+  // count at the end of a test against the count recorded when the test
+  // began. If the platform flips `semanticsEnabled` mid-test, the count rises
+  // and the test fails with "A SemanticsHandle was active at the end of the
+  // test", having already passed every assertion it makes.
+  //
+  // That handle belongs to the framework, so the test must not dispose it.
+  // Waiting here instead puts it in the BASELINE: the count is the same at
+  // the end as at the start, and the check is satisfied honestly rather than
+  // suppressed. On Android nothing enables semantics, the wait times out in
+  // two seconds and changes nothing.
+  setUpAll(() async {
+    final deadline = DateTime.now().add(const Duration(seconds: 2));
+    while (!binding.platformDispatcher.semanticsEnabled &&
+        DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+  });
 
   testWidgets('device-code flow issues verifiable tokens', (tester) async {
     final base = Uri.parse('$authorityUrl/oauth2/v2.0');
