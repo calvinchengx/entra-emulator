@@ -149,162 +149,128 @@ jobs:
       # a merely-slow run is unharmed and still passes -- and the 15-minute cap
       # remains the thing that ends a hang. This only makes sure the cap is not
       # the FIRST thing to say something.
-      - name: Run integration test on the iOS simulator
+      # XCTEST HOSTS THE DART TESTS, so nothing has to find a VM service.
+      #
+      # This used to be `flutter test integration_test -d "$UDID"`, which is
+      # the path for a developer's own Mac. It launches the app and then
+      # DISCOVERS the Dart VM service by reading the simulator's unified log --
+      # flutter passes `--disable-vm-service-publication`, so there is no mDNS
+      # fallback and no second channel. A live log stream has no history and
+      # `flutter test` has no discovery timeout, so a single missed line means
+      # waiting forever. That is the mode-B stall, on roughly half of nightly
+      # runs, and run 34327775534 caught it red-handed: the app published its
+      # URL at 08:20:03.362, 1.8s AFTER flutter said it was waiting, recovered
+      # from the PERSISTED log by the diagnostics below, and flutter never saw
+      # it. Everything built against that -- a watchdog, a retry, a stall
+      # capture -- was mitigation for a failure this path does not have.
+      #
+      # `integration_test` documents this route for iOS: RunnerTests.m expands
+      # INTEGRATION_TEST_IOS_RUNNER, which hosts each Dart test as a native
+      # XCTest, and xcodebuild reports them as ordinary test results. The
+      # Podfile Flutter generates already embeds `target 'RunnerTests'` with
+      # `inherit! :search_paths`, so nothing else is needed to link it.
+      #
+      # `--config-only` writes Generated.xcconfig and runs pod install without
+      # building; naming the test entrypoint is what compiles the Dart tests
+      # into the app that xcodebuild then exercises.
+      - name: Build the app with the Dart tests as its entrypoint
         working-directory: e2e/flutter
-        # TWO ATTEMPTS MUST FIT, or the retry is decorative. A build is ~7m and
-        # the stall costs 2m more, so a stalled-then-clean pair is ~16m and the
-        # worst case (phase-1 cap twice) is 24m. 15m could not hold even one
-        # stalled attempt, which is the second reason the retry never ran.
-        # The job cap stays 45m, leaving room for setup and the diagnostics.
-        timeout-minutes: 30
+        timeout-minutes: 15
+        run: |
+          # THE DART DEFINE BELONGS HERE, not on xcodebuild. `--dart-define`
+          # is compiled into the Dart snapshot and lands in
+          # Generated.xcconfig as DART_DEFINES; an `EMU_ORIGIN=...` argument
+          # to xcodebuild would set an Xcode BUILD SETTING that the Dart code
+          # never reads, and the test would silently fall back to its default
+          # origin instead of failing loudly.
+          flutter build ios --config-only --simulator \
+            --dart-define=EMU_ORIGIN=http://localhost:8443 \
+            integration_test/device_code_flow_test.dart
+
+      - name: Run the integration tests under xcodebuild
+        working-directory: e2e/flutter/ios
+        timeout-minutes: 20
         env:
           UDID: ${{ steps.sim.outputs.udid }}
-          BUNDLE_ID: com.example.entraEmulatorE2e
-          # WHY THE HANG HAPPENED, and why these five variables end it.
-          #
-          # A simulator build is never signed. But this project carries
-          # `CODE_SIGN_STYLE = Automatic` on three targets and a real
-          # `DEVELOPMENT_TEAM` (Runner.xcodeproj), and automatic signing makes
-          # Xcode evaluate provisioning anyway -- an evaluation that asks the
-          # Apple Developer PORTAL which capabilities the app id has. This
-          # runner has no Apple account to authenticate that with, so the query
-          # does not fail, it waits.
-          #
-          # Measured, not guessed. Run 33514608182 stalled for the full 15m
-          # after `Fetching from https://github.com/openid/AppAuth-iOS...`, and
-          # the watchdog below caught xcodebuild parked in:
-          #
-          #   -[IDEProvisioningManager evaluateProvisioningForProvisionable:...]
-          #     +[IDEProvisionableSnapshot appIDFeaturesFromProvisionable:...]
-          #       -[Xcode3TargetCapabilitiesContext(DVTPortalAppIDFeatures) ...]
-          #         IDECapabilityQuerySelection.loadInitialCapabilities(...)
-          #           IDECapabilityCachedPortalItemLocator.items(query:)
-          #
-          # with dart blocked in `__wait4` on that child -- flutter was not
-          # stuck, it was waiting for Xcode, which was waiting for the portal.
-          # That also explains the negative the previous run recorded: nothing
-          # was ever installed because the build never finished.
-          #
-          # OVERRIDE, DO NOT EDIT THE PROJECT. flutter forwards any
-          # `FLUTTER_XCODE_<SETTING>` to xcodebuild as `<SETTING>=<value>`
-          # (flutter_tools `ios/mac.dart`, via
-          # `environmentVariablesAsXcodeBuildSettings`). Overriding here keeps
-          # the change scoped to CI: a developer building for a real device
-          # still gets the automatic signing and the team the project declares.
-          FLUTTER_XCODE_CODE_SIGN_STYLE: Manual
-          FLUTTER_XCODE_DEVELOPMENT_TEAM: ''
-          FLUTTER_XCODE_CODE_SIGNING_ALLOWED: 'NO'
-          FLUTTER_XCODE_CODE_SIGNING_REQUIRED: 'NO'
-          FLUTTER_XCODE_CODE_SIGN_IDENTITY: ''
         run: |
           set -o pipefail
-
-          # STAMP THE LAUNCH WINDOW. `log stream` has no history, so the
-          # diagnostics step has to go back to the persisted store with
-          # `log show --start`, and it needs to know where "back" begins.
-          # Local time, not UTC: `log show` interprets a bare timestamp in the
-          # host's timezone.
+          # Stamp the window for the diagnostics below: `log show --start`
+          # needs to know where "back" begins, and the old stamp lived in the
+          # step this replaced.
           date '+%Y-%m-%d %H:%M:%S' > /tmp/ios-attempt-start
+          # `-destination id=<udid>` targets the simulator this job booted,
+          # rather than letting xcodebuild pick one and boot a second.
+          #
+          # PARALLEL TESTING IS WHAT CLONES THE DEVICE. Left on, xcodebuild ran
+          # the tests on "Clone 1 of iPhone 17 Pro" and discarded it, so the
+          # diagnostics below inspected a simulator the tests never touched and
+          # `log show` returned zero lines for EVERY predicate, SpringBoard
+          # included. There is no `-disable-clone-simulator`; that is not an
+          # xcodebuild flag and passing it exits 64 with the usage text. The
+          # real levers are these two.
+          xcodebuild test \
+            -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=$UDID" \
+            -resultBundlePath "$RUNNER_TEMP/ios-e2e.xcresult" \
+            -parallel-testing-enabled NO \
+            -maximum-concurrent-test-simulator-destinations 1 \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY= \
+            DEVELOPMENT_TEAM= \
+            | tee "$RUNNER_TEMP/xcodebuild.log"
 
-          # ONE ATTEMPT, so the retry below is the same code path rather than a
-          # second copy of it that can drift.
-          attempt() {
-            local log="$1"
-            # --verbose is what turned the hang from silence into a named step.
-            # In run 33527434921 the tool printed NOTHING between
-            # `Xcode build done. 83.2s` and the 15-minute cap; with it, the last
-            # line is `Waiting for VM Service port to be available...`, which is
-            # what the watchdog below keys on.
-            flutter test integration_test -d "$UDID" --verbose \
-              --dart-define=EMU_ORIGIN=http://localhost:8443 2>&1 | tee "$log" &
-            local pid=$!
-
-            # THE TARGETED WATCHDOG. Not "the test is slow" -- that is the 10m
-            # one below, which only reports. This fires on ONE signature:
-            # flutter said it was waiting for the VM service and never found it.
-            #
-            # `flutter test` has no flag for this. There is no
-            # --host-vmservice-port and no connection timeout; --timeout applies
-            # to individual tests, not to device discovery. So the tool waits
-            # forever by design and the only lever we have is to stop waiting.
-            #
-            # TWO PHASES, because 120s from LAUNCH is not 120s from the WAIT.
-            #
-            # The first version counted its 120 seconds from the moment flutter
-            # started, then asked whether the Waiting line had appeared. It
-            # never had: the Xcode build alone takes ~5-7 minutes, so the window
-            # closed while the build was still running, the grep missed, and the
-            # watchdog exited without arming. Nothing then killed the hung
-            # flutter, `attempt` never returned, and the retry below was
-            # unreachable -- every stall ran to the step timeout instead.
-            # Measured on real runs: step start -> Waiting line is 5m20s on the
-            # passing run 34020469770 and 6m52s on the stalled 34100185589, so
-            # the 120s window had expired minutes before the event it watched
-            # for could occur, on passing and failing runs alike.
-            #
-            # So: wait for the wait, THEN time it.
-            #   phase 1  up to 10m for `Waiting for VM Service port` to appear
-            #   phase 2  120s from that line for `VM Service URL on device`
-            #
-            # 120s is against a measured 1603ms on the passing run, ~75x the
-            # observed discovery time: slow enough that a sluggish runner is
-            # never cut off, fast enough that a stall costs two minutes.
-            (
-              seen=0
-              for _ in $(seq 1 600); do
-                sleep 1
-                kill -0 "$pid" 2>/dev/null || exit 0
-                if grep -q 'VM Service URL on device' "$log" 2>/dev/null; then exit 0; fi
-                if grep -q 'Waiting for VM Service port' "$log" 2>/dev/null; then seen=1; break; fi
-              done
-              if [ "$seen" != 1 ]; then
-                # Say so rather than exiting quietly: a silent no-op watchdog is
-                # exactly the bug this replaces.
-                kill -0 "$pid" 2>/dev/null || exit 0
-                echo "::warning::Build did not reach VM-service discovery within 10m;"
-                echo "::warning::the stall watchdog never armed. Raise phase 1 if this recurs."
-                exit 0
-              fi
-              for _ in $(seq 1 120); do
-                sleep 1
-                kill -0 "$pid" 2>/dev/null || exit 0
-                if grep -q 'VM Service URL on device' "$log" 2>/dev/null; then exit 0; fi
-              done
-              kill -0 "$pid" 2>/dev/null || exit 0
-              echo "::warning::VM service never appeared 120s after flutter began waiting."
-              echo "::warning::This is the mode-B stall; abandoning this attempt."
-              kill "$pid" 2>/dev/null || true
-            ) &
-            local vmwatch=$!
-
-            local st=0
-            wait "$pid" || st=$?
-            kill "$vmwatch" 2>/dev/null || true
-            return "$st"
-          }
-
-          # WAS IT THE STALL, or a real test failure? Only the first earns a
-          # second attempt. A blanket retry would re-run genuine failures and
-          # turn a deterministic bug into a flaky one, which is worse than the
-          # failure it hides.
-          stalled() {
-            grep -q 'Waiting for VM Service port' "$1" 2>/dev/null \
-              && ! grep -q 'VM Service URL on device' "$1" 2>/dev/null
-          }
-
-          status=0
-          attempt /tmp/flutter-1.log || status=$?
-          if [ "$status" != 0 ] && stalled /tmp/flutter-1.log; then
-            echo "::warning::Retrying once: the VM service never appeared, which is"
-            echo "::warning::a discovery stall rather than a test failure."
-            status=0
-            attempt /tmp/flutter-2.log || status=$?
-            if [ "$status" != 0 ] && stalled /tmp/flutter-2.log; then
-              echo "::error::The VM service never appeared on either attempt."
-              echo "::error::That is no longer intermittent -- read the samples above."
-            fi
-          fi
-          exit "$status"
+      # THE FAILURE MESSAGE IS IN THE BUNDLE, NOT ON STDOUT. xcodebuild prints
+      # "Test case ... failed" and the name, and nothing about WHY: the Dart
+      # assertion text reaches XCTest through the macro's
+      # `XCTAssertTrue(success, @"%@", failureMessage)` and lands in the
+      # xcresult. Without this the log says a test failed and refuses to say
+      # what it expected.
+      - name: What the failing test actually said
+        if: failure()
+        continue-on-error: true
+        run: |
+          b="$RUNNER_TEMP/ios-e2e.xcresult"
+          [ -d "$b" ] || { echo "(no result bundle at $b)"; exit 0; }
+          # PARSE, DO NOT `head`. The first version piped the tree through
+          # `head -200` and cut it off above every failureText, so the step
+          # printed the failing test's NAME and never its message -- the one
+          # thing it exists to show.
+          xcrun xcresulttool get test-results tests --path "$b" > /tmp/tests.json 2>/dev/null || {
+            echo "(could not read the bundle)"; exit 0; }
+          # PRINT SOMETHING, ALWAYS. The version before this only printed when
+          # a node carried `failureText`, and this bundle has none, so the step
+          # emitted NOTHING -- not even its own fallback -- and read as though
+          # it had run cleanly. A diagnostic that can be silent about a failure
+          # is worse than no diagnostic. If no message is found, the whole tree
+          # goes to the log so the next reader can see what the schema does
+          # carry.
+          python3 - <<'PARSE'
+          import json
+          d = json.load(open("/tmp/tests.json"))
+          shown = 0
+          def walk(n, trail=()):
+              global shown
+              name = n.get("name", "")
+              here = trail + (name,) if name else trail
+              msg = n.get("failureText") or n.get("failureMessage")
+              if n.get("result") == "Failed" and not n.get("children"):
+                  print(" > ".join(here))
+                  print("    result: " + str(n.get("result")))
+                  if msg:
+                      print("    " + msg.replace("\n", "\n    "))
+                  shown += 1
+              for c in n.get("children", []):
+                  walk(c, here)
+          for t in d.get("testNodes", []):
+              walk(t)
+          if not shown:
+              print("NO failing leaf node found. Whole tree follows:")
+              print(json.dumps(d, indent=2))
+          PARSE
 
       - name: What the simulator was doing when it hung
         if: failure()
@@ -335,48 +301,15 @@ jobs:
           # SpringBoard stays out. That was the actual noise here: page after
           # page of UserNotifications bookkeeping for `com.apple.Health`, which
           # is the system shell narrating housekeeping and never the test.
-          # THE ONE QUESTION THIS STEP EXISTS TO ANSWER.
-          #
-          # Discovery has a single channel: flutter launches with
-          # `--disable-vm-service-publication` (no mDNS) and reads the URL out
-          # of `simctl spawn ... log stream`. A live stream has NO HISTORY, and
-          # flutter issues the launch BEFORE the stream is attached, so a line
-          # emitted in that gap is lost and flutter waits forever.
-          #
-          # `log show` reads the PERSISTED store, so it recovers exactly what a
-          # live stream would have dropped. If the line is here, the stall is a
-          # discovery race and the app is fine. If it is absent, the VM service
-          # never started and this is engine-side. Those are different bugs and
-          # this is what tells them apart.
-          #
-          # Bounded to the launch window, not `--last 20m`: the old capture
-          # kept `tail -200` of the twenty minutes ENDING AT THE DUMP, which on
-          # run 34100185589 was eight minutes after the launch it was meant to
-          # describe.
+          # NO VM-SERVICE GROUP HERE ANY MORE. It asked whether the app had
+          # announced its Dart VM service URL, which mattered only while
+          # `flutter test -d <udid>` had to discover that URL over the device
+          # log. xcodebuild hosts the Dart tests inside XCTest, so there is no
+          # discovery step to fail and the question is no longer meaningful.
+          # The launch-window bound it introduced is kept: it is what stops
+          # this capture describing the minutes AFTER a timeout instead of the
+          # run itself.
           start=$(cat /tmp/ios-attempt-start 2>/dev/null)
-          echo "::group::did the VM service ever announce itself"
-          if [ -n "$start" ]; then
-            echo "launch window began: $start"
-            # The grep's OWN status, not the pipeline's. Written as
-            # `... | grep ... | head -40 || echo "(none)"` the `||` binds to
-            # `head`, which exits 0 whether or not grep matched, so the "none"
-            # branch is unreachable and an ABSENT line renders identically to a
-            # present one -- the exact ambiguity this capture exists to remove.
-            if xcrun simctl spawn ${{ steps.sim.outputs.udid }} log show \
-                 --start "$start" --style compact \
-                 --predicate 'process == "Runner"' 2>/dev/null \
-                 | grep -iE 'dart vm service|vm service|observatory|listening on' \
-                 > /tmp/vm-service-lines.txt; then
-              echo "FOUND -- the app DID announce it; a live stream missed it (discovery race):"
-              head -40 /tmp/vm-service-lines.txt
-            else
-              echo "ABSENT -- no VM-service line in the persisted log at all."
-              echo "That is engine-side: the service never started, not a discovery race."
-            fi
-          else
-            echo "(no launch stamp: the attempt never started)"
-          fi
-          echo "::endgroup::"
 
           # `process == "Runner"`, NOT `CONTAINS`. The old predicate matched
           # `BackgroundShortcutRunner`, and on run 34100185589 every single
