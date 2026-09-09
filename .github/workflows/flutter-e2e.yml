@@ -241,19 +241,35 @@ jobs:
           # thing it exists to show.
           xcrun xcresulttool get test-results tests --path "$b" > /tmp/tests.json 2>/dev/null || {
             echo "(could not read the bundle)"; exit 0; }
+          # PRINT SOMETHING, ALWAYS. The version before this only printed when
+          # a node carried `failureText`, and this bundle has none, so the step
+          # emitted NOTHING -- not even its own fallback -- and read as though
+          # it had run cleanly. A diagnostic that can be silent about a failure
+          # is worse than no diagnostic. If no message is found, the whole tree
+          # goes to the log so the next reader can see what the schema does
+          # carry.
           python3 - <<'PARSE'
           import json
           d = json.load(open("/tmp/tests.json"))
+          shown = 0
           def walk(n, trail=()):
+              global shown
               name = n.get("name", "")
               here = trail + (name,) if name else trail
-              if n.get("failureText"):
+              msg = n.get("failureText") or n.get("failureMessage")
+              if n.get("result") == "Failed" and not n.get("children"):
                   print(" > ".join(here))
-                  print("    " + n["failureText"].replace("\n", "\n    "))
+                  print("    result: " + str(n.get("result")))
+                  if msg:
+                      print("    " + msg.replace("\n", "\n    "))
+                  shown += 1
               for c in n.get("children", []):
                   walk(c, here)
           for t in d.get("testNodes", []):
               walk(t)
+          if not shown:
+              print("NO failing leaf node found. Whole tree follows:")
+              print(json.dumps(d, indent=2))
           PARSE
 
       - name: What the simulator was doing when it hung
