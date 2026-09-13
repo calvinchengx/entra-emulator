@@ -110,7 +110,8 @@ func (h *passkeyHarness) assert(upn string) (int, string) {
 
 func TestPasskeyRegisterAssertAndAMR(t *testing.T) {
 	hts, _, _ := newTestServer(t)
-	h := newHarness(t, hts.URL)
+	origin := passkeyOrigin(hts.URL)
+	h := newHarness(t, origin)
 
 	// Register a passkey for Alice, then sign in with it.
 	h.register("alice@entraemulator.dev")
@@ -127,7 +128,7 @@ func TestPasskeyRegisterAssertAndAMR(t *testing.T) {
 	// The passkey session (in h.client's jar) drives an SSO /authorize with no
 	// picker, and the resulting ID token carries amr:["fido"].
 	h.client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	authURL := hts.URL + "/" + tenant + "/oauth2/v2.0/authorize?" + url.Values{
+	authURL := origin + "/" + tenant + "/oauth2/v2.0/authorize?" + url.Values{
 		"client_id": {spaID}, "response_type": {"code"}, "redirect_uri": {redirect},
 		"scope": {"openid profile"}, "state": {"pk"},
 		// public client needs PKCE; reuse a fixed verifier/challenge
@@ -146,7 +147,7 @@ func TestPasskeyRegisterAssertAndAMR(t *testing.T) {
 	if acode == "" {
 		t.Fatalf("no code from SSO authorize: %s", loc)
 	}
-	resp2, body := postForm(t, http.DefaultClient, hts.URL+"/"+tenant+"/oauth2/v2.0/token", url.Values{
+	resp2, body := postForm(t, http.DefaultClient, origin+"/"+tenant+"/oauth2/v2.0/token", url.Values{
 		"grant_type": {"authorization_code"}, "code": {acode},
 		"redirect_uri": {redirect}, "client_id": {spaID}, "code_verifier": {verifierPK},
 	})
@@ -162,7 +163,8 @@ func TestPasskeyRegisterAssertAndAMR(t *testing.T) {
 
 func TestPasskeyAssertWithoutCredentialFails(t *testing.T) {
 	hts, _, _ := newTestServer(t)
-	h := newHarness(t, hts.URL)
+	origin := passkeyOrigin(hts.URL)
+	h := newHarness(t, origin)
 	// No registration → assert/begin should refuse (no passkeys).
 	code, _ := h.post("/"+tenant+"/webauthn/assert/begin", map[string]string{"upn": "bob@entraemulator.dev"})
 	if code != 400 {
@@ -172,10 +174,11 @@ func TestPasskeyAssertWithoutCredentialFails(t *testing.T) {
 
 func TestPasskeyAdminManagement(t *testing.T) {
 	hts, _, _ := newTestServer(t)
-	h := newHarness(t, hts.URL)
+	origin := passkeyOrigin(hts.URL)
+	h := newHarness(t, origin)
 	h.register("alice@entraemulator.dev")
 
-	code, body := getJSON(t, hts.URL+"/admin/api/users/"+aliceID+"/passkeys")
+	code, body := getJSON(t, origin+"/admin/api/users/"+aliceID+"/passkeys")
 	if code != 200 {
 		t.Fatalf("list passkeys: %d %v", code, body)
 	}
@@ -186,7 +189,7 @@ func TestPasskeyAdminManagement(t *testing.T) {
 	credID := list[0].(map[string]any)["id"].(string)
 
 	// Delete it; assert then fails (no passkeys).
-	req, _ := http.NewRequest("DELETE", hts.URL+"/admin/api/users/"+aliceID+"/passkeys/"+credID, nil)
+	req, _ := http.NewRequest("DELETE", origin+"/admin/api/users/"+aliceID+"/passkeys/"+credID, nil)
 	resp, _ := http.DefaultClient.Do(req)
 	resp.Body.Close()
 	if resp.StatusCode != 204 {
@@ -196,4 +199,22 @@ func TestPasskeyAdminManagement(t *testing.T) {
 	if code != 400 {
 		t.Fatalf("assert after delete: want 400, got %d", code)
 	}
+}
+
+// passkeyOrigin addresses a test server by NAME rather than by IP.
+//
+// WebAuthn requires the relying-party ID to be a registrable domain, and the
+// emulator derives it from the request's Host header. httptest listens on
+// 127.0.0.1, so these tests used to run every ceremony with an IP address as
+// the RP ID -- something no browser permits, and something go-webauthn 0.18.0
+// now refuses outright ("the value must be a domain and not an IP address").
+// Real Entra always uses a domain. The emulator was being lenient where Azure
+// is not, and these tests were passing only because of it.
+//
+// `localhost` is a valid RP ID and resolves to the same listener. Every URL in
+// a passkey test goes through this, not just the ceremony calls: the session
+// cookie set by assert/finish is host-scoped, so an authorize request left on
+// 127.0.0.1 would silently arrive without it.
+func passkeyOrigin(u string) string {
+	return strings.Replace(u, "127.0.0.1", "localhost", 1)
 }

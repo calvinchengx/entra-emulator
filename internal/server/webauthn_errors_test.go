@@ -6,7 +6,8 @@ import "testing"
 // branches (unknown tenant, missing/unknown user, no ceremony in progress).
 func TestWebAuthnErrorPaths(t *testing.T) {
 	hts, _, _ := newTestServer(t)
-	wa := hts.URL + "/" + tenant + "/webauthn"
+	origin := passkeyOrigin(hts.URL)
+	wa := origin + "/" + tenant + "/webauthn"
 
 	// register/begin: missing upn → 400.
 	expect(t, "register begin no upn", postRaw(t, "POST", wa+"/register/begin", `{}`), 400)
@@ -30,5 +31,5 @@ func TestWebAuthnErrorPaths(t *testing.T) {
 
 	// Unknown tenant on any ceremony endpoint → 404.
 	expect(t, "unknown tenant", postRaw(t, "POST",
-		hts.URL+"/e3e29cf2-136c-4e1d-90a0-bcc014db0edc/webauthn/register/begin", `{"upn":"x"}`), 404)
+		origin+"/e3e29cf2-136c-4e1d-90a0-bcc014db0edc/webauthn/register/begin", `{"upn":"x"}`), 404)
 }
