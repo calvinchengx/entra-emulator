@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -124,6 +125,18 @@ func applyRequestObject(q url.Values, claims map[string]any) {
 	} {
 		if v, ok := claims[k].(string); ok && v != "" {
 			q.Set(k, v)
+		}
+	}
+	// max_age is a JSON number inside a signed request object, where the query
+	// carries it as a string, so it needs its own conversion. json.Unmarshal
+	// gives float64; a string value is accepted too, since a client that put
+	// one there meant the same thing.
+	switch v := claims["max_age"].(type) {
+	case float64:
+		q.Set("max_age", strconv.FormatInt(int64(v), 10))
+	case string:
+		if v != "" {
+			q.Set("max_age", v)
 		}
 	}
 }

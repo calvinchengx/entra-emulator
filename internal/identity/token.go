@@ -231,6 +231,7 @@ func (i *Identity) grantAuthorizationCode(w http.ResponseWriter, r *http.Request
 	noteAuditSubject(r, user.ID, user.UserPrincipalName)
 	resp, err := i.Tokens.BuildDelegatedResponse(tokens.DelegatedGrant{
 		App: app, User: user, Scopes: grantScopes, Resource: row.Resource, Nonce: row.Nonce, AMR: row.AMR,
+		AuthTime: row.AuthTime, MaxAgeRequested: row.MaxAgeRequested,
 		ScopeEcho: scopeEcho,
 	})
 	if err != nil {
@@ -274,6 +275,13 @@ func (i *Identity) grantRefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	noteAuditSubject(r, user.ID, user.UserPrincipalName)
+	// Neither amr nor auth_time survives a refresh: refresh_tokens records the
+	// grant, not the authentication event that produced it. Spec-legal — OIDC
+	// makes auth_time REQUIRED only on a request that carried max_age, and a
+	// refresh exchange is not one — but it does mean an app that opted into
+	// auth_time as an optional claim sees it on the code exchange and not here.
+	// Closing that needs the authentication instant stored on the refresh
+	// chain, which is the same gap amr has always had.
 	resp, err := i.Tokens.BuildDelegatedResponse(tokens.DelegatedGrant{
 		App: app, User: user, Scopes: redeemed.Scopes, Resource: redeemed.Resource,
 		ScopeEcho: scopeEcho, SkipRefreshToken: true,

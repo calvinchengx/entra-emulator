@@ -84,9 +84,14 @@ func (i *Identity) handleDiscovery(w http.ResponseWriter, r *http.Request) {
 		// request_parameter_supported is therefore left absent — which is also
 		// what real Entra advertises.
 		"request_uri_parameter_supported": true,
+		// auth_time is advertised because real Entra advertises it (measured
+		// against the live /common document, the same URL e2e/golden names as
+		// its source). It is not emitted by default, on either side: Entra
+		// lists it in the OPTIONAL claim set, and here it appears when the
+		// request carried max_age or the app opted in via optionalClaims.
 		"claims_supported": []string{
 			"sub", "iss", "aud", "exp", "iat", "nbf", "tid", "oid",
-			"name", "preferred_username", "email", "nonce", "ver",
+			"name", "preferred_username", "email", "nonce", "ver", "auth_time",
 		},
 		// Cloud-instance metadata. Real Entra advertises the sovereign-cloud
 		// coordinates here (microsoftonline.com / graph.microsoft.com / pas.windows.net);
