@@ -145,6 +145,8 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   user_id      TEXT NOT NULL REFERENCES users(id),
   scopes       TEXT NOT NULL,
   resource     TEXT,
+  amr          TEXT,
+  auth_time    INTEGER,
   expires_at   INTEGER NOT NULL,
   rotated_from TEXT,
   revoked      INTEGER NOT NULL DEFAULT 0,
@@ -376,6 +378,8 @@ func (s *Store) migrate() error {
 	for _, alter := range []string{
 		`ALTER TABLE authorization_codes ADD COLUMN amr TEXT`,
 		`ALTER TABLE authorization_codes ADD COLUMN auth_time INTEGER`,
+		`ALTER TABLE refresh_tokens ADD COLUMN amr TEXT`,
+		`ALTER TABLE refresh_tokens ADD COLUMN auth_time INTEGER`,
 		`ALTER TABLE authorization_codes ADD COLUMN max_age_requested INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE sessions ADD COLUMN auth_method TEXT NOT NULL DEFAULT 'pwd'`,
 		`ALTER TABLE tenants ADD COLUMN initial_domain TEXT`,

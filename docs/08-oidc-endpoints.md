@@ -112,9 +112,12 @@ reused session carries its original instant. It is emitted when `max_age` was re
 (where OIDC makes it REQUIRED) or when the app lists it in `optionalClaims.idToken` —
 which is where Microsoft's own optional-claims reference puts it, so it is absent by
 default here as it is in Entra. It is advertised in `claims_supported` either way,
-because real Entra advertises it. A refresh exchange does not carry it: `refresh_tokens`
-records the grant, not the authentication behind it, which is the same boundary `amr`
-has.
+because real Entra advertises it. A refresh exchange carries the authentication its chain
+descends from — `refresh_tokens` records `amr` and `auth_time`, and every rotated
+successor inherits them — so a refreshed ID token describes the same sign-in rather than
+contradicting the one the code exchange issued. It does not inherit the `max_age` flag,
+since a refresh is not an authorization request carrying one, so `auth_time` appears
+there on an `optionalClaims` opt-in alone.
 
 On success: issue code (via token service) → deliver `code` + `state` per response_mode.
 

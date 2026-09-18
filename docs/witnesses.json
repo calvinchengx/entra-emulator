@@ -98,7 +98,10 @@
     "witnesses": [
       "ci:sdk-e2e",
       "go:TestRefreshRotationAndFamilyRevocation",
-      "go:TestScopeEchoOnExchangeAndRefresh"
+      "go:TestScopeEchoOnExchangeAndRefresh",
+      "go:TestRefreshKeepsAmr",
+      "go:TestRefreshKeepsAuthTimeForAnOptedInApp",
+      "go:TestRotatedRefreshTokenStillCarriesTheAuthentication"
     ]
   },
   "clientcredentials": {
@@ -408,7 +411,9 @@
       "go:TestMaxAgeInsideASignedRequestObject",
       "go:TestMaxAgeOnTheImplicitFlow",
       "go:TestDiscoveryAdvertisesAuthTime",
-      "go:TestGoldenParityOIDCDiscovery"
+      "go:TestGoldenParityOIDCDiscovery",
+      "go:TestRefreshKeepsAuthTimeForAnOptedInApp",
+      "go:TestRotatedRefreshTokenStillCarriesTheAuthentication"
     ]
   },
   "front-channel-logout-op-calls-each-rp-s-frontchannellogouturi": {

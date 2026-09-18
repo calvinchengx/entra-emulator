@@ -185,6 +185,39 @@ def max_age_checks(pca):
         check("auth_time is the original authentication, not this issuance",
               claims.get("iat", 0) - claims.get("auth_time", 0) >= 300, str(claims))
 
+    # 2b. A REFRESH must describe the same authentication, not a new one. MSAL
+    #     drives this itself: acquire_token_silent with force_refresh redeems
+    #     the refresh token over the wire. The claim to check is agreement — an
+    #     amr or auth_time that changes across a refresh means the emulator is
+    #     contradicting its own earlier token about how and when the user
+    #     signed in, and the user did nothing in between.
+    if state is None and "id_token_claims" in result:
+        before = result["id_token_claims"]
+        accounts = pca.get_accounts()
+        check("refresh: msal has an account to refresh", bool(accounts))
+        if accounts:
+            set_clock({"advanceSeconds": 600})
+            refreshed = pca.acquire_token_silent(
+                scopes=[], account=accounts[0], force_refresh=True)
+            check("refresh: msal redeemed the refresh token",
+                  bool(refreshed) and "id_token_claims" in (refreshed or {}),
+                  str(refreshed))
+            if refreshed and "id_token_claims" in refreshed:
+                after = refreshed["id_token_claims"]
+                check("refresh: amr survives and is unchanged",
+                      after.get("amr") == before.get("amr"),
+                      f"{before.get('amr')} -> {after.get('amr')}")
+                # This app has not opted into auth_time via optionalClaims, and
+                # the refresh request carries no max_age, so auth_time is
+                # correctly ABSENT here. Asserting the absence keeps the rule
+                # honest: it is the same rule the code exchange follows, not a
+                # claim that quietly went missing.
+                check("refresh: auth_time absent without an opt-in (matches Entra)",
+                      "auth_time" not in after, str(after))
+                check("refresh: still the same user and issuer",
+                      after.get("oid") == before.get("oid")
+                      and after.get("iss") == before.get("iss"), str(after))
+
     # 3. Past the ceiling, the emulator must re-authenticate rather than reuse.
     flow = pca.initiate_auth_code_flow(scopes=[], redirect_uri=SPA_REDIRECT, max_age=1)
     state, response = authorize(browser, flow["auth_uri"])
