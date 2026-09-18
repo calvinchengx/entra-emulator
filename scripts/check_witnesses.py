@@ -17,6 +17,13 @@ Witness kinds, deliberately distinguished because they are not equal evidence:
                 that Entra would have answered the same way. Must name a
                 scenario in e2e/differential/testdata/fixture-manifest.json
                 whose status is `captured`; a `planned` one is not evidence.
+  oidf:<module> a module of an OpenID Foundation conformance plan, run against
+                this emulator by e2e/conformance/run.py. A DIFFERENT axis from
+                diff:, not a stronger one: it evidences conformance to the
+                specification, judged by the OIDF's own suite, and says nothing
+                about whether Entra would answer the same way. Must name a
+                module in that runner's EXPECTED_MODULES; a module we do not
+                actually run is not evidence.
   ci:<job>      a CI job driving a real external client (this is what the rule
                 in doc 24 actually asks for)
   go:<Test>     a Go test: real HTTP, real signed JWTs, real RBAC, but our own
@@ -28,6 +35,7 @@ Usage:
     check_witnesses.py            report the mapping and exit 0
     check_witnesses.py --strict   also fail on TODO or dangling references
 """
+import ast
 import json
 import pathlib
 import re
@@ -38,6 +46,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 PARITY = ROOT / "docs" / "parity.md"
 MANIFEST = ROOT / "docs" / "witnesses.json"
 CI = ROOT / ".github" / "workflows" / "ci.yml"
+CONFORMANCE_RUNNER = ROOT / "e2e" / "conformance" / "run.py"
 FIXTURES = ROOT / "e2e" / "differential" / "testdata" / "fixture-manifest.json"
 
 # Sections that do not make capability claims: the legend, the conformance
@@ -146,6 +155,24 @@ def differential_scenarios() -> set:
     return {s["id"] for s in data.get("scenarios", []) if s.get("status") == "captured"}
 
 
+def conformance_modules() -> set:
+    """Conformance modules e2e/conformance/run.py actually runs.
+
+    Read out of the runner's own EXPECTED_MODULES rather than duplicated here,
+    so a module dropped from the plan cannot keep witnessing a green row. The
+    runner asserts the live plan matches that list, so the two ends meet.
+    """
+    if not CONFORMANCE_RUNNER.exists():
+        return set()
+    tree = ast.parse(CONFORMANCE_RUNNER.read_text())
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "EXPECTED_MODULES" for t in node.targets
+        ):
+            return set(ast.literal_eval(node.value))
+    return set()
+
+
 def go_test_names() -> set:
     out = subprocess.run(
         ["grep", "-rhoE", r"^func (Test[A-Za-z0-9_]+)", "--include=*_test.go", str(ROOT / "internal"), str(ROOT / "cmd")],
@@ -158,9 +185,10 @@ def main() -> int:
     strict = "--strict" in sys.argv
     manifest = json.loads(MANIFEST.read_text()) if MANIFEST.exists() else {}
     jobs, tests, captured = ci_job_ids(), go_test_names(), differential_scenarios()
+    conformance = conformance_modules()
 
     missing, dangling, todo = [], [], []
-    kinds = {"diff": 0, "ci": 0, "go": 0, "boundary": 0}
+    kinds = {"diff": 0, "oidf": 0, "ci": 0, "go": 0, "boundary": 0}
     # Which claims lean on each witness — a witness covering many claims is
     # where bundling hides.
     shared: dict[str, list[str]] = {}
@@ -182,6 +210,8 @@ def main() -> int:
                 dangling.append(f"{key} → {witness} (no such CI job)")
             elif kind == "go" and name not in tests:
                 dangling.append(f"{key} → {witness} (no such Go test)")
+            elif kind == "oidf" and name not in conformance:
+                dangling.append(f"{key} → {witness} (not in the conformance runner's EXPECTED_MODULES)")
             elif kind == "diff" and name not in captured:
                 # Unvalidated kinds are the failure this checker exists to stop:
                 # they increment a counter and prove nothing.
@@ -189,6 +219,7 @@ def main() -> int:
 
     print(f"🟢 capability claims: {len(claims)}")
     print(f"  diffed against real Entra (diff:)         : {kinds.get('diff', 0)}")
+    print(f"  conformance-tested by the OIDF (oidf:)    : {kinds.get('oidf', 0)}")
     print(f"  witnessed by a real external client (ci:) : {kinds.get('ci', 0)}")
     print(f"  witnessed by our own Go tests (go:)       : {kinds.get('go', 0)}")
     print(f"  scoped by a documented boundary           : {kinds.get('boundary', 0)}")

@@ -67,6 +67,7 @@
     "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
     "claim": "OIDC discovery + JWKS",
     "witnesses": [
+      "oidf:oidcc-discovery-endpoint-verification",
       "ci:sdk-e2e",
       "ci:az-cli-e2e",
       "go:TestDiscoveryDocFields",

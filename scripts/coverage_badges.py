@@ -69,6 +69,14 @@ def badge(label: str, message: str, colour: str) -> dict:
     return {"schemaVersion": 1, "label": label, "message": message, "color": colour}
 
 
+# Strongest evidence first; each claim is counted once, under the first of these
+# it cites. diff: leads because it is the only kind that evidences parity with
+# real Entra rather than client compatibility; oidf: sits beside it as a
+# different axis (conformance to the specification) rather than a weaker one.
+# Keep in step with the kinds documented in scripts/check_witnesses.py.
+TIERS = ("diff", "oidf", "ci", "sdk", "go", "boundary")
+
+
 def survey() -> dict:
     """Everything both documents need, computed once from the parity map.
 
@@ -83,8 +91,16 @@ def survey() -> dict:
     statement about coverage; 58 `ci:` citations is a statement about nothing.
     """
     manifest = json.loads(WITNESSES.read_text()) if WITNESSES.exists() else {}
-    tiers = {"ci": 0, "sdk": 0, "go": 0, "boundary": 0, "unwitnessed": 0}
+    # Every witness kind check_witnesses.py accepts must appear in TIERS, or a
+    # claim citing only that kind counts as witnessed and lands in no tier, so
+    # the tiers silently stop summing to `witnessed`. That is exactly what
+    # happened when diff: was introduced: one claim was witnessed by four
+    # differential scenarios and reported under no tier at all. `unknown`
+    # catches the next one instead of hiding it.
+    tiers = {t: 0 for t in TIERS}
+    tiers.update(unknown=0, unwitnessed=0)
     suites: dict[str, int] = {}
+    unknown_kinds: set[str] = set()
     total = witnessed = 0
 
     for _section, _feature, key in check_witnesses.green_claims():
@@ -95,10 +111,13 @@ def survey() -> dict:
             continue
         witnessed += 1
         kinds = {w.partition(":")[0] for w in cited}
-        for tier in ("ci", "sdk", "go", "boundary"):
+        for tier in TIERS:
             if tier in kinds:
                 tiers[tier] += 1
                 break
+        else:
+            tiers["unknown"] += 1
+            unknown_kinds.update(kinds)
         for w in cited:
             if w.startswith("ci:"):
                 suites[w] = suites.get(w, 0) + 1
@@ -108,6 +127,7 @@ def survey() -> dict:
         "claims": total,
         "witnessed": witnessed,
         "by_tier": tiers,
+        "unknown_kinds": sorted(unknown_kinds),
         "grades": grades,
         "suites": dict(sorted(suites.items(), key=lambda kv: (-kv[1], kv[0]))),
     }
@@ -142,9 +162,16 @@ def main() -> int:
 
     t = s["by_tier"]
     print(f"badges: go={shown} witnesses={s['witnessed']}/{s['claims']} → {out}")
-    print(f"  by strongest witness: ci={t['ci']} sdk={t['sdk']} go={t['go']} "
-          f"boundary={t['boundary']} unwitnessed={t['unwitnessed']}")
+    print("  by strongest witness: "
+          + " ".join(f"{k}={t[k]}" for k in (*TIERS, "unwitnessed")))
     print(f"  ledger grades: {s['grades']}")
+
+    if t["unknown"]:
+        print(f"FAIL: {t['unknown']} claim(s) cite only witness kinds this script "
+              f"does not rank: {', '.join(s['unknown_kinds'])}. They count as "
+              "witnessed but appear under no tier, so the tiers no longer sum to "
+              "the total. Add the kind to TIERS.")
+        return 1
     return 0
 
 

@@ -48,7 +48,7 @@ endif
 # merely locate it. Override with PY= if you keep python somewhere unusual.
 PY ?= $(shell for c in python3 python py; do if "$$c" -c '' >/dev/null 2>&1; then echo "$$c"; break; fi; done)
 
-.PHONY: help doctor build run up down status logs ps test smoke e2e clean docs-build docs-serve
+.PHONY: help doctor build run up down status logs ps test smoke e2e conformance clean docs-build docs-serve
 
 help: ## Show the available targets
 	@# [a-z0-9-] not [a-z-]: `e2e` has a digit in it, and the narrower class
@@ -94,6 +94,10 @@ smoke: ## Build the image and assert it serves (scripts/docker-smoke.sh)
 e2e: ## Real-SDK e2e matrix (MSAL Node/Python/Go/.NET/Java, Graph SDK)
 	@test -n "$(PY)" || { echo "no working python found (tried python3, python, py); set PY=" >&2; exit 1; }
 	$(PY) e2e/run.py
+
+conformance: ## OIDF conformance plan against the emulator (docker required)
+	@test -n "$(PY)" || { echo "no working python found (tried python3, python, py); set PY=" >&2; exit 1; }
+	$(PY) e2e/conformance/run.py
 
 clean: ## Remove the built binary and the local ./data store (full reset)
 	rm -rf ./entra-emulator ./entra-emulator.exe ./data

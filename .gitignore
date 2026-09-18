@@ -38,3 +38,8 @@ playwright-report/
 
 # Assembled by scripts/assemble_site.py for the Pages deploy.
 _site/
+
+# OIDF conformance harness working files: the emulator's generated certificate
+# and the suite's per-run logs (e2e/conformance/run.py).
+e2e/conformance/.certs/
+e2e/conformance/results/

@@ -1,0 +1,4 @@
+{
+  "_comment": "Declared non-PASSED outcomes. Anything not listed here must come back PASSED, so a new WARNING or FAILURE breaks the run instead of accumulating quietly. Each entry needs a reason; 'it was red when I wrote this' is not one. Mirrors upstream's own expected-failures-oidcc.json idea and docs/parity.md's declared refusals.",
+  "modules": {}
+}

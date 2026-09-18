@@ -134,7 +134,7 @@ jobs:
           # -n prints the recipe without running it, so this exercises variable
           # expansion, quoting and the shell selection on every platform —
           # including the docker targets that cannot execute off Linux.
-          for t in help doctor build run up down status ps logs test smoke e2e clean; do
+          for t in help doctor build run up down status ps logs test smoke e2e conformance clean; do
             echo "=== make -n $t ==="
             make -n "$t"
           done
