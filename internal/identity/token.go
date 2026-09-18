@@ -275,15 +275,17 @@ func (i *Identity) grantRefreshToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	noteAuditSubject(r, user.ID, user.UserPrincipalName)
-	// Neither amr nor auth_time survives a refresh: refresh_tokens records the
-	// grant, not the authentication event that produced it. Spec-legal — OIDC
-	// makes auth_time REQUIRED only on a request that carried max_age, and a
-	// refresh exchange is not one — but it does mean an app that opted into
-	// auth_time as an optional claim sees it on the code exchange and not here.
-	// Closing that needs the authentication instant stored on the refresh
-	// chain, which is the same gap amr has always had.
+	// The refresh chain carries the authentication it descends from, so this ID
+	// token describes the same sign-in the code exchange described. What it
+	// deliberately does NOT carry is the max_age FLAG: a refresh is not an
+	// authorization request carrying max_age, so OIDC does not make auth_time
+	// REQUIRED here, and honouring a ceiling the client asked for once would
+	// emit the claim more widely than Entra does. auth_time therefore appears
+	// here only on an app that opted in through optionalClaims — which is a
+	// property of the app, so it holds for every token the app receives.
 	resp, err := i.Tokens.BuildDelegatedResponse(tokens.DelegatedGrant{
 		App: app, User: user, Scopes: redeemed.Scopes, Resource: redeemed.Resource,
+		AMR: redeemed.AMR, AuthTime: redeemed.AuthTime,
 		ScopeEcho: scopeEcho, SkipRefreshToken: true,
 	})
 	if err != nil {

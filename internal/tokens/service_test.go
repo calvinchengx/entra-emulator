@@ -693,8 +693,8 @@ func TestRefreshTokenRotationAndReuse(t *testing.T) {
 	makeApp(t, st, &store.App{ID: "rt-app"})
 	makeUser(t, st, "rt-user", "", "")
 
-	rt, err := svc.IssueRefreshToken("rt-app", "rt-user",
-		[]string{"openid", "offline_access", "User.Read"}, "", "")
+	rt, err := svc.IssueRefreshToken(RefreshRequest{AppID: "rt-app", UserID: "rt-user",
+		Scopes: []string{"openid", "offline_access", "User.Read"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -720,8 +720,8 @@ func TestRefreshTokenRotationAndReuse(t *testing.T) {
 	}
 
 	// Scope narrowing to a valid subset.
-	rt2, _ := svc.IssueRefreshToken("rt-app", "rt-user",
-		[]string{"openid", "offline_access", "User.Read", "Mail.Read"}, "", "")
+	rt2, _ := svc.IssueRefreshToken(RefreshRequest{AppID: "rt-app", UserID: "rt-user",
+		Scopes: []string{"openid", "offline_access", "User.Read", "Mail.Read"}})
 	red2, err := svc.RedeemRefreshToken(rt2, "rt-app", []string{"openid", "User.Read"})
 	if err != nil {
 		t.Fatalf("subset redeem: %v", err)
@@ -735,7 +735,7 @@ func TestRefreshTokenRotationAndReuse(t *testing.T) {
 	}
 
 	// Requesting a scope outside the grant -> invalid_scope.
-	rt3, _ := svc.IssueRefreshToken("rt-app", "rt-user", []string{"User.Read"}, "", "")
+	rt3, _ := svc.IssueRefreshToken(RefreshRequest{AppID: "rt-app", UserID: "rt-user", Scopes: []string{"User.Read"}})
 	if _, err := svc.RedeemRefreshToken(rt3, "rt-app", []string{"Files.ReadWrite"}); err == nil ||
 		!strings.Contains(err.Error(), "invalid_scope") {
 		t.Fatalf("invalid_scope err = %v", err)
@@ -748,7 +748,7 @@ func TestRefreshTokenRotationAndReuse(t *testing.T) {
 	}
 
 	// Wrong client.
-	rt4, _ := svc.IssueRefreshToken("rt-app", "rt-user", []string{"User.Read"}, "", "")
+	rt4, _ := svc.IssueRefreshToken(RefreshRequest{AppID: "rt-app", UserID: "rt-user", Scopes: []string{"User.Read"}})
 	makeApp(t, st, &store.App{ID: "rt-app-other"})
 	if _, err := svc.RedeemRefreshToken(rt4, "rt-app-other", nil); err == nil ||
 		!strings.Contains(err.Error(), "different client") {
@@ -756,7 +756,7 @@ func TestRefreshTokenRotationAndReuse(t *testing.T) {
 	}
 
 	// Expired.
-	rt5, _ := svc.IssueRefreshToken("rt-app", "rt-user", []string{"User.Read"}, "", "")
+	rt5, _ := svc.IssueRefreshToken(RefreshRequest{AppID: "rt-app", UserID: "rt-user", Scopes: []string{"User.Read"}})
 	*nowp += int64(svc.Cfg.Lifetimes.RefreshToken) + 1
 	if _, err := svc.RedeemRefreshToken(rt5, "rt-app", nil); err == nil ||
 		!strings.Contains(err.Error(), "expired") {
@@ -1051,7 +1051,7 @@ func TestServiceStoreErrorPaths(t *testing.T) {
 	if _, err := svc.RedeemAuthCode("code", app.ID, "r", ""); err == nil {
 		t.Fatal("RedeemAuthCode should surface a store error")
 	}
-	if _, err := svc.IssueRefreshToken(app.ID, user.ID, []string{"openid"}, "", ""); err == nil {
+	if _, err := svc.IssueRefreshToken(RefreshRequest{AppID: app.ID, UserID: user.ID, Scopes: []string{"openid"}}); err == nil {
 		t.Fatal("IssueRefreshToken should fail on a closed store")
 	}
 	if _, err := svc.RedeemRefreshToken("plain", app.ID, nil); err == nil {

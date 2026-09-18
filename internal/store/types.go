@@ -136,11 +136,18 @@ type AuthCode struct {
 }
 
 type RefreshToken struct {
-	TokenHash   string // SHA-256 hex of the plaintext; PK
-	AppID       string
-	UserID      string
-	Scopes      string
-	Resource    string
+	TokenHash string // SHA-256 hex of the plaintext; PK
+	AppID     string
+	UserID    string
+	Scopes    string
+	Resource  string
+	// AMR and AuthTime describe the AUTHENTICATION the chain descends from, as
+	// distinct from the grant it carries. Without them a refreshed ID token
+	// contradicts the one the code exchange issued: same app, same session,
+	// same user, disagreeing about how and when the user authenticated. Every
+	// successor inherits them, so they survive arbitrarily many rotations.
+	AMR         string
+	AuthTime    int64
 	ExpiresAt   int64
 	RotatedFrom string
 	Revoked     bool

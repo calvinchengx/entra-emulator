@@ -261,7 +261,10 @@ func (s *Service) BuildDelegatedResponse(g DelegatedGrant) (*TokenResponse, erro
 		resp.IDToken = idt
 	}
 	if hasScope(g.Scopes, "offline_access") && !g.SkipRefreshToken {
-		rt, err := s.IssueRefreshToken(g.App.ID, g.User.ID, g.Scopes, g.Resource, "")
+		rt, err := s.IssueRefreshToken(RefreshRequest{
+			AppID: g.App.ID, UserID: g.User.ID, Scopes: g.Scopes, Resource: g.Resource,
+			AMR: g.AMR, AuthTime: g.AuthTime,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -585,17 +588,34 @@ func verifyPKCE(challenge, method, verifier string) bool {
 
 // ---- Refresh tokens ----
 
+// RefreshRequest is what a new refresh-token chain records. A struct rather
+// than positional arguments because five of its fields are strings: `resource`,
+// `rotatedFrom` and `amr` sitting adjacent in a call is exactly the shape that
+// gets silently transposed.
+type RefreshRequest struct {
+	AppID, UserID string
+	Scopes        []string
+	Resource      string
+	RotatedFrom   string
+	// AMR and AuthTime are the authentication the chain descends from, carried
+	// so a refreshed ID token can describe the same sign-in the code exchange
+	// described rather than contradicting it.
+	AMR      string
+	AuthTime int64
+}
+
 // IssueRefreshToken stores the SHA-256 of a fresh opaque token and returns
 // the plaintext.
-func (s *Service) IssueRefreshToken(appID, userID string, scopes []string, resource, rotatedFrom string) (string, error) {
-	_, _, refreshSec := s.lifetimesFor(appID)
+func (s *Service) IssueRefreshToken(r RefreshRequest) (string, error) {
+	_, _, refreshSec := s.lifetimesFor(r.AppID)
 	plain := store.NewOpaqueToken(32)
 	now := s.Store.Now()
 	err := s.Store.InsertRefreshToken(&store.RefreshToken{
-		TokenHash: store.HashToken(plain), AppID: appID, UserID: userID,
-		Scopes: strings.Join(scopes, " "), Resource: resource,
+		TokenHash: store.HashToken(plain), AppID: r.AppID, UserID: r.UserID,
+		Scopes: strings.Join(r.Scopes, " "), Resource: r.Resource,
+		AMR: r.AMR, AuthTime: r.AuthTime,
 		ExpiresAt:   now + int64(refreshSec),
-		RotatedFrom: rotatedFrom, CreatedAt: now,
+		RotatedFrom: r.RotatedFrom, CreatedAt: now,
 	})
 	if err != nil {
 		return "", err
@@ -608,6 +628,10 @@ type RedeemedRefresh struct {
 	UserID, Resource string
 	Scopes           []string
 	NewRefreshToken  string // plaintext successor (issued iff offline_access kept)
+	// AMR and AuthTime come off the redeemed row, so the ID token this refresh
+	// mints describes the original authentication rather than this moment.
+	AMR      string
+	AuthTime int64
 }
 
 // RedeemRefreshToken implements rotation with family revocation on reuse
@@ -652,6 +676,9 @@ func (s *Service) RedeemRefreshToken(plaintext, appID string, requestedScopes []
 	won, err := s.Store.RotateRefreshToken(hash, &store.RefreshToken{
 		TokenHash: store.HashToken(successorPlain), AppID: appID, UserID: row.UserID,
 		Scopes: row.Scopes, Resource: row.Resource,
+		// The successor inherits the authentication, or the claims would
+		// survive exactly one refresh and vanish on the second.
+		AMR: row.AMR, AuthTime: row.AuthTime,
 		ExpiresAt: now + int64(s.Cfg.Lifetimes.RefreshToken), CreatedAt: now,
 	})
 	if err != nil {
@@ -665,7 +692,8 @@ func (s *Service) RedeemRefreshToken(plaintext, appID string, requestedScopes []
 		return nil, invalidGrant("AADSTS70008: The refresh token was already rotated (reuse detected).")
 	}
 
-	out := &RedeemedRefresh{UserID: row.UserID, Resource: row.Resource, Scopes: scopes}
+	out := &RedeemedRefresh{UserID: row.UserID, Resource: row.Resource, Scopes: scopes,
+		AMR: row.AMR, AuthTime: row.AuthTime}
 	if hasScope(scopes, "offline_access") {
 		out.NewRefreshToken = successorPlain
 	}

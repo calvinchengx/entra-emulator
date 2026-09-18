@@ -110,9 +110,11 @@ func (s *Store) ConsumeAuthCode(code string) (bool, error) {
 // reuse detection depends on observing revoked rows.
 func (s *Store) GetRefreshTokenByHash(hash string) (*RefreshToken, error) {
 	row := s.db.QueryRow(`SELECT token, app_id, user_id, scopes, COALESCE(resource,''),
+		COALESCE(amr,''), COALESCE(auth_time,0),
 		expires_at, COALESCE(rotated_from,''), revoked, created_at FROM refresh_tokens WHERE token=?`, hash)
 	t := &RefreshToken{}
 	err := row.Scan(&t.TokenHash, &t.AppID, &t.UserID, &t.Scopes, &t.Resource,
+		&t.AMR, &t.AuthTime,
 		&t.ExpiresAt, &t.RotatedFrom, &t.Revoked, &t.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -122,9 +124,10 @@ func (s *Store) GetRefreshTokenByHash(hash string) (*RefreshToken, error) {
 
 func (s *Store) InsertRefreshToken(t *RefreshToken) error {
 	_, err := s.db.Exec(`INSERT INTO refresh_tokens
-		(token, app_id, user_id, scopes, resource, expires_at, rotated_from, revoked, created_at)
-		VALUES (?,?,?,?,?,?,?,0,?)`,
-		t.TokenHash, t.AppID, t.UserID, t.Scopes, nullable(t.Resource), t.ExpiresAt,
+		(token, app_id, user_id, scopes, resource, amr, auth_time, expires_at, rotated_from, revoked, created_at)
+		VALUES (?,?,?,?,?,?,?,?,?,0,?)`,
+		t.TokenHash, t.AppID, t.UserID, t.Scopes, nullable(t.Resource),
+		nullable(t.AMR), t.AuthTime, t.ExpiresAt,
 		nullable(t.RotatedFrom), t.CreatedAt)
 	return mapConstraint(err)
 }
@@ -148,10 +151,11 @@ func (s *Store) RotateRefreshToken(oldHash string, successor *RefreshToken) (boo
 		}
 		won = true
 		_, err = tx.Exec(`INSERT INTO refresh_tokens
-			(token, app_id, user_id, scopes, resource, expires_at, rotated_from, revoked, created_at)
-			VALUES (?,?,?,?,?,?,?,0,?)`,
+			(token, app_id, user_id, scopes, resource, amr, auth_time, expires_at, rotated_from, revoked, created_at)
+			VALUES (?,?,?,?,?,?,?,?,?,0,?)`,
 			successor.TokenHash, successor.AppID, successor.UserID, successor.Scopes,
-			nullable(successor.Resource), successor.ExpiresAt, oldHash, successor.CreatedAt)
+			nullable(successor.Resource), nullable(successor.AMR), successor.AuthTime,
+			successor.ExpiresAt, oldHash, successor.CreatedAt)
 		return err
 	})
 	return won, err
