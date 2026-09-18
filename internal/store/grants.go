@@ -70,21 +70,23 @@ func scanKey(row interface{ Scan(...any) error }) (*SigningKey, error) {
 
 func (s *Store) InsertAuthCode(c *AuthCode) error {
 	_, err := s.db.Exec(`INSERT INTO authorization_codes
-		(code, app_id, user_id, redirect_uri, scopes, resource, code_challenge, code_challenge_method, nonce, amr, expires_at, consumed, created_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?)`,
+		(code, app_id, user_id, redirect_uri, scopes, resource, code_challenge, code_challenge_method, nonce, amr, auth_time, max_age_requested, expires_at, consumed, created_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)`,
 		c.Code, c.AppID, c.UserID, c.RedirectURI, c.Scopes, nullable(c.Resource),
 		nullable(c.CodeChallenge), nullable(c.CodeChallengeMethod), nullable(c.Nonce),
-		nullable(c.AMR), c.ExpiresAt, c.CreatedAt)
+		nullable(c.AMR), c.AuthTime, c.MaxAgeRequested, c.ExpiresAt, c.CreatedAt)
 	return mapConstraint(err)
 }
 
 func (s *Store) GetAuthCode(code string) (*AuthCode, error) {
 	row := s.db.QueryRow(`SELECT code, app_id, user_id, redirect_uri, scopes, COALESCE(resource,''),
 		COALESCE(code_challenge,''), COALESCE(code_challenge_method,''), COALESCE(nonce,''),
-		COALESCE(amr,''), expires_at, consumed, created_at FROM authorization_codes WHERE code=?`, code)
+		COALESCE(amr,''), COALESCE(auth_time,0), COALESCE(max_age_requested,0),
+		expires_at, consumed, created_at FROM authorization_codes WHERE code=?`, code)
 	c := &AuthCode{}
 	err := row.Scan(&c.Code, &c.AppID, &c.UserID, &c.RedirectURI, &c.Scopes, &c.Resource,
-		&c.CodeChallenge, &c.CodeChallengeMethod, &c.Nonce, &c.AMR, &c.ExpiresAt, &c.Consumed, &c.CreatedAt)
+		&c.CodeChallenge, &c.CodeChallengeMethod, &c.Nonce, &c.AMR, &c.AuthTime, &c.MaxAgeRequested,
+		&c.ExpiresAt, &c.Consumed, &c.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}

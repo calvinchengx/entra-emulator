@@ -394,6 +394,23 @@
       "go:TestGoldenParityOIDCDiscovery"
     ]
   },
+  "maxage-authtime": {
+    "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
+    "claim": "**`max_age` + `auth_time`**",
+    "witnesses": [
+      "ci:sdk-e2e",
+      "go:TestMaxAgeReusesSessionYoungerThanTheLimit",
+      "go:TestMaxAgeForcesReauthenticationWhenSessionIsStale",
+      "go:TestMaxAgeZeroRejectsASessionThatHasAged",
+      "go:TestMaxAgeWithPromptNoneFailsRatherThanReusingAStaleSession",
+      "go:TestMalformedMaxAgeIsRefused",
+      "go:TestAuthTimeIsAnOptionalClaimWithoutMaxAge",
+      "go:TestMaxAgeInsideASignedRequestObject",
+      "go:TestMaxAgeOnTheImplicitFlow",
+      "go:TestDiscoveryAdvertisesAuthTime",
+      "go:TestGoldenParityOIDCDiscovery"
+    ]
+  },
   "front-channel-logout-op-calls-each-rp-s-frontchannellogouturi": {
     "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
     "claim": "Front-channel logout (OP calls each RP's `frontchannel_logout_uri`)",

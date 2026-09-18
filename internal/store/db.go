@@ -132,6 +132,8 @@ CREATE TABLE IF NOT EXISTS authorization_codes (
   code_challenge_method TEXT,
   nonce                 TEXT,
   amr                   TEXT,
+  auth_time             INTEGER,
+  max_age_requested     INTEGER NOT NULL DEFAULT 0,
   expires_at            INTEGER NOT NULL,
   consumed              INTEGER NOT NULL DEFAULT 0,
   created_at            INTEGER NOT NULL
@@ -373,6 +375,8 @@ func (s *Store) migrate() error {
 	// present — ignored so re-runs are idempotent.
 	for _, alter := range []string{
 		`ALTER TABLE authorization_codes ADD COLUMN amr TEXT`,
+		`ALTER TABLE authorization_codes ADD COLUMN auth_time INTEGER`,
+		`ALTER TABLE authorization_codes ADD COLUMN max_age_requested INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE sessions ADD COLUMN auth_method TEXT NOT NULL DEFAULT 'pwd'`,
 		`ALTER TABLE tenants ADD COLUMN initial_domain TEXT`,
 		`ALTER TABLE users ADD COLUMN updated_at INTEGER`,

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/calvinchengx/entra-emulator/internal/store"
@@ -26,6 +27,11 @@ type authorizeState struct {
 	Method       string `json:"method"`
 	ResponseMode string `json:"responseMode"`
 	ResponseType string `json:"responseType"`
+	// MaxAge and HasMaxAge survive the sign-in POST because both halves of
+	// OIDC's max_age outlive the redirect: the re-authentication it forces, and
+	// the `auth_time` claim it makes REQUIRED in the ID token that follows.
+	MaxAge    int64 `json:"maxAge,omitempty"`
+	HasMaxAge bool  `json:"hasMaxAge,omitempty"`
 }
 
 func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
@@ -95,6 +101,7 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 	prompt := param("prompt")
 	loginHint := param("login_hint")
+	maxAgeRaw := param("max_age")
 
 	// client_id + redirect_uri failures NEVER redirect (open-redirect guard).
 	app, err := i.Store.GetApp(st.ClientID)
@@ -152,6 +159,18 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		redirectErr("invalid_request", "Public clients must send a PKCE code_challenge.")
 		return
 	}
+	// max_age (OIDC Core 3.1.2.1): "Maximum Authentication Age ... Number of
+	// seconds". A value that is not a non-negative integer is REFUSED rather
+	// than ignored. Silently dropping it is the dangerous direction: the client
+	// believes it forced a fresh credential check and got a cached session.
+	if maxAgeRaw != "" {
+		n, err := strconv.ParseInt(maxAgeRaw, 10, 64)
+		if err != nil || n < 0 {
+			redirectErr("invalid_request", "max_age must be a non-negative number of seconds.")
+			return
+		}
+		st.MaxAge, st.HasMaxAge = n, true
+	}
 	if st.Challenge != "" && st.Method == "" {
 		st.Method = "plain"
 	}
@@ -162,9 +181,21 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	// Session / prompt resolution.
 	sess, user := i.currentSession(r)
+	// max_age: an existing session older than the client's limit is not usable,
+	// so the end-user is actively re-authenticated. Same mechanism as
+	// prompt=login — drop the user and fall through to the sign-in page — but
+	// conditioned on how long ago authentication happened. The comparison runs
+	// on the emulator's controllable clock, so a test can age a session without
+	// sleeping.
+	if st.HasMaxAge && sess != nil && i.Store.Now()-sess.AuthTime() > st.MaxAge {
+		sess, user = nil, nil
+	}
 	switch prompt {
 	case "none":
 		if user == nil {
+			// Covers the stale-session case too: prompt=none forbids the
+			// interaction that max_age demands, and OIDC Core 3.1.2.6 says the
+			// OP must then fail rather than reuse the session.
 			redirectErr("login_required", "No active session and prompt=none.")
 			return
 		}
@@ -173,8 +204,10 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	}
 	if user != nil {
 		amr := "pwd"
+		var authTime int64
 		if sess != nil {
 			amr = sess.AuthMethod
+			authTime = sess.AuthTime()
 		}
 		if i.Cfg.RequireConsent && prompt != "none" {
 			i.renderConsent(w, st, app)
@@ -183,7 +216,7 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		if sess != nil {
 			_ = i.Store.RecordSessionApp(sess.ID, app.ID)
 		}
-		i.issueCodeAndDeliver(w, st, app, user, amr)
+		i.issueCodeAndDeliver(w, st, app, user, amr, authTime)
 		return
 	}
 
@@ -212,7 +245,7 @@ func (i *Identity) handleConsentDecision(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	_ = i.Store.RecordSessionApp(sess.ID, app.ID)
-	i.issueCodeAndDeliver(w, st, app, user, sess.AuthMethod)
+	i.issueCodeAndDeliver(w, st, app, user, sess.AuthMethod, sess.AuthTime())
 }
 
 // renderSignIn shows the account picker or password form for the request.
@@ -276,18 +309,20 @@ func (i *Identity) handleSignInSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newSess := i.createSession(w, user.ID, "pwd")
+	var authTime int64
 	if newSess != nil {
 		_ = i.Store.RecordSessionApp(newSess.ID, app.ID)
+		authTime = newSess.AuthTime()
 	}
 	if i.Cfg.RequireConsent {
 		i.renderConsent(w, st, app)
 		return
 	}
-	i.issueCodeAndDeliver(w, st, app, user, "pwd")
+	i.issueCodeAndDeliver(w, st, app, user, "pwd", authTime)
 }
 
 // issueCodeAndDeliver mints the auth code and returns it per response_mode.
-func (i *Identity) issueCodeAndDeliver(w http.ResponseWriter, st authorizeState, app *store.App, user *store.User, amr string) {
+func (i *Identity) issueCodeAndDeliver(w http.ResponseWriter, st authorizeState, app *store.App, user *store.User, amr string, authTime int64) {
 	resolved := i.ResolveDelegatedScopes(SplitScopes(st.Scope))
 	if resolved == nil {
 		i.deliverAuthorizeError(w, st, "invalid_scope", "A requested resource scope is not registered.")
@@ -297,6 +332,7 @@ func (i *Identity) issueCodeAndDeliver(w http.ResponseWriter, st authorizeState,
 		AppID: app.ID, UserID: user.ID, RedirectURI: st.RedirectURI,
 		Scopes: resolved.Granted, Resource: resolved.Resource,
 		CodeChallenge: st.Challenge, ChallengeMethod: st.Method, Nonce: st.Nonce, AMR: amr,
+		AuthTime: authTime, MaxAgeRequested: st.HasMaxAge,
 	})
 	if err != nil {
 		i.renderErrorPage(w, http.StatusInternalServerError, "Error", "Could not issue an authorization code.")
@@ -310,6 +346,7 @@ func (i *Identity) issueCodeAndDeliver(w http.ResponseWriter, st authorizeState,
 		idToken, err := i.Tokens.MintIDToken(tokens.DelegatedGrant{
 			App: app, User: user, Scopes: resolved.Granted,
 			Resource: resolved.Resource, Nonce: st.Nonce, AMR: amr,
+			AuthTime: authTime, MaxAgeRequested: st.HasMaxAge,
 		})
 		if err != nil {
 			i.renderErrorPage(w, http.StatusInternalServerError, "Error", "Could not issue an ID token.")

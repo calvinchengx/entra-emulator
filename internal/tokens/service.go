@@ -210,7 +210,14 @@ type DelegatedGrant struct {
 	ScopeEcho []string
 	Nonce     string // echoed into the ID token when present
 	AMR       string // authentication method reference (e.g. "fido") -> amr claim
-	TenantID  string // resolved tenant ("" -> home); drives tid/iss/signing key
+	// AuthTime is when the end-user authenticated, in epoch seconds -> the
+	// `auth_time` claim. Zero means the flow has no authentication instant to
+	// report (app-only grants, and the refresh exchange — see mintIDToken).
+	AuthTime int64
+	// MaxAgeRequested says the authorization request carried `max_age`, which
+	// makes `auth_time` REQUIRED rather than optional (OIDC Core 3.1.2.1).
+	MaxAgeRequested bool
+	TenantID        string // resolved tenant ("" -> home); drives tid/iss/signing key
 	// SkipRefreshToken suppresses issuing a fresh refresh token — used by
 	// the refresh grant, whose rotation already produced the successor.
 	SkipRefreshToken bool
@@ -313,6 +320,23 @@ func (s *Service) mintIDToken(g DelegatedGrant, now int64) (string, error) {
 	if g.AMR != "" {
 		claims["amr"] = []string{g.AMR}
 	}
+	// auth_time. Two independent reasons to emit it, and they are not the same
+	// rule:
+	//
+	//   - OIDC Core 3.1.2.1 makes it REQUIRED when the request carried
+	//     `max_age`, and merely OPTIONAL otherwise. MSAL Python enforces
+	//     exactly that: obtain_token_by_auth_code_flow raises when max_age was
+	//     requested and the ID token has no auth_time.
+	//   - Real Entra emits it more broadly, but not by default: Microsoft's
+	//     optional-claims reference lists auth_time ("Time when the user last
+	//     authenticated") in the v1.0/v2.0 OPTIONAL claim set, so an app opts
+	//     in through optionalClaims. Emitting it unconditionally would hand
+	//     local code a claim production withholds.
+	//
+	// Advertised either way: real Entra names auth_time in claims_supported.
+	if g.AuthTime > 0 && (g.MaxAgeRequested || appRequestsOptionalClaim(g.App, "idToken", "auth_time")) {
+		claims["auth_time"] = g.AuthTime
+	}
 	s.applyTokenConfig(claims, g.App, g.User, "idToken")
 	s.enrich(claims, g.App, g.User, "idToken")
 	return s.signTenant(tid, claims)
@@ -372,8 +396,33 @@ type optionalClaimsConfig struct {
 }
 
 var supportedOptionalClaims = map[string]map[string]bool{
-	"idToken":     {"given_name": true, "family_name": true, "upn": true, "ipaddr": true, "groups": true},
+	"idToken": {"given_name": true, "family_name": true, "upn": true, "ipaddr": true,
+		"groups": true, "auth_time": true},
 	"accessToken": {"given_name": true, "family_name": true, "upn": true, "ipaddr": true, "groups": true},
+}
+
+// appRequestsOptionalClaim reports whether the app's optionalClaims config asks
+// for a claim on the given token kind. Claims the emulator does not implement
+// are preserved in the config but never satisfied, so the check goes through
+// supportedOptionalClaims rather than the raw config.
+func appRequestsOptionalClaim(app *store.App, kind, name string) bool {
+	if app == nil || app.OptionalClaims == "" || !supportedOptionalClaims[kind][name] {
+		return false
+	}
+	var cfg optionalClaimsConfig
+	if json.Unmarshal([]byte(app.OptionalClaims), &cfg) != nil {
+		return false
+	}
+	entries := cfg.IDToken
+	if kind == "accessToken" {
+		entries = cfg.AccessToken
+	}
+	for _, e := range entries {
+		if e.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Service) applyTokenConfig(claims map[string]any, app *store.App, user *store.User, kind string) {
@@ -406,6 +455,10 @@ func (s *Service) applyTokenConfig(claims map[string]any, app *store.App, user *
 			claims["upn"] = user.UserPrincipalName
 		case "ipaddr":
 			claims["ipaddr"] = "127.0.0.1"
+		case "auth_time":
+			// Satisfied in mintIDToken, which is the only place holding the
+			// grant's authentication instant. Listed here so the supported
+			// table stays the single answer to "which optional claims work".
 		}
 	}
 
@@ -453,6 +506,8 @@ type AuthCodeRequest struct {
 	Resource                              string
 	CodeChallenge, ChallengeMethod, Nonce string
 	AMR                                   string // authentication method reference
+	AuthTime                              int64  // when the end-user authenticated -> auth_time
+	MaxAgeRequested                       bool   // the request carried max_age
 }
 
 // IssueAuthCode persists a single-use opaque code.
@@ -463,7 +518,8 @@ func (s *Service) IssueAuthCode(r AuthCodeRequest) (string, error) {
 		Code: code, AppID: r.AppID, UserID: r.UserID, RedirectURI: r.RedirectURI,
 		Scopes: strings.Join(r.Scopes, " "), Resource: r.Resource,
 		CodeChallenge: r.CodeChallenge, CodeChallengeMethod: r.ChallengeMethod,
-		Nonce: r.Nonce, AMR: r.AMR, ExpiresAt: now + int64(s.Cfg.Lifetimes.AuthCode), CreatedAt: now,
+		Nonce: r.Nonce, AMR: r.AMR, AuthTime: r.AuthTime, MaxAgeRequested: r.MaxAgeRequested,
+		ExpiresAt: now + int64(s.Cfg.Lifetimes.AuthCode), CreatedAt: now,
 	})
 	if err != nil {
 		return "", err

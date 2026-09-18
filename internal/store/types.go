@@ -121,9 +121,18 @@ type AuthCode struct {
 	CodeChallengeMethod string
 	Nonce               string
 	AMR                 string // authentication method reference (e.g. "pwd", "fido")
-	ExpiresAt           int64
-	Consumed            bool
-	CreatedAt           int64
+	// AuthTime is when the end-user authenticated for this code (OIDC
+	// `auth_time`), carried from the session because the token endpoint is a
+	// back-channel call with no cookie to look one up from.
+	AuthTime int64
+	// MaxAgeRequested records that the authorization request carried `max_age`.
+	// OIDC Core 3.1.2.1 makes `auth_time` REQUIRED in that case and merely
+	// OPTIONAL otherwise, so the exchange has to know which request it is
+	// answering, not just what time authentication happened.
+	MaxAgeRequested bool
+	ExpiresAt       int64
+	Consumed        bool
+	CreatedAt       int64
 }
 
 type RefreshToken struct {
@@ -145,6 +154,19 @@ type Session struct {
 	CreatedAt  int64
 	ExpiresAt  int64
 }
+
+// AuthTime is when the end-user actually authenticated, for OIDC's `auth_time`
+// claim and for `max_age` staleness.
+//
+// It is the row's creation time rather than a second column, because every
+// session this emulator creates is created AT a credential check and never
+// re-authenticated in place: all five callers of createSession sit immediately
+// after a password verification, a WebAuthn assertion, a device-code approval,
+// or a WS-Fed / SAML sign-in. A duplicate column would be a second source of
+// truth that could silently disagree with the first. If a session ever does
+// become re-authenticatable in place, this method is the single place that has
+// to change.
+func (s *Session) AuthTime() int64 { return s.CreatedAt }
 
 type DeviceCode struct {
 	DeviceCodeHash string // SHA-256 hex; PK

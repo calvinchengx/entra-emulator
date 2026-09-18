@@ -83,7 +83,7 @@ registered), `scope`* (must include `openid`), `state` (echoed), `code_challenge
 (required for public clients) + `code_challenge_method` (`S256`|`plain`), `nonce`,
 `response_mode` (`query` default | `fragment` | `form_post` auto-submit HTML), `prompt`
 (`login`/`select_account` force picker; `none` without session → redirect
-`error=login_required`), `login_hint` (pre-selects user).
+`error=login_required`), `login_hint` (pre-selects user), `max_age` (seconds; see below).
 
 Error rules: invalid `client_id`/`redirect_uri` → **400 error page, never redirect**;
 other errors with a valid redirect_uri → redirect back with `error`+`state`.
@@ -96,6 +96,25 @@ field (`__ee_state`, per-process key). Cookies: `ee_session` (HttpOnly, SameSite
 Secure-when-TLS, 8 h — must be the **first** Set-Cookie) and `ee_recent` (recent UPNs,
 30 d). A valid session + no forcing `prompt` skips the picker (SSO) and issues the code
 directly.
+
+**`max_age` and `auth_time`** (OIDC Core 3.1.2.1): an SSO session whose authentication is
+older than `max_age` seconds is not reused — the end-user is re-authenticated, the same
+way `prompt=login` forces the picker. Elapsed time is measured on the emulator's
+controllable clock (`/admin/api/clock`), so a one-second ceiling is testable without a
+sleep. Combined with `prompt=none`, a stale session redirects `error=login_required`
+rather than being reused. A `max_age` that is not a non-negative integer is **refused**
+with `invalid_request`: ignoring it would tell the client its freshness requirement was
+met when it was not. `max_age` inside a signed `request_uri` object is honoured too, as a
+JSON number.
+
+`auth_time` reports when authentication happened, not when the token was issued, so a
+reused session carries its original instant. It is emitted when `max_age` was requested
+(where OIDC makes it REQUIRED) or when the app lists it in `optionalClaims.idToken` —
+which is where Microsoft's own optional-claims reference puts it, so it is absent by
+default here as it is in Entra. It is advertised in `claims_supported` either way,
+because real Entra advertises it. A refresh exchange does not carry it: `refresh_tokens`
+records the grant, not the authentication behind it, which is the same boundary `amr`
+has.
 
 On success: issue code (via token service) → deliver `code` + `state` per response_mode.
 
