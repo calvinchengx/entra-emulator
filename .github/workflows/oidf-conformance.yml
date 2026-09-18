@@ -1,0 +1,53 @@
+name: OIDF conformance
+
+# Runs an OpenID Foundation conformance plan against the emulator
+# (docs/23-oidf-conformance.md). Currently rung 0: the Config OP certification
+# profile, which checks the discovery document against the specification.
+#
+# Deliberately NOT part of the CI gate, for the same reason as golden-drift.yml:
+# it pulls a third party's container image and runs a JVM, a MongoDB and a
+# freshly built emulator, so making every push depend on that trades a real
+# problem for a worse one. It is scheduled, and it fails loudly when it fails.
+#
+# Unlike golden-drift.yml this needs nothing from the network at test time: the
+# OP under test is a sibling compose service, so there is no tunnel, no public
+# hostname, and no dependency on Microsoft being reachable.
+
+on:
+  schedule:
+    - cron: '41 5 * * 2' # weekly, Tuesday 05:41 UTC
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - 'e2e/conformance/**'
+      - '.github/workflows/oidf-conformance.yml'
+      - 'internal/identity/discovery.go'
+
+concurrency:
+  group: oidf-conformance-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  config-op:
+    name: Config OP certification profile
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+
+      - name: Run the plan
+        run: uv run --no-project --python 3.12 python e2e/conformance/run.py
+
+      # The per-condition log is the whole evidentiary value of the run: the
+      # summary says PASSED, the log says which 34 checks produced it.
+      - name: Upload the conformance log
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: oidf-conformance-results
+          path: e2e/conformance/results/
+          if-no-files-found: warn

@@ -1,0 +1,15 @@
+{
+  "alias": "entra-emulator-config-op",
+  "description": "entra-emulator, OpenID Connect Core Config OP certification profile",
+  "server": {
+    "discoveryUrl": "https://entra-emulator:8443/6f89cf12-978b-4d23-ac18-9ef0c127cf87/v2.0/.well-known/openid-configuration",
+    "allow_unexpected_metadata_fields": [
+      "cloud_graph_host_name",
+      "cloud_instance_name",
+      "http_logout_supported",
+      "msgraph_host",
+      "rbac_url",
+      "tenant_region_scope"
+    ]
+  }
+}

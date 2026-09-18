@@ -1,0 +1,69 @@
+# OIDF conformance harness (docs/23-oidf-conformance.md).
+#
+# The topology is upstream's own `docker-compose-localtest.yml` with
+# entra-emulator in the place of their sample provider: the OP under test is a
+# SIBLING service, so the suite reaches it over the compose network and nothing
+# needs a public hostname or a tunnel.
+#
+# `e2e/conformance/run.py` orchestrates this file; bringing it up by hand will
+# not work, because the suite image has to be built AFTER the emulator has
+# generated the certificate it must trust.
+name: entra-oidf-conformance
+
+services:
+  entra-emulator:
+    build:
+      context: ../..
+    environment:
+      # compat mode puts every surface on one origin, and PUBLIC_ORIGIN is what
+      # the discovery document advertises. The suite runs
+      # CheckDiscEndpointAllEndpointsAreHttps, so every advertised endpoint has
+      # to be https — hence TLS on, and the service name in LOCAL_DOMAINS so the
+      # generated certificate carries it as a SAN.
+      ORIGIN_MODE: compat
+      PUBLIC_ORIGIN: https://entra-emulator:8443
+      LOCAL_DOMAINS: entra-emulator
+      TLS_ENABLED: "true"
+      SEED_ON_START: "true"
+    # No bind mount for the TLS directory on purpose: the image runs as uid
+    # 65532 and could not write into a host directory owned by the CI runner.
+    # run.py lifts the certificate out with `docker compose cp` instead.
+    expose:
+      - "8443"
+
+  mongodb:
+    image: mongo:6.0.13
+    tmpfs:
+      - /data/db
+
+  conformance:
+    build:
+      context: .
+      dockerfile: Dockerfile.suite
+      args:
+        SUITE_IMAGE: ${SUITE_IMAGE:?SUITE_IMAGE must be set by run.py}
+    environment:
+      BASE_URL: https://localhost:8443
+      MONGODB_HOST: mongodb
+      # devmode drops the suite's own login requirement, so the REST API is
+      # reachable without provisioning an OAuth client for the test harness.
+      JAVA_EXTRA_ARGS: -Dfintechlabs.devmode=true
+      # The published image's entrypoint passes these through unconditionally,
+      # and Spring Security refuses to start a registration with an empty client
+      # id, so the container dies during bean creation with no mention of TLS or
+      # of the suite itself. devmode means the login path is never taken, so the
+      # values only have to be non-empty.
+      OIDC_GOOGLE_CLIENTID: unused
+      OIDC_GOOGLE_SECRET: unused
+      OIDC_GITLAB_CLIENTID: unused
+      OIDC_GITLAB_SECRET: unused
+    ports:
+      - "${CONFORMANCE_PORT:-8099}:8080"
+    depends_on:
+      - mongodb
+      - entra-emulator
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "1"
