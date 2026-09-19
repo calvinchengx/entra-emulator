@@ -1,8 +1,9 @@
 name: OIDF conformance
 
-# Runs an OpenID Foundation conformance plan against the emulator
-# (docs/23-oidf-conformance.md). Currently rung 0: the Config OP certification
-# profile, which checks the discovery document against the specification.
+# Runs the OpenID Foundation conformance plans against the emulator
+# (docs/23-oidf-conformance.md): the Config OP profile, which checks the
+# discovery document against the specification, and the Basic OP profile, whose
+# 35 modules drive real logins through a scripted browser.
 #
 # Deliberately NOT part of the CI gate, for the same reason as golden-drift.yml:
 # it pulls a third party's container image and runs a JVM, a MongoDB and a
@@ -22,6 +23,8 @@ on:
       - 'e2e/conformance/**'
       - '.github/workflows/oidf-conformance.yml'
       - 'internal/identity/discovery.go'
+      - 'internal/identity/authorize.go'
+      - 'internal/identity/signin.go'
 
 concurrency:
   group: oidf-conformance-${{ github.ref }}
@@ -31,23 +34,32 @@ permissions:
   contents: read
 
 jobs:
-  config-op:
-    name: Config OP certification profile
+  plan:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
+    strategy:
+      # Independent plans: one failing should not hide the other's result.
+      fail-fast: false
+      matrix:
+        include:
+          - plan: config
+            name: Config OP certification profile
+          - plan: basic
+            name: Basic OP certification profile
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
 
       - name: Run the plan
-        run: uv run --no-project --python 3.12 python e2e/conformance/run.py
+        run: uv run --no-project --python 3.12 python e2e/conformance/run.py ${{ matrix.plan }}
 
-      # The per-condition log is the whole evidentiary value of the run: the
-      # summary says PASSED, the log says which 34 checks produced it.
-      - name: Upload the conformance log
+      # The per-condition logs are the whole evidentiary value of the run: the
+      # summary says PASSED, the logs say which conditions produced it.
+      - name: Upload the conformance logs
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: oidf-conformance-results
+          name: oidf-conformance-${{ matrix.plan }}
           path: e2e/conformance/results/
           if-no-files-found: warn

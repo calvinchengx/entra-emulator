@@ -86,6 +86,7 @@
     "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
     "claim": "`authorization_code` + **PKCE** (S256/plain)",
     "witnesses": [
+      "oidf:oidcc-ensure-request-with-valid-pkce-succeeds",
       "ci:sdk-e2e",
       "go:TestAuthCodePKCEFlow",
       "go:TestPKCEMismatchAndReplay",
@@ -96,6 +97,7 @@
     "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
     "claim": "`refresh_token`",
     "witnesses": [
+      "oidf:oidcc-refresh-token",
       "ci:sdk-e2e",
       "go:TestRefreshRotationAndFamilyRevocation",
       "go:TestScopeEchoOnExchangeAndRefresh",
@@ -145,6 +147,7 @@
     "section": "Microsoft Graph (`09-graph-api`)",
     "claim": "Directory reads (`/me`, users, groups, members, `memberOf`, `userinfo`)",
     "witnesses": [
+      "oidf:oidcc-userinfo-get",
       "ci:sdk-e2e",
       "go:TestAdminUserCRUD",
       "go:TestAdminGroupCRUDAndMembers",
@@ -262,6 +265,7 @@
     "section": "Directory, storage & transport",
     "claim": "Concurrency contracts (single-use codes, refresh-reuse detection, device-code approve\u2192mint)",
     "witnesses": [
+      "oidf:oidcc-codereuse",
       "ci:concurrency-e2e",
       "go:TestRefreshTokenRotationAndReuse",
       "go:TestPKCEMismatchAndReplay"
@@ -401,6 +405,7 @@
     "section": "OIDC / OAuth2 endpoints (`08-oidc-endpoints`)",
     "claim": "**`max_age` + `auth_time`**",
     "witnesses": [
+      "oidf:oidcc-max-age-10000",
       "ci:sdk-e2e",
       "go:TestMaxAgeReusesSessionYoungerThanTheLimit",
       "go:TestMaxAgeForcesReauthenticationWhenSessionIsStale",

@@ -95,9 +95,9 @@ e2e: ## Real-SDK e2e matrix (MSAL Node/Python/Go/.NET/Java, Graph SDK)
 	@test -n "$(PY)" || { echo "no working python found (tried python3, python, py); set PY=" >&2; exit 1; }
 	$(PY) e2e/run.py
 
-conformance: ## OIDF conformance plan against the emulator (docker required)
+conformance: ## OIDF conformance plans against the emulator (PLAN=config|basic, docker required)
 	@test -n "$(PY)" || { echo "no working python found (tried python3, python, py); set PY=" >&2; exit 1; }
-	$(PY) e2e/conformance/run.py
+	$(PY) e2e/conformance/run.py $(PLAN)
 
 clean: ## Remove the built binary and the local ./data store (full reset)
 	rm -rf ./entra-emulator ./entra-emulator.exe ./data
