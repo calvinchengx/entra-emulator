@@ -36,7 +36,7 @@ func readRecording(t *testing.T, file string) []recorded {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	var out []recorded
 	sc := bufio.NewScanner(f)
 	sc.Buffer(make([]byte, 0, 1<<20), 4<<20)

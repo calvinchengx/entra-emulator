@@ -1,0 +1,14 @@
+{
+  "upstream": "https://github.com/microsoftgraph/msgraph-metadata",
+  "path": "openapi/v1.0/openapi.yaml",
+  "commit": "b8cbef92f6959dca8150bf3edcc650863765e529",
+  "upstream_sha256": "77c1a39c94ab0a72c0a2e07ff74f221903141e8913e748fddcc189b98da42feb",
+  "upstream_bytes": 44334960,
+  "derived_json_sha256": "15d5a27c955e26c438f3588d2d2de952a8930d77fc091748d349119f8b4ff95e",
+  "derived_json_bytes": 37801665,
+  "vendored_file": "openapi-v1.0.json.gz",
+  "vendored_bytes": 1963469,
+  "openapi": "3.0.4",
+  "paths": 11546,
+  "schemas": 5187
+}

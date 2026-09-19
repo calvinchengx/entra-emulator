@@ -10,7 +10,17 @@ import (
 
 // Password reset over Graph's documented authentication-methods API:
 //
-//	POST /users/{id}/authentication/passwordMethods/{methodId}/resetPassword
+//	POST /users/{id}/authentication/methods/{methodId}/resetPassword
+//
+// The route is `methods`, NOT `passwordMethods`. This file used to serve the
+// latter and call it documented; it is not. Microsoft's OpenAPI has exactly one
+// resetPassword operation, under `methods`, and the docs page for it
+// (authenticationMethod-resetpassword) uses that URL in every SDK snippet, so
+// `graphClient.Users[...].Authentication.Methods[...].ResetPassword` got a 404
+// from this emulator and worked against Entra. Found by
+// scripts/check_graph_conformance.py, the first time a spec-driven check asked.
+// `{methodId}` is always 28c10230-6103-485e-b985-444c60001490, the password
+// method's fixed id.
 //
 // The reset is REAL: the new password is scrypt-hashed into the directory, so
 // the old one immediately stops working and the new one signs in. Omit
@@ -24,7 +34,7 @@ import (
 
 func (g *Graph) registerPasswordReset(mux *http.ServeMux, prefix string) {
 	p := prefix + "/v1.0"
-	mux.HandleFunc("POST "+p+"/users/{id}/authentication/passwordMethods/{methodId}/resetPassword",
+	mux.HandleFunc("POST "+p+"/users/{id}/authentication/methods/{methodId}/resetPassword",
 		g.requireBearer(g.resetPassword))
 }
 
@@ -68,9 +78,10 @@ func (g *Graph) resetPassword(w http.ResponseWriter, r *http.Request, _ *tokens.
 	// Graph answers 202 for this long-running operation.
 	w.Header().Set("Location", g.contextURL("users/"+u.ID+"/authentication/passwordMethods/"+passwordMethodID))
 	if generated {
+		// The docs' own sample carries @odata.context, not @odata.type.
 		httpx.WriteJSON(w, http.StatusAccepted, map[string]any{
-			"@odata.type": "#microsoft.graph.passwordResetResponse",
-			"newPassword": newPassword,
+			"@odata.context": g.contextURL("microsoft.graph.passwordResetResponse"),
+			"newPassword":    newPassword,
 		})
 		return
 	}

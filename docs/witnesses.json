@@ -147,6 +147,7 @@
     "section": "Microsoft Graph (`09-graph-api`)",
     "claim": "Directory reads (`/me`, users, groups, members, `memberOf`, `userinfo`)",
     "witnesses": [
+      "ci:graph-conformance",
       "oidf:oidcc-userinfo-get",
       "ci:sdk-e2e",
       "go:TestAdminUserCRUD",
@@ -384,10 +385,11 @@
       "go:TestGraphSignInLogs"
     ]
   },
-  "password-reset-graph-authentication-passwordmethods-id-resetpassword": {
+  "password-reset-graph-authentication-methods-id-resetpassword": {
     "section": "Sign-in experience",
-    "claim": "Password reset (Graph `authentication/passwordMethods/{id}/resetPassword`)",
+    "claim": "Password reset (Graph `authentication/methods/{id}/resetPassword`)",
     "witnesses": [
+      "ci:graph-conformance",
       "ci:sdk-e2e",
       "go:TestPasswordReset"
     ]
@@ -539,6 +541,7 @@
     "section": "Microsoft Graph (`08-graph`)",
     "claim": "Graph error envelope (`error.code` / `error.message` / `innerError`)",
     "witnesses": [
+      "ci:graph-conformance",
       "diff:graph-error-not-found",
       "diff:graph-error-invalid-id",
       "diff:graph-error-unauthenticated",

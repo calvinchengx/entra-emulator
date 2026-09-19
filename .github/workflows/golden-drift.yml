@@ -59,3 +59,21 @@ jobs:
       - name: Fail the run when the reference is wrong
         if: steps.drift.outputs.code == '1'
         run: exit 1
+
+  # The vendored Graph OpenAPI is a RENDERING of Microsoft's 44 MB YAML, so it can
+  # drift from what upstream says in two ways: the pin could be wrong, or the
+  # derivation could change behaviour under it (PyYAML, this script). Re-fetching
+  # at the pinned commit and requiring a byte-for-byte match catches both. It
+  # downloads 44 MB, which is why it is weekly and not in the push gate; the
+  # offline --verify runs on every push in ci.yml.
+  #
+  # Plain failure, no issue: unlike the discovery check above, a mismatch here is
+  # not upstream drift (a commit SHA is immutable) but an integrity fault.
+  graph-spec-reproduces:
+    name: Vendored Graph OpenAPI is what upstream says
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - run: uv run --python 3.12 scripts/vendor_graph_spec.py --reproduce

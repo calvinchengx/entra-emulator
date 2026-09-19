@@ -146,7 +146,22 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
+      # Record every Graph response this suite provokes, so the aggregate
+      # graph-conformance job can hold real SDK traffic to Microsoft's published
+      # OpenAPI. Headers are never recorded, so no bearer token reaches the file.
+      - run: mkdir -p recording
       - run: python3 e2e/run.py ts graph go python dotnet java saml wsfed
+        env:
+          RECORD_RESPONSES: ${{ github.workspace }}/recording/responses.jsonl
+      # if: always(), so a suite that fails after producing traffic still uploads
+      # it; the aggregate job is skipped when a suite fails, so nothing is judged
+      # on a partial recording.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: graph-recording-sdk-e2e
+          path: recording/responses.jsonl
+          if-no-files-found: warn
 
   docker-smoke:
     name: Docker image smoke test
@@ -411,7 +426,22 @@ jobs:
       # matches Entra for an unconfigured tenant. So this suite starts its own
       # emulator with the gate on rather than changing what every other suite
       # depends on.
+      # Record every Graph response this suite provokes, so the aggregate
+      # graph-conformance job can hold real SDK traffic to Microsoft's published
+      # OpenAPI. Headers are never recorded, so no bearer token reaches the file.
+      - run: mkdir -p recording
       - run: python3 e2e/run.py graph-permissions
+        env:
+          RECORD_RESPONSES: ${{ github.workspace }}/recording/responses.jsonl
+      # if: always(), so a suite that fails after producing traffic still uploads
+      # it; the aggregate job is skipped when a suite fails, so nothing is judged
+      # on a partial recording.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: graph-recording-graph-permissions
+          path: recording/responses.jsonl
+          if-no-files-found: warn
 
   jar-metadata-e2e:
     name: JAR by reference + cloud-instance metadata
@@ -471,7 +501,81 @@ jobs:
       # it writes through the SDK, stops the process, starts a new one on the
       # same database, and reads the work back. Run against the shared emulator
       # there would be no restart, and every check would pass in memory.
+      # Record every Graph response this suite provokes, so the aggregate
+      # graph-conformance job can hold real SDK traffic to Microsoft's published
+      # OpenAPI. Headers are never recorded, so no bearer token reaches the file.
+      - run: mkdir -p recording
       - run: python3 e2e/run.py persistence
+        env:
+          RECORD_RESPONSES: ${{ github.workspace }}/recording/responses.jsonl
+      # if: always(), so a suite that fails after producing traffic still uploads
+      # it; the aggregate job is skipped when a suite fails, so nothing is judged
+      # on a partial recording.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: graph-recording-persistence
+          path: recording/responses.jsonl
+          if-no-files-found: warn
+
+  # Microsoft publishes an OpenAPI for Graph, and this holds what the emulator
+  # actually answered to it. It is a different KIND of evidence from the rest: the
+  # `ci:` suites are clients whose own models reject a wrong shape, which is
+  # strong and narrow (a typed client asserts on the fields it uses), and the
+  # `diff:` fixtures are the real service but seventeen scenarios. This covers
+  # every route a suite happens to touch. Shape, never semantics. See
+  # docs/24-graph-conformance.md, and fabric-emulator's check_openapi_conformance
+  # for the design this ports.
+  #
+  # Skipped, not failed, when any suite is red: `needs` means it only runs on
+  # success, so a broken suite is reported once, by itself, and not a second time
+  # as a confusing shortfall in the union.
+  graph-conformance:
+    name: Graph responses against Microsoft's published OpenAPI
+    needs: [sdk-e2e, graph-permissions-e2e, persistence-e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: graph-recording-*
+          path: recordings
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.11.32"
+      # OFFLINE integrity check: the vendored spec still hashes to what pin.json
+      # says. The stronger check, that it is byte-for-byte what upstream says, is
+      # --reproduce and runs weekly in golden-drift.yml, because it downloads 44 MB.
+      - run: uv run --python 3.12 scripts/vendor_graph_spec.py --verify
+      # The checker's own controls. It reported almost nothing on 67 real
+      # responses, and "the emulator is good" and "the checker is lenient" look
+      # identical when green, so each rule is fed a response that must fail.
+      - run: uv run --no-project --python 3.12 python -m unittest scripts/test_check_graph_conformance.py
+      # EVERY EXPECTED RECORDING, BY NAME. A suite that passes having recorded
+      # nothing uploads nothing (if-no-files-found: warn), the union quietly
+      # shrinks, and the failure then arrives blaming routes rather than the
+      # suite that stopped recording. That is what fabric-emulator's copy of this
+      # check cost it a CI round trip, so it is named here from day one.
+      - name: Collect the recordings
+        run: |
+          set -euo pipefail
+          mapfile -t found < <(find recordings -name responses.jsonl | sort)
+          printf 'recording: %s\n' "${found[@]}"
+          missing=()
+          for suite in sdk-e2e graph-permissions persistence; do
+            printf '%s\n' "${found[@]}" | grep -q "graph-recording-$suite/" || missing+=("$suite")
+          done
+          if [ "${#missing[@]}" -ne 0 ]; then
+            echo "::error::these suites uploaded no recording, so the union is short: ${missing[*]}"
+            exit 1
+          fi
+          wc -l "${found[@]}"
+          printf '%s\n' "${found[@]}" > recordings.txt
+      - run: |
+          set -euo pipefail
+          uv run --no-project --python 3.12 python scripts/check_graph_conformance.py \
+            $(cat recordings.txt) --strict
 
   lint:
     name: golangci-lint

@@ -391,7 +391,12 @@ async function main() {
   // 5k. Password reset over the authentication-methods API. The reset has to be
   // REAL, so it is proved the only way that counts: msal-node signs the user in
   // with the new password, and the old one stops working.
-  const pwBase = `${GRAPH}/users/${uid}/authentication/passwordMethods/${PASSWORD_METHOD_ID}`;
+  // `methods`, not `passwordMethods`: that is the ONLY spelling Microsoft's
+  // OpenAPI and docs give for resetPassword. This suite used to hard-code the
+  // other one through the SDK's raw api() path, so the client witness passed
+  // while asserting a URL Entra 404s, which is the failure a spec-driven check
+  // (scripts/check_graph_conformance.py) exists to catch.
+  const pwBase = `${GRAPH}/users/${uid}/authentication/methods/${PASSWORD_METHOD_ID}`;
   check('the original password signs in', await ropcWorks(upn, INITIAL_PASSWORD));
 
   const rotated = 'R0tated!pass2';
