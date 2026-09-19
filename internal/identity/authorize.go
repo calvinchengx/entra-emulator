@@ -63,11 +63,17 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	// supplies the authorization parameters. Resolve it FIRST, since every
 	// parameter read below may come from it. Inline `request` is rejected —
 	// Entra does not advertise request_parameter_supported.
-	if raw := param("request"); raw != "" {
-		i.renderErrorPage(w, http.StatusBadRequest, "Invalid request",
-			"The request parameter is not supported; use request_uri.")
-		return
-	}
+	//
+	// The refusal is DEFERRED rather than answered here, because how an error
+	// is delivered is as much a part of the contract as whether it is raised.
+	// Once client_id and redirect_uri are both valid, OIDC Core 3.1.2.6 and RFC
+	// 6749 4.1.2.1 require the error to go back to the redirect_uri, and
+	// `request_not_supported` is the code OIDC defines for exactly this. Only
+	// an unusable client_id or redirect_uri may be answered with a page, which
+	// is the open-redirect guard below. Answering here with a page meant a
+	// spec-driven client saw an HTML body where it was waiting for a redirect;
+	// found by the OIDF conformance suite, which hung on it.
+	inlineRequest := param("request") != ""
 	if requestURI := param("request_uri"); requestURI != "" {
 		clientID := param("client_id")
 		if clientID == "" {
@@ -118,6 +124,11 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	redirectErr := func(code, desc string) {
 		i.deliverAuthorizeError(w, st, code, desc)
+	}
+	if inlineRequest {
+		redirectErr("request_not_supported",
+			"The request parameter is not supported; use request_uri.")
+		return
 	}
 	switch st.ResponseType {
 	case "code", "id_token", "code id_token":

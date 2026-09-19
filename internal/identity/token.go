@@ -232,7 +232,7 @@ func (i *Identity) grantAuthorizationCode(w http.ResponseWriter, r *http.Request
 	resp, err := i.Tokens.BuildDelegatedResponse(tokens.DelegatedGrant{
 		App: app, User: user, Scopes: grantScopes, Resource: row.Resource, Nonce: row.Nonce, AMR: row.AMR,
 		AuthTime: row.AuthTime, MaxAgeRequested: row.MaxAgeRequested,
-		ScopeEcho: scopeEcho,
+		AuthCode: code, ScopeEcho: scopeEcho,
 	})
 	if err != nil {
 		httpx.WriteOAuthError(w, "invalid_request", "AADSTS90002: Token minting failed.")
