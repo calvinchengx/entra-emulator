@@ -1,0 +1,62 @@
+{
+  "alias": "entra-emulator-basic-op",
+  "description": "entra-emulator, OpenID Connect Core Basic OP certification profile",
+  "server": {
+    "discoveryUrl": "https://entra-emulator:8443/6f89cf12-978b-4d23-ac18-9ef0c127cf87/v2.0/.well-known/openid-configuration",
+    "allow_unexpected_metadata_fields": [
+      "cloud_graph_host_name",
+      "cloud_instance_name",
+      "http_logout_supported",
+      "msgraph_host",
+      "rbac_url",
+      "tenant_region_scope"
+    ]
+  },
+  "browser": [
+    {
+      "match": "https://entra-emulator:8443/*/oauth2/v2.0/authorize*",
+      "tasks": [
+        {
+          "task": "Sign in as the seeded user",
+          "match": "https://entra-emulator:8443/*/oauth2/v2.0/authorize*",
+          "optional": true,
+          "commands": [
+            [
+              "text",
+              "name",
+              "__ee_username",
+              "alice@entraemulator.dev",
+              "optional"
+            ],
+            [
+              "text",
+              "name",
+              "__ee_password",
+              "Password1!",
+              "optional"
+            ],
+            [
+              "click",
+              "class",
+              "primary",
+              "optional"
+            ]
+          ]
+        },
+        {
+          "task": "Verify Complete",
+          "match": "https://nginx:8443/test/a/*/callback*",
+          "commands": [
+            [
+              "wait",
+              "id",
+              "submission_complete",
+              10
+            ]
+          ],
+          "optional": true
+        }
+      ]
+    }
+  ]
+}

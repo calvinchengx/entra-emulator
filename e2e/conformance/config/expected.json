@@ -1,4 +1,94 @@
 {
-  "_comment": "Declared non-PASSED outcomes. Anything not listed here must come back PASSED, so a new WARNING or FAILURE breaks the run instead of accumulating quietly. Each entry needs a reason; 'it was red when I wrote this' is not one. Mirrors upstream's own expected-failures-oidcc.json idea and docs/parity.md's declared refusals.",
-  "modules": {}
+  "_comment": "Declared non-PASSED outcomes, per plan. Anything not listed must come back PASSED, so a new WARNING, FAILURE or STALL breaks the run instead of accumulating quietly. A declaration for a module that now passes is reported as stale and also breaks the run. Every entry needs a reason that says WHY the outcome is acceptable or what it is waiting on; 'it was red when I wrote this' is not one. This is the same idea as upstream's expected-failures-oidcc.json and as the declared refusals in docs/parity.md.",
+  "_categories": {
+    "parity": "The emulator deliberately behaves like Entra rather than like the bare specification. Changing it to satisfy the suite would break the thing being emulated. These are the interesting ones: they are exactly where the oidf: axis and the diff: axis disagree.",
+    "not-in-entra": "Neither the emulator nor real Entra supports the feature, so the suite skips the module.",
+    "gap": "A real emulator gap this run found. Each names what would have to change.",
+    "needs-a-human": "The module stops and asks for a screenshot. The harness fills the placeholder so the plan can finish, and the module correctly ends as REVIEW rather than PASSED. Nobody looked at a screenshot."
+  },
+  "plans": {
+    "config": {},
+    "basic": {
+      "oidcc-server": {
+        "result": "WARNING",
+        "category": "parity",
+        "reason": "EnsureIdTokenDoesNotContainName and EnsureIdTokenDoesNotContainNonRequestedClaims ('ver'). Real Entra puts name, preferred_username and ver in every v2.0 id_token whether or not they were requested, and docs/parity.md grades that shape \ud83d\udfe2 (internal/tokens/service.go emits them unconditionally). Dropping them would satisfy the spec and diverge from Entra."
+      },
+      "oidcc-scope-email": {
+        "result": "WARNING",
+        "category": "parity",
+        "reason": "Same unrequested name/email claims as oidcc-server, plus VerifyScopesReturnedInUserInfoClaims. Entra returns email in the id_token for scope=email rather than only from userinfo."
+      },
+      "oidcc-alternate-happy-flow": {
+        "result": "WARNING",
+        "category": "parity",
+        "reason": "Same unrequested-claims family as oidcc-server and oidcc-scope-email."
+      },
+      "oidcc-claims-essential": {
+        "result": "WARNING",
+        "category": "parity",
+        "reason": "EnsureIdTokenDoesNotContainName only. The claims request parameter itself is unsupported here and by Entra, which the module tolerates."
+      },
+      "oidcc-ensure-request-with-acr-values-succeeds": {
+        "result": "WARNING",
+        "category": "parity",
+        "reason": "ValidateIdTokenACRClaimAgainstAcrValuesRequest: the spec says an OP SHOULD return acr when acr_values was requested. Entra v2.0 tokens do not carry acr, so emitting one would be a divergence rather than a fix. The request itself succeeds, which is what the module's name asks for."
+      },
+      "oidcc-scope-address": {
+        "result": "SKIPPED",
+        "category": "not-in-entra",
+        "reason": "The suite skips it because scopes_supported does not advertise 'address'. Real Entra does not support it either, so advertising it would be the divergence."
+      },
+      "oidcc-scope-phone": {
+        "result": "SKIPPED",
+        "category": "not-in-entra",
+        "reason": "As oidcc-scope-address, for 'phone'."
+      },
+      "oidcc-scope-all": {
+        "result": "SKIPPED",
+        "category": "not-in-entra",
+        "reason": "Requires address and phone together, so it skips for the same reason."
+      },
+      "oidcc-scope-profile": {
+        "result": "WARNING",
+        "category": "gap",
+        "reason": "VerifyScopesReturnedInUserInfoClaims: userinfo does not return the full standard claim set for scope=profile (family_name, given_name and the rest). A real gap in internal/graph's userinfo projection, not a parity choice; Entra's Graph userinfo returns more than this."
+      },
+      "oidcc-userinfo-post-body": {
+        "result": "WARNING",
+        "category": "gap",
+        "reason": "UserInfoEndpointWithAccessTokenInBodyNotSupported: the endpoint accepts the access token in the Authorization header but not form-encoded in the POST body, which OIDC Core 5.3.1 allows a client to use. GET and POST-with-header both pass. Fixing it means teaching internal/graph's userinfo gate to read access_token from the form body."
+      },
+      "oidcc-codereuse-30seconds": {
+        "result": "WARNING",
+        "category": "gap",
+        "reason": "EnsureHttpStatusCodeIs4xx: after an authorization code is replayed, the access token already issued from it should stop working. The emulator invalidates the code (oidcc-codereuse passes) but leaves the issued token valid, so userinfo still answers 200. Whether Entra revokes here is not yet measured, so this is recorded as a gap rather than graded."
+      },
+      "oidcc-unsigned-request-object-supported-correctly-or-rejected-as-unsupported": {
+        "result": "STALLED",
+        "category": "gap",
+        "reason": "The emulator refuses an inline `request` parameter by RENDERING AN ERROR PAGE at the authorization endpoint. OIDC Core 3.1.2.6 and RFC 6749 4.1.2.1 require errors to be returned to the redirect_uri once client_id and redirect_uri are valid, as request_not_supported; the open-redirect guard should only apply when those are not valid. The suite's browser therefore lands on an HTML page it has no task for and the module waits forever. Refusing inline request objects is correct and matches Entra (request_parameter_supported is absent there); delivering the refusal as a page is the defect."
+      },
+      "oidcc-prompt-login": {
+        "result": "REVIEW",
+        "category": "needs-a-human",
+        "reason": "The module reaches WAITING and asks for a screenshot of the second login page. Every condition before that passes, including the second authentication itself."
+      },
+      "oidcc-ensure-registered-redirect-uri": {
+        "result": "REVIEW",
+        "category": "needs-a-human",
+        "reason": "Asks for a screenshot of the error page shown for an unregistered redirect_uri. The emulator does refuse it without redirecting, which is the behaviour the module is checking."
+      },
+      "oidcc-ensure-request-object-with-redirect-uri": {
+        "result": "REVIEW",
+        "category": "needs-a-human",
+        "reason": "As oidcc-ensure-registered-redirect-uri, with the redirect_uri carried inside a request object."
+      },
+      "oidcc-max-age-1": {
+        "result": "REVIEW",
+        "category": "needs-a-human",
+        "reason": "Asks for a screenshot of the second login page, as oidcc-prompt-login does. Every condition passes: 79 SUCCESS and no failures, including CheckIdTokenAuthTimeClaimPresentDueToMaxAge and CheckIdTokenAuthTimeIsRecentIfPresent. oidcc-max-age-10000 covers the same ground and PASSES outright, because it does not force a second login and so needs no screenshot."
+      }
+    }
+  }
 }

@@ -25,16 +25,35 @@ services:
       LOCAL_DOMAINS: entra-emulator
       TLS_ENABLED: "true"
       SEED_ON_START: "true"
+      # Without this the sign-in page offers an account picker instead of a
+      # password form. The conformance plan drives a scripted browser and tests
+      # prompt=login and max_age, all of which need a real authentication step
+      # to be meaningful and repeatable.
+      REQUIRE_PASSWORD: "true"
     # No bind mount for the TLS directory on purpose: the image runs as uid
     # 65532 and could not write into a host directory owned by the CI runner.
     # run.py lifts the certificate out with `docker compose cp` instead.
-    expose:
-      - "8443"
+    ports:
+      # Only so run.py can register the plan's clients through the admin API.
+      # The suite reaches the emulator by service name on the compose network,
+      # not through this mapping.
+      - "${CONFORMANCE_EMULATOR_PORT:-8444}:8443"
 
   mongodb:
     image: mongo:6.0.13
     tmpfs:
       - /data/db
+
+  # The suite refuses any request it believes arrived over plain http, so it is
+  # not usable without a TLS front end. Upstream ships this one and publishes it
+  # alongside the suite; it is pinned to the same release and, like the suite, to
+  # the multi-arch index digest rather than a per-architecture manifest.
+  nginx:
+    image: ${NGINX_IMAGE:?NGINX_IMAGE must be set by run.py}
+    ports:
+      - "${CONFORMANCE_PORT:-8443}:8443"
+    depends_on:
+      - conformance
 
   conformance:
     build:
@@ -42,8 +61,18 @@ services:
       dockerfile: Dockerfile.suite
       args:
         SUITE_IMAGE: ${SUITE_IMAGE:?SUITE_IMAGE must be set by run.py}
+    networks:
+      default:
+        # upstream's nginx.conf hardcodes `proxy_pass http://server:8080`, so the
+        # suite has to answer to that name. An alias rather than a rename keeps
+        # the service called what it is.
+        aliases: [server]
     environment:
-      BASE_URL: https://localhost:8443
+      # What the suite believes its own external address is, and therefore what
+      # it builds callback URLs from. Those URLs are opened by the HtmlUnit
+      # browser running INSIDE this container, so the value has to resolve on
+      # the compose network: `nginx`, not `localhost`.
+      BASE_URL: https://nginx:8443
       MONGODB_HOST: mongodb
       # devmode drops the suite's own login requirement, so the REST API is
       # reachable without provisioning an OAuth client for the test harness.
@@ -57,8 +86,6 @@ services:
       OIDC_GOOGLE_SECRET: unused
       OIDC_GITLAB_CLIENTID: unused
       OIDC_GITLAB_SECRET: unused
-    ports:
-      - "${CONFORMANCE_PORT:-8099}:8080"
     depends_on:
       - mongodb
       - entra-emulator

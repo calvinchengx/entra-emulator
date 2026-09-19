@@ -1,10 +1,10 @@
 # OIDF conformance
 
-> **Status: rung 0 has shipped.** entra-emulator's discovery document passes
-> the OpenID Foundation's **Config OP certification profile**, judged by the
-> OIDF's own conformance suite: 34 conditions SUCCESS, 0 warnings, 0 failures.
-> Run it with `make conformance`. The remaining rungs are scoped below and not
-> started.
+> **Status: rungs 0 and 1 have shipped.** entra-emulator passes the OpenID
+> Foundation's **Config OP** profile (34 conditions, no warnings) and runs its
+> **Basic OP** profile, all 35 modules, with every non-pass declared and
+> justified in `e2e/conformance/config/expected.json`. Run them with
+> `make conformance` and `make conformance PLAN=basic`.
 
 ## Why this is different from every other check in the repo
 
@@ -84,6 +84,77 @@ removing them would break parity to satisfy the spec. They are declared in
 the mechanism the suite offers for exactly this. The value of declaring them is
 that **a seventh field would warn**.
 
+## What Basic OP actually checks
+
+35 modules, each driving a real login through a scripted browser: the whole
+authorization-code flow, userinfo three ways, scope handling, `prompt`,
+`max_age`, `login_hint`, `id_token_hint`, locales, `acr_values`, code reuse,
+redirect-URI registration, PKCE, refresh, request objects, and both
+`client_secret_basic` and `client_secret_post`.
+
+The harness registers **three** clients per run through the emulator's admin
+API rather than committing client ids: `client`, `client2` (several modules
+check that one client cannot spend another's code), and `client_secret_post`,
+which `OIDCCServerTestClientSecretPost` copies over `client` because most real
+servers tie a client to one authentication method. Omitting the third fails that
+module complaining about a missing `client`, which reads as the wrong problem
+entirely.
+
+Three modules stop and ask a human for a screenshot, and cannot reach a terminal
+state without one. The harness fills the placeholder so the plan can finish, and
+those modules then end as **REVIEW, which is not a pass** — nobody looked at a
+screenshot, and nothing here claims otherwise.
+
+### What it found
+
+Everything that is not a pass is declared in `config/expected.json` with a
+reason and a category. The categories are the interesting part, because they
+separate "the emulator is wrong" from "the emulator is right and the spec
+disagrees":
+
+| category | modules | what it means |
+|---|---|---|
+| `parity` | 5 | The emulator behaves like Entra rather than like the bare spec. |
+| `not-in-entra` | 3 | Neither supports the feature, so the suite skips the module. |
+| `gap` | 4 | A real defect this run found. |
+| `needs-a-human` | 3 | Blocked on a screenshot; every condition passes. |
+
+**The `parity` group is the whole argument for running this.** Real Entra puts
+`name`, `preferred_username` and `ver` in every v2.0 id_token whether or not
+they were requested, and `docs/parity.md` grades that shape 🟢. The suite calls
+each one a warning: `EnsureIdTokenDoesNotContainName`,
+`EnsureIdTokenDoesNotContainNonRequestedClaims`,
+`EnsureIdTokenDoesNotContainEmailForScopeEmail`. Both are correct. Satisfying
+the suite here would mean diverging from the product being emulated, which is
+why `oidf:` is a different axis from `diff:` and not a stronger one.
+`acr_values` is the same shape: the spec says an OP SHOULD return `acr`, and
+Entra v2.0 does not.
+
+**The four gaps are worth fixing**, and none was visible to any existing test:
+
+1. **An unsupported inline `request` parameter is refused with an HTML error
+   page** instead of `request_not_supported` redirected to the `redirect_uri`.
+   Refusing it is correct and matches Entra; delivering the refusal as a page is
+   not, once `client_id` and `redirect_uri` are both valid (OIDC Core 3.1.2.6,
+   RFC 6749 4.1.2.1). The suite's browser lands on a page it has no task for and
+   the module waits forever, which is why the harness needed stall handling.
+2. **Userinfo does not accept the access token in the POST body**, which OIDC
+   Core 5.3.1 allows. GET and POST-with-header both pass.
+3. **Userinfo does not return the full `profile` claim set** (`given_name`,
+   `family_name` and the rest).
+4. **Replaying an authorization code does not revoke the access token already
+   issued from it.** The code itself is correctly single-use.
+
+`max_age` and `auth_time` were the fifth gap when this harness first ran, and
+both `oidcc-max-age-1` and `oidcc-max-age-10000` failed on
+`CheckIdTokenAuthTimeClaimPresentDueToMaxAge`. They were implemented in #170
+while this was in flight, and `oidcc-max-age-10000` now passes outright. One
+detail from the suite worth recording, because it validates the design chosen
+there: the first authorization in `oidcc-max-age-1` carries no `auth_time` (it
+did not request `max_age`), and the suite tolerates that under
+`CheckSecondIdTokenAuthTimeIsLaterIfPresent`. Emitting `auth_time`
+unconditionally would not have been rewarded.
+
 ## The gate is not vacuous
 
 The most likely way a harness like this dies is going green while testing
@@ -96,36 +167,36 @@ nothing, so two guards are built in rather than bolted on:
   reason in `config/expected.json`, so a new `WARNING` breaks the run instead of
   accumulating quietly.
 
-Both were exercised. Pointing `PUBLIC_ORIGIN` at `http://` while still serving
-TLS produces 7 condition failures and a red run; removing the
+A third guard arrived with rung 1. A module can sit in `WAITING` forever when
+the OP answers the browser in a way the module has no task for, and one such
+module must not swallow the other 34, so the harness records it as `STALLED`
+after 90 seconds and moves on. `STALLED` is not `PASSED`, so it still fails the
+run unless declared.
+
+All three were exercised. Pointing `PUBLIC_ORIGIN` at `http://` while still
+serving TLS produces 7 condition failures and a red run; removing the
 `allow_unexpected_metadata_fields` declaration produces a `WARNING` and a red
-run. The witness checker has the same treatment: `oidf:<module>` is validated
-against the runner's `EXPECTED_MODULES`, and a witness naming a module we do not
-run is reported as dangling.
+run; the stall path is what the inline-`request` gap above actually does.
+
+The witness checker has the same treatment. `oidf:<module>` must name a module
+the runner runs **and** one that `expected.json` does not declare as a non-pass,
+so a row cannot read as conformance-tested when the conformance result was "we
+decided this one is allowed to be red". A witness failing either test is
+reported as dangling.
 
 ## The remaining rungs
 
 | rung | plan | modules | state |
 |---|---|---|---|
 | 0 | `oidcc-config-certification-test-plan` | 1 | **shipped** |
-| 1 | `oidcc-basic-certification-test-plan` | 38 | scoped, not started |
-| 2 | `oidcc-formpost-basic-certification-test-plan` | 38 | cheap once rung 1 exists |
+| 1 | `oidcc-basic-certification-test-plan` | 35 | **shipped** |
+| 2 | `oidcc-formpost-basic-certification-test-plan` | 35 | cheap now that rung 1 exists |
 | 3 | `oidcc-implicit-certification-test-plan` | — | blocked, by choice |
 
-**Rung 1 needs a browser and one piece of real work.** Every Basic OP module
-drives an actual login, which the suite scripts through a `browser` block of
-Selenium-style commands. The emulator's sign-in page is already built for this
-(`internal/identity/signin.go` says so, and `e2e/browser` already drives it), so
-the harness cost is configuration rather than code. The code gap is `max_age`
-and `auth_time`: `authorize.go` never reads `max_age`, no `auth_time` claim is
-emitted anywhere, and `OIDCCMaxAge1` and `OIDCCMaxAge10000` need both. Real
-Entra supports them, so this is a parity gap worth closing on its own merits.
-Rung 1 also needs two statically registered clients whose redirect URIs point at
-the suite.
-
-Expected to land in `config/expected.json` rather than being fixed:
-`OIDCCScopeAddress`, `OIDCCScopePhone` and `OIDCCClaimsEssential`. The emulator
-supports none of them, and neither does real Entra.
+An earlier draft of this page said Basic OP had 38 modules, counted from the
+plan's Java source. The plan the suite actually builds for our variant has 35.
+Both numbers now come from `--capture-modules`, which reads the plan back from
+the suite, rather than from anyone's reading of the source.
 
 **Rung 3 is blocked deliberately.** The implicit plan needs the `id_token token`
 response type. The emulator does not implement it, and
