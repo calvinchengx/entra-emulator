@@ -13,7 +13,7 @@ import (
 // subset of users and groups. Mounted under /directory, so the existing
 // permission gate already requires Directory.Read.All / Directory.ReadWrite.All.
 
-func (g *Graph) registerAdminUnits(mux *http.ServeMux, prefix string) {
+func (g *Graph) registerAdminUnits(mux Router, prefix string) {
 	base := prefix + "/v1.0/directory/administrativeUnits"
 	mux.HandleFunc("GET "+base, g.requireBearer(g.listAdminUnits))
 	mux.HandleFunc("POST "+base, g.requireBearer(g.createAdminUnit))

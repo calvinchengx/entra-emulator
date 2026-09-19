@@ -32,7 +32,7 @@ import (
 // flow, not a documented protocol, so emulating it would mean inventing a wire
 // format — see docs/parity.md.
 
-func (g *Graph) registerPasswordReset(mux *http.ServeMux, prefix string) {
+func (g *Graph) registerPasswordReset(mux Router, prefix string) {
 	p := prefix + "/v1.0"
 	mux.HandleFunc("POST "+p+"/users/{id}/authentication/methods/{methodId}/resetPassword",
 		g.requireBearer(g.resetPassword))

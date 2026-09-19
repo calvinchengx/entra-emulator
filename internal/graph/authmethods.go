@@ -19,7 +19,7 @@ import (
 // passwordMethodID is Graph's fixed well-known id for the password method.
 const passwordMethodID = "28c10230-6103-485e-b985-444c60001490"
 
-func (g *Graph) registerAuthMethods(mux *http.ServeMux, prefix string) {
+func (g *Graph) registerAuthMethods(mux Router, prefix string) {
 	p := prefix + "/v1.0"
 	mux.HandleFunc("GET "+p+"/users/{id}/authentication/methods", g.requireBearer(g.authMethods(false)))
 	mux.HandleFunc("GET "+p+"/me/authentication/methods", g.requireDelegated(g.authMethods(true)))

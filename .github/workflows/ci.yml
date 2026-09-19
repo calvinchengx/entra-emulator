@@ -541,6 +541,12 @@ jobs:
         with:
           pattern: graph-recording-*
           path: recordings
+      # Go, because the ledger enumerates the routes the emulator REGISTERS by
+      # running graph.RegisteredPatterns: http.ServeMux cannot list its own
+      # patterns, and regexing the source read only 19.
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
       - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           version: "0.11.32"
@@ -551,7 +557,7 @@ jobs:
       # The checker's own controls. It reported almost nothing on 67 real
       # responses, and "the emulator is good" and "the checker is lenient" look
       # identical when green, so each rule is fed a response that must fail.
-      - run: uv run --no-project --python 3.12 python -m unittest scripts/test_check_graph_conformance.py
+      - run: uv run --no-project --python 3.12 python -m unittest scripts/test_check_graph_conformance.py scripts/test_check_graph_ledger.py
       # EVERY EXPECTED RECORDING, BY NAME. A suite that passes having recorded
       # nothing uploads nothing (if-no-files-found: warn), the union quietly
       # shrinks, and the failure then arrives blaming routes rather than the
@@ -576,6 +582,18 @@ jobs:
           set -euo pipefail
           uv run --no-project --python 3.12 python scripts/check_graph_conformance.py \
             $(cat recordings.txt) --strict
+      # THE LEDGER, over the same union. Conformance measures the responses a
+      # suite happened to provoke; its denominator is 78 recorded responses, so it
+      # is silent about the 17,870 operations Microsoft documents and the
+      # emulator does not serve. The ledger's denominator is the spec, so it is
+      # the only gate that can say how much of Graph is answered, and the only one
+      # that reads the other way: a route registered that Graph does not have is an
+      # invented endpoint. Ratchets in every direction against
+      # docs/graph-surface-ledger.json.
+      - run: |
+          set -euo pipefail
+          uv run --no-project --python 3.12 python scripts/check_graph_ledger.py \
+            $(cat recordings.txt) --strict --families
 
   lint:
     name: golangci-lint

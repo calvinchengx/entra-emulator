@@ -14,7 +14,7 @@ import (
 // entries — an assigned policy changes the `exp` of the tokens the emulator
 // actually mints (see Service.lifetimesFor).
 
-func (g *Graph) registerTokenLifetimePolicies(mux *http.ServeMux, prefix string) {
+func (g *Graph) registerTokenLifetimePolicies(mux Router, prefix string) {
 	p := prefix + "/v1.0/policies/tokenLifetimePolicies"
 	mux.HandleFunc("GET "+p, g.requireBearer(g.listTLPs))
 	mux.HandleFunc("POST "+p, g.requireBearer(g.createTLP))

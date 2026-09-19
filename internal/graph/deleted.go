@@ -13,14 +13,25 @@ import (
 // Recycle bin (docs/20-stateful-directory.md): directory/deletedItems. Graph
 // DELETE on users/groups/applications soft-deletes into the store's recycle
 // bin; these routes list, restore, and permanently delete those objects. The
-// object-type cast is a literal path segment (microsoft.graph.user, .group,
-// .application), which http.ServeMux prefers over the {id} wildcard.
+// object-type cast is a literal path segment, which http.ServeMux prefers over
+// the {id} wildcard.
+//
+// TWO SPELLINGS OF ONE CAST, and only the first was served. The docs write
+// `microsoft.graph.user`; the OpenAPI, and therefore every Kiota-generated SDK,
+// writes `graph.user` (Microsoft.OpenApi.OData abbreviates the namespace to its
+// alias). Serving only the docs' form meant the generated SDKs' own request
+// builders (`DeletedItems.GraphUser`) reached the {id} wildcard and got a 404
+// naming a resource "graph.user". Found by scripts/check_graph_ledger.py: the
+// conformance checker had matched the qualified spelling to `deletedItems/{id}`
+// and called it fine, so only the spec-denominated gate could see it.
 
-func (g *Graph) registerDeleted(mux *http.ServeMux, prefix string) {
+func (g *Graph) registerDeleted(mux Router, prefix string) {
 	base := prefix + "/v1.0/directory/deletedItems"
-	mux.HandleFunc("GET "+base+"/microsoft.graph.user", g.requireBearer(g.listDeleted(store.DeletedTypeUser)))
-	mux.HandleFunc("GET "+base+"/microsoft.graph.group", g.requireBearer(g.listDeleted(store.DeletedTypeGroup)))
-	mux.HandleFunc("GET "+base+"/microsoft.graph.application", g.requireBearer(g.listDeleted(store.DeletedTypeApp)))
+	for _, ns := range []string{"microsoft.graph", "graph"} {
+		mux.HandleFunc("GET "+base+"/"+ns+".user", g.requireBearer(g.listDeleted(store.DeletedTypeUser)))
+		mux.HandleFunc("GET "+base+"/"+ns+".group", g.requireBearer(g.listDeleted(store.DeletedTypeGroup)))
+		mux.HandleFunc("GET "+base+"/"+ns+".application", g.requireBearer(g.listDeleted(store.DeletedTypeApp)))
+	}
 	mux.HandleFunc("GET "+base+"/{id}", g.requireBearer(g.getDeleted))
 	mux.HandleFunc("POST "+base+"/{id}/restore", g.requireBearer(g.restoreDeleted))
 	mux.HandleFunc("DELETE "+base+"/{id}", g.requireBearer(g.purgeDeleted))

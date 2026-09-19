@@ -16,7 +16,7 @@ import (
 // Redeeming flips the state to "Accepted", which is the bit an app actually
 // branches on when it asks "has this guest accepted yet?".
 
-func (g *Graph) registerInvitations(mux *http.ServeMux, prefix string) {
+func (g *Graph) registerInvitations(mux Router, prefix string) {
 	mux.HandleFunc("POST "+prefix+"/v1.0/invitations", g.requireBearer(g.createInvitation))
 	// Redemption is a user-facing link, not a Graph call, so it has no bearer.
 	mux.HandleFunc("GET "+prefix+"/invitations/redeem", g.redeemInvitation)

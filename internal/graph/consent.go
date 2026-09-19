@@ -16,7 +16,7 @@ import (
 // principals. Because an app registration is its own service principal here,
 // {id}, clientId, resourceId, and SP principalId are app ids.
 
-func (g *Graph) registerConsent(mux *http.ServeMux, prefix string) {
+func (g *Graph) registerConsent(mux Router, prefix string) {
 	// oauth2PermissionGrants (register both Entra casings).
 	for _, coll := range []string{"/oauth2PermissionGrants", "/oAuth2PermissionGrants"} {
 		mux.HandleFunc("POST "+prefix+"/v1.0"+coll, g.requireBearer(g.createOAuth2Grant))

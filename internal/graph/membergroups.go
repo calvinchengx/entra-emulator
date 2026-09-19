@@ -21,7 +21,7 @@ import (
 // additionally returns directory-role object ids, which is why the two
 // endpoints are separate rather than aliases.
 
-func (g *Graph) registerMemberGroups(mux *http.ServeMux, prefix string) {
+func (g *Graph) registerMemberGroups(mux Router, prefix string) {
 	p := prefix + "/v1.0"
 	for _, route := range []string{"/users/{id}/", "/me/"} {
 		mux.HandleFunc("POST "+p+route+"getMemberObjects", g.requireBearer(g.getMemberObjects(true)))

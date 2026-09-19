@@ -15,7 +15,7 @@ import (
 // no `templateId` (real Entra only assigns template GUIDs to built-ins), and —
 // enforced in the store — they never appear in a token's `wids` claim.
 
-func (g *Graph) registerCustomRoles(mux *http.ServeMux, prefix string) {
+func (g *Graph) registerCustomRoles(mux Router, prefix string) {
 	base := prefix + "/v1.0/roleManagement/directory/roleDefinitions"
 	mux.HandleFunc("POST "+base, g.requireBearer(g.createRoleDefinition))
 	mux.HandleFunc("PATCH "+base+"/{id}", g.requireBearer(g.updateRoleDefinition))

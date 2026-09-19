@@ -174,3 +174,49 @@ func TestRecycleBinGroupAndApplication(t *testing.T) {
 		t.Fatalf("app not restored with identifierUris: %d %v", st, live)
 	}
 }
+
+// The recycle bin's object-type cast has two spellings, and both must answer.
+// The docs write `microsoft.graph.user`; Microsoft's OpenAPI, and so every
+// Kiota-generated SDK (`DeletedItems.GraphUser`), writes `graph.user`. Only the
+// first was served, so the generated request builders fell through to the {id}
+// wildcard and got a 404 naming a resource called "graph.user". The conformance
+// checker could not see it (it matched the qualified spelling to
+// `deletedItems/{id}` and called it fine); the surface ledger did.
+func TestDeletedItemsCastAnswersUnderBothNamespaceSpellings(t *testing.T) {
+	hts, _, _ := newTestServer(t)
+	app := appGraphToken(t, hts.URL)
+
+	_, u := graphSend(t, "POST", hts.URL, "/graph/v1.0/users", app, map[string]any{
+		"displayName": "Spelling Check", "userPrincipalName": "spelling@entraemulator.dev",
+		"accountEnabled": true,
+	})
+	uid, _ := u["id"].(string)
+	if st, _ := graphSend(t, "DELETE", hts.URL, "/graph/v1.0/users/"+uid, app, nil); st != 204 {
+		t.Fatalf("delete user: %d", st)
+	}
+
+	for _, cast := range []string{"user", "group", "application"} {
+		var got [2]map[string]any
+		for i, ns := range []string{"microsoft.graph", "graph"} {
+			st, body := graphGet(t, hts.URL, "/graph/v1.0/directory/deletedItems/"+ns+"."+cast, app)
+			if st != 200 {
+				t.Fatalf("%s.%s: want 200, got %d %v", ns, cast, st, body)
+			}
+			got[i] = body
+		}
+		// Not merely "both 200": the SAME answer. An alias that returned an empty
+		// collection would satisfy the status and betray the client.
+		a, b := deletedItemIDs(got[0]), deletedItemIDs(got[1])
+		if len(a) != len(b) {
+			t.Errorf("%s: qualified spelling lists %d items, alias lists %d", cast, len(a), len(b))
+		}
+		for id := range a {
+			if !b[id] {
+				t.Errorf("%s: %s is listed under one spelling and not the other", cast, id)
+			}
+		}
+		if cast == "user" && !deletedItemIDs(got[1])[uid] {
+			t.Errorf("the deleted user is missing under the graph.user spelling: %v", got[1])
+		}
+	}
+}

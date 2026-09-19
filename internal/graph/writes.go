@@ -17,7 +17,7 @@ import (
 // a valid Graph-audience token suffices.
 
 // registerWrites mounts the write routes; called from Register.
-func (g *Graph) registerWrites(mux *http.ServeMux, prefix string) {
+func (g *Graph) registerWrites(mux Router, prefix string) {
 	mux.HandleFunc("POST "+prefix+"/v1.0/users", g.requireBearer(g.createUser))
 	mux.HandleFunc("PATCH "+prefix+"/v1.0/users/{id}", g.requireBearer(g.updateUser))
 	mux.HandleFunc("DELETE "+prefix+"/v1.0/users/{id}", g.requireBearer(g.deleteUser))
