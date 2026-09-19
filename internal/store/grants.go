@@ -110,11 +110,11 @@ func (s *Store) ConsumeAuthCode(code string) (bool, error) {
 // reuse detection depends on observing revoked rows.
 func (s *Store) GetRefreshTokenByHash(hash string) (*RefreshToken, error) {
 	row := s.db.QueryRow(`SELECT token, app_id, user_id, scopes, COALESCE(resource,''),
-		COALESCE(amr,''), COALESCE(auth_time,0),
+		COALESCE(amr,''), COALESCE(auth_time,0), COALESCE(auth_code,''),
 		expires_at, COALESCE(rotated_from,''), revoked, created_at FROM refresh_tokens WHERE token=?`, hash)
 	t := &RefreshToken{}
 	err := row.Scan(&t.TokenHash, &t.AppID, &t.UserID, &t.Scopes, &t.Resource,
-		&t.AMR, &t.AuthTime,
+		&t.AMR, &t.AuthTime, &t.AuthCode,
 		&t.ExpiresAt, &t.RotatedFrom, &t.Revoked, &t.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -124,10 +124,10 @@ func (s *Store) GetRefreshTokenByHash(hash string) (*RefreshToken, error) {
 
 func (s *Store) InsertRefreshToken(t *RefreshToken) error {
 	_, err := s.db.Exec(`INSERT INTO refresh_tokens
-		(token, app_id, user_id, scopes, resource, amr, auth_time, expires_at, rotated_from, revoked, created_at)
-		VALUES (?,?,?,?,?,?,?,?,?,0,?)`,
+		(token, app_id, user_id, scopes, resource, amr, auth_time, auth_code, expires_at, rotated_from, revoked, created_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,0,?)`,
 		t.TokenHash, t.AppID, t.UserID, t.Scopes, nullable(t.Resource),
-		nullable(t.AMR), t.AuthTime, t.ExpiresAt,
+		nullable(t.AMR), t.AuthTime, nullable(t.AuthCode), t.ExpiresAt,
 		nullable(t.RotatedFrom), t.CreatedAt)
 	return mapConstraint(err)
 }
@@ -151,14 +151,35 @@ func (s *Store) RotateRefreshToken(oldHash string, successor *RefreshToken) (boo
 		}
 		won = true
 		_, err = tx.Exec(`INSERT INTO refresh_tokens
-			(token, app_id, user_id, scopes, resource, amr, auth_time, expires_at, rotated_from, revoked, created_at)
-			VALUES (?,?,?,?,?,?,?,?,?,0,?)`,
+			(token, app_id, user_id, scopes, resource, amr, auth_time, auth_code, expires_at, rotated_from, revoked, created_at)
+			VALUES (?,?,?,?,?,?,?,?,?,?,0,?)`,
 			successor.TokenHash, successor.AppID, successor.UserID, successor.Scopes,
 			nullable(successor.Resource), nullable(successor.AMR), successor.AuthTime,
-			successor.ExpiresAt, oldHash, successor.CreatedAt)
+			nullable(successor.AuthCode), successor.ExpiresAt, oldHash, successor.CreatedAt)
 		return err
 	})
 	return won, err
+}
+
+// RevokeRefreshTokensForAuthCode revokes every refresh token descended from one
+// authorization code, and reports how many rows it changed.
+//
+// RFC 6749 4.1.2 asks an authorization server that sees a code replayed to
+// "revoke (when possible) all tokens previously issued based on that
+// authorization code". "When possible" is doing real work: an access token here
+// is a stateless JWT a resource server verifies offline against JWKS, exactly
+// as in Entra, so nothing can withdraw one before it expires. The refresh token
+// is the part this server still owns, so it is the part that gets revoked.
+// Successors inherit auth_code, so a chain rotated many times is still caught.
+func (s *Store) RevokeRefreshTokensForAuthCode(code string) (int64, error) {
+	if code == "" {
+		return 0, nil
+	}
+	res, err := s.db.Exec(`UPDATE refresh_tokens SET revoked=1 WHERE auth_code=? AND revoked=0`, code)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
 // RevokeRefreshTokenFamily revokes the presented token's whole rotation

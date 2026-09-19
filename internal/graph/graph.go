@@ -62,7 +62,13 @@ const allRows = 1 << 30
 type handler func(w http.ResponseWriter, r *http.Request, tok *tokens.ValidatedToken)
 
 func (g *Graph) validate(r *http.Request) (*tokens.ValidatedToken, string) {
-	auth := r.Header.Get("Authorization")
+	return g.validateBearer(r.Header.Get("Authorization"))
+}
+
+// validateBearer takes the credential as presented, so a caller that found it
+// somewhere other than the Authorization header (userinfo's form-encoded body,
+// RFC 6750 2.2) gets the same validation and the same wording.
+func (g *Graph) validateBearer(auth string) (*tokens.ValidatedToken, string) {
 	if auth == "" {
 		// Entra distinguishes a MISSING header from a malformed one, and says
 		// exactly this for the former (recorded in e2e/differential). Only the
@@ -109,11 +115,49 @@ func (g *Graph) requireDelegated(next handler) http.HandlerFunc {
 	})
 }
 
+// userInfoBearer returns the access token for a userinfo call, which RFC 6750
+// lets a client present in the Authorization header (2.1) or, on a
+// form-encoded POST, in an `access_token` body parameter (2.2). OIDC Core 5.3.1
+// points at both. Only userinfo accepts the body form: Graph itself takes the
+// header alone, which is also all real Entra's Graph accepts.
+//
+// RFC 6750 3.1 says a client MUST NOT use more than one method in one request,
+// so presenting both is an invalid_request rather than a silent preference for
+// one of them.
+func userInfoBearer(r *http.Request) (token, errCode, errDesc string) {
+	header := r.Header.Get("Authorization")
+	var body string
+	if r.Method == http.MethodPost &&
+		strings.HasPrefix(r.Header.Get("Content-Type"), "application/x-www-form-urlencoded") {
+		body = r.PostFormValue("access_token")
+	}
+	switch {
+	case header != "" && body != "":
+		return "", "invalid_request",
+			"The access token was sent both in the Authorization header and in the request body; use one."
+	case body != "":
+		// Normalised into Authorization-header shape so the body form and the
+		// header form cannot drift apart in validation or in wording.
+		return "Bearer " + body, "", ""
+	default:
+		// Empty header included: g.validate reports the absent and malformed
+		// cases with the wording Entra uses, so let it.
+		return header, "", ""
+	}
+}
+
 // requireDelegatedUserInfo mirrors RFC 6750 shapes for userinfo (401/403
 // with error/insufficient_scope bodies rather than Graph codes).
 func (g *Graph) requireDelegatedUserInfo(next handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tok, msg := g.validate(r)
+		raw, errCode, errDesc := userInfoBearer(r)
+		if errCode != "" {
+			w.Header().Set("WWW-Authenticate", `Bearer error="`+errCode+`", error_description="`+errDesc+`"`)
+			httpx.WriteJSON(w, http.StatusBadRequest,
+				map[string]string{"error": errCode, "error_description": errDesc})
+			return
+		}
+		tok, msg := g.validateBearer(raw)
 		if tok == nil {
 			w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token", error_description="`+msg+`"`)
 			httpx.WriteJSON(w, http.StatusUnauthorized,

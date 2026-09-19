@@ -1,9 +1,8 @@
 {
   "_comment": "Declared non-PASSED outcomes, per plan. Anything not listed must come back PASSED, so a new WARNING, FAILURE or STALL breaks the run instead of accumulating quietly. A declaration for a module that now passes is reported as stale and also breaks the run. Every entry needs a reason that says WHY the outcome is acceptable or what it is waiting on; 'it was red when I wrote this' is not one. This is the same idea as upstream's expected-failures-oidcc.json and as the declared refusals in docs/parity.md.",
   "_categories": {
-    "parity": "The emulator deliberately behaves like Entra rather than like the bare specification. Changing it to satisfy the suite would break the thing being emulated. These are the interesting ones: they are exactly where the oidf: axis and the diff: axis disagree.",
+    "parity": "The emulator deliberately behaves like Entra rather than like the bare specification, and the reason says what Entra does and where that is written down. Changing it to satisfy the suite would break the thing being emulated. These are the interesting ones: they are exactly where the oidf: axis and the diff: axis disagree.",
     "not-in-entra": "Neither the emulator nor real Entra supports the feature, so the suite skips the module.",
-    "gap": "A real emulator gap this run found. Each names what would have to change.",
     "needs-a-human": "The module stops and asks for a screenshot. The harness fills the placeholder so the plan can finish, and the module correctly ends as REVIEW rather than PASSED. Nobody looked at a screenshot."
   },
   "plans": {
@@ -17,7 +16,7 @@
       "oidcc-scope-email": {
         "result": "WARNING",
         "category": "parity",
-        "reason": "Same unrequested name/email claims as oidcc-server, plus VerifyScopesReturnedInUserInfoClaims. Entra returns email in the id_token for scope=email rather than only from userinfo."
+        "reason": "Two families at once. EnsureIdTokenDoesNotContainName and EnsureIdTokenDoesNotContainEmailForScopeEmail object to claims real Entra always sends, as in oidcc-server. VerifyScopesReturnedInUserInfoClaims additionally wants email_verified, which Microsoft's UserInfo reference does not list among the claims the endpoint can return; see oidcc-scope-profile for that citation."
       },
       "oidcc-alternate-happy-flow": {
         "result": "WARNING",
@@ -51,23 +50,18 @@
       },
       "oidcc-scope-profile": {
         "result": "WARNING",
-        "category": "gap",
-        "reason": "VerifyScopesReturnedInUserInfoClaims: userinfo does not return the full standard claim set for scope=profile (family_name, given_name and the rest). A real gap in internal/graph's userinfo projection, not a parity choice; Entra's Graph userinfo returns more than this."
-      },
-      "oidcc-userinfo-post-body": {
-        "result": "WARNING",
-        "category": "gap",
-        "reason": "UserInfoEndpointWithAccessTokenInBodyNotSupported: the endpoint accepts the access token in the Authorization header but not form-encoded in the POST body, which OIDC Core 5.3.1 allows a client to use. GET and POST-with-header both pass. Fixing it means teaching internal/graph's userinfo gate to read access_token from the form body."
+        "category": "parity",
+        "reason": "VerifyScopesReturnedInUserInfoClaims wants EVERY claim OIDC associates with a scope: for profile that is middle_name, nickname, profile, picture, website, gender, birthdate, zoneinfo, locale and updated_at on top of the name claims, and for email it adds email_verified. Microsoft documents that its UserInfo endpoint returns sub, name, family_name, given_name, picture and email and that \"the claims shown in the response are all those that the UserInfo endpoint can return\", adding \"you can't add to or customize\" them. Synthesising a gender or a birthdate to satisfy the condition would invent data Entra cannot return. The condition is a WARNING because OIDC Core 5.4 only asks for claims that are available."
       },
       "oidcc-codereuse-30seconds": {
         "result": "WARNING",
-        "category": "gap",
-        "reason": "EnsureHttpStatusCodeIs4xx: after an authorization code is replayed, the access token already issued from it should stop working. The emulator invalidates the code (oidcc-codereuse passes) but leaves the issued token valid, so userinfo still answers 200. Whether Entra revokes here is not yet measured, so this is recorded as a gap rather than graded."
+        "category": "parity",
+        "reason": "EnsureHttpStatusCodeIs4xx wants the access token issued from a replayed authorization code to stop working. RFC 6749 4.1.2 asks for revocation \"when possible\", and here it is not: an access token is a stateless JWT a resource server verifies offline against JWKS, which is exactly Entra's design. Microsoft's own continuous-access-evaluation documentation says that before CAE \"clients would replay the access token from its cache as long as it wasn't expired\", and that CAE exists so \"a resource provider can reject a token when it isn't expired\" -- a separate subscription mechanism, first-party services only, with up to 15 minutes of latency. Making the emulator revoke access tokens would need stateful validation production does not have, and would let local code rely on a revocation production will not perform. What the emulator does do on replay is revoke the REFRESH chain descended from that code, which is the part a server still owns; see TestAuthCodeReplayRevokesTheRefreshChain."
       },
       "oidcc-unsigned-request-object-supported-correctly-or-rejected-as-unsupported": {
-        "result": "STALLED",
-        "category": "gap",
-        "reason": "The emulator refuses an inline `request` parameter by RENDERING AN ERROR PAGE at the authorization endpoint. OIDC Core 3.1.2.6 and RFC 6749 4.1.2.1 require errors to be returned to the redirect_uri once client_id and redirect_uri are valid, as request_not_supported; the open-redirect guard should only apply when those are not valid. The suite's browser therefore lands on an HTML page it has no task for and the module waits forever. Refusing inline request objects is correct and matches Entra (request_parameter_supported is absent there); delivering the refusal as a page is the defect."
+        "result": "SKIPPED",
+        "category": "not-in-entra",
+        "reason": "The suite's own words: \"The 'request_not_supported' error from the authorization endpoint indicates that it does not support request objects (which is permitted behaviour), so request objects cannot be tested.\" Entra advertises no request_parameter_supported either. This module used to STALL, because the refusal was delivered as an HTML error page the suite's browser had no task for; the refusal now goes to the redirect_uri as request_not_supported and 25 conditions pass before the skip."
       },
       "oidcc-prompt-login": {
         "result": "REVIEW",

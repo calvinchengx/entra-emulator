@@ -147,12 +147,14 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
   resource     TEXT,
   amr          TEXT,
   auth_time    INTEGER,
+  auth_code    TEXT,
   expires_at   INTEGER NOT NULL,
   rotated_from TEXT,
   revoked      INTEGER NOT NULL DEFAULT 0,
   created_at   INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_app_user ON refresh_tokens(app_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_auth_code ON refresh_tokens(auth_code);
 CREATE TABLE IF NOT EXISTS sessions (
   id          TEXT PRIMARY KEY,
   user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -380,6 +382,7 @@ func (s *Store) migrate() error {
 		`ALTER TABLE authorization_codes ADD COLUMN auth_time INTEGER`,
 		`ALTER TABLE refresh_tokens ADD COLUMN amr TEXT`,
 		`ALTER TABLE refresh_tokens ADD COLUMN auth_time INTEGER`,
+		`ALTER TABLE refresh_tokens ADD COLUMN auth_code TEXT`,
 		`ALTER TABLE authorization_codes ADD COLUMN max_age_requested INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE sessions ADD COLUMN auth_method TEXT NOT NULL DEFAULT 'pwd'`,
 		`ALTER TABLE tenants ADD COLUMN initial_domain TEXT`,

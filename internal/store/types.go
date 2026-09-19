@@ -146,8 +146,14 @@ type RefreshToken struct {
 	// contradicts the one the code exchange issued: same app, same session,
 	// same user, disagreeing about how and when the user authenticated. Every
 	// successor inherits them, so they survive arbitrarily many rotations.
-	AMR         string
-	AuthTime    int64
+	AMR      string
+	AuthTime int64
+	// AuthCode is the authorization code this chain descends from, kept so a
+	// replay of that code can revoke what it produced (RFC 6749 4.1.2, "SHOULD
+	// revoke (when possible) all tokens previously issued based on that
+	// authorization code"). Empty for chains with no code behind them (ROPC,
+	// device code, OBO). Successors inherit it, so it survives rotation.
+	AuthCode    string
 	ExpiresAt   int64
 	RotatedFrom string
 	Revoked     bool

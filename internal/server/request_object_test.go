@@ -107,11 +107,53 @@ func TestRequestObjectJAR(t *testing.T) {
 		}
 	})
 
-	t.Run("inline request is refused — Entra does not advertise it", func(t *testing.T) {
+	// Inline `request` is refused, as Entra refuses it. WHERE the refusal is
+	// delivered is the other half of the contract: once client_id and
+	// redirect_uri are both usable, OIDC Core 3.1.2.6 and RFC 6749 4.1.2.1 put
+	// the error on the redirect_uri, and only an unusable one may be answered
+	// with a page. The emulator used to answer both cases with a page, which a
+	// spec-driven client reads as a hang rather than a refusal; the OIDF
+	// conformance suite found it that way.
+	t.Run("inline request is refused on the redirect_uri", func(t *testing.T) {
+		obj := sign(t, map[string]any{"iss": spaID, "response_type": "code"})
+		resp, err := noRedirectJar().Get(hts.URL + "/" + tenant + "/oauth2/v2.0/authorize?" + url.Values{
+			"client_id": {spaID}, "redirect_uri": {"https://localhost:3000"},
+			"response_type": {"code"}, "scope": {"openid"}, "state": {"st-1"},
+			"request": {obj},
+		}.Encode())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusFound {
+			t.Fatalf("want a redirect carrying the error, got %d", resp.StatusCode)
+		}
+		loc, err := url.Parse(resp.Header.Get("Location"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := loc.Scheme + "://" + loc.Host; got != "https://localhost:3000" {
+			t.Errorf("error went to %q, want the registered redirect_uri", got)
+		}
+		if got := loc.Query().Get("error"); got != "request_not_supported" {
+			t.Errorf("error = %q, want request_not_supported", got)
+		}
+		if got := loc.Query().Get("state"); got != "st-1" {
+			t.Errorf("state = %q, want it echoed back", got)
+		}
+	})
+
+	t.Run("inline request with no usable redirect_uri still gets a page", func(t *testing.T) {
+		// The open-redirect guard: with nowhere trustworthy to send the error,
+		// a page is the only safe answer. Losing this would turn the fix above
+		// into an open redirect.
 		obj := sign(t, map[string]any{"iss": spaID, "response_type": "code"})
 		status, body := authorizeGET(t, url.Values{"client_id": {spaID}, "request": {obj}})
-		if status != http.StatusBadRequest || !strings.Contains(body, "not supported") {
-			t.Fatalf("inline request must be refused, got %d %s", status, body)
+		if status != http.StatusBadRequest {
+			t.Fatalf("want a 400 page, got %d %s", status, body)
+		}
+		if strings.Contains(body, "Location:") || strings.Contains(body, "localhost:3000") {
+			t.Errorf("the refusal must not redirect anywhere, got: %s", body)
 		}
 	})
 

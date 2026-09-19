@@ -214,6 +214,10 @@ type DelegatedGrant struct {
 	// `auth_time` claim. Zero means the flow has no authentication instant to
 	// report (app-only grants, and the refresh exchange — see mintIDToken).
 	AuthTime int64
+	// AuthCode is the authorization code being exchanged, set only by the
+	// authorization-code path. It is recorded on the refresh token so that a
+	// later replay of the same code can revoke what the first exchange issued.
+	AuthCode string
 	// MaxAgeRequested says the authorization request carried `max_age`, which
 	// makes `auth_time` REQUIRED rather than optional (OIDC Core 3.1.2.1).
 	MaxAgeRequested bool
@@ -263,7 +267,7 @@ func (s *Service) BuildDelegatedResponse(g DelegatedGrant) (*TokenResponse, erro
 	if hasScope(g.Scopes, "offline_access") && !g.SkipRefreshToken {
 		rt, err := s.IssueRefreshToken(RefreshRequest{
 			AppID: g.App.ID, UserID: g.User.ID, Scopes: g.Scopes, Resource: g.Resource,
-			AMR: g.AMR, AuthTime: g.AuthTime,
+			AMR: g.AMR, AuthTime: g.AuthTime, AuthCode: g.AuthCode,
 		})
 		if err != nil {
 			return nil, err
@@ -550,6 +554,16 @@ func (s *Service) RedeemAuthCode(code, appID, redirectURI, codeVerifier string) 
 	}
 	switch {
 	case row.Consumed:
+		// RFC 6749 4.1.2: deny the request, and SHOULD revoke what that code
+		// already produced. The access token cannot be withdrawn — it is a
+		// stateless JWT resource servers verify offline against JWKS, exactly
+		// as in Entra — so what gets revoked is the refresh chain, which is the
+		// part this server still controls. A replayed code therefore costs the
+		// attacker (and the confused client) continued access, not just this
+		// one exchange.
+		if _, err := s.Store.RevokeRefreshTokensForAuthCode(code); err != nil {
+			return nil, err
+		}
 		return nil, invalidGrant("AADSTS54005: The authorization code was already redeemed.")
 	case row.ExpiresAt <= s.Store.Now():
 		return nil, invalidGrant("AADSTS70008: The provided authorization code has expired.")
@@ -602,6 +616,9 @@ type RefreshRequest struct {
 	// described rather than contradicting it.
 	AMR      string
 	AuthTime int64
+	// AuthCode is the authorization code this token descends from, so a replay
+	// of that code can revoke it. Empty for grants with no code behind them.
+	AuthCode string
 }
 
 // IssueRefreshToken stores the SHA-256 of a fresh opaque token and returns
@@ -613,7 +630,7 @@ func (s *Service) IssueRefreshToken(r RefreshRequest) (string, error) {
 	err := s.Store.InsertRefreshToken(&store.RefreshToken{
 		TokenHash: store.HashToken(plain), AppID: r.AppID, UserID: r.UserID,
 		Scopes: strings.Join(r.Scopes, " "), Resource: r.Resource,
-		AMR: r.AMR, AuthTime: r.AuthTime,
+		AMR: r.AMR, AuthTime: r.AuthTime, AuthCode: r.AuthCode,
 		ExpiresAt:   now + int64(refreshSec),
 		RotatedFrom: r.RotatedFrom, CreatedAt: now,
 	})
@@ -677,8 +694,11 @@ func (s *Service) RedeemRefreshToken(plaintext, appID string, requestedScopes []
 		TokenHash: store.HashToken(successorPlain), AppID: appID, UserID: row.UserID,
 		Scopes: row.Scopes, Resource: row.Resource,
 		// The successor inherits the authentication, or the claims would
-		// survive exactly one refresh and vanish on the second.
-		AMR: row.AMR, AuthTime: row.AuthTime,
+		// survive exactly one refresh and vanish on the second. It inherits
+		// auth_code for the same reason: a chain rotated a dozen times is still
+		// descended from the code that started it, and a replay of that code
+		// must reach the whole chain.
+		AMR: row.AMR, AuthTime: row.AuthTime, AuthCode: row.AuthCode,
 		ExpiresAt: now + int64(s.Cfg.Lifetimes.RefreshToken), CreatedAt: now,
 	})
 	if err != nil {

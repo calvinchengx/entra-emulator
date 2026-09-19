@@ -2,8 +2,9 @@
 
 > **Status: rungs 0 and 1 have shipped.** entra-emulator passes the OpenID
 > Foundation's **Config OP** profile (34 conditions, no warnings) and runs its
-> **Basic OP** profile, all 35 modules, with every non-pass declared and
-> justified in `e2e/conformance/config/expected.json`. Run them with
+> **Basic OP** profile, all 35 modules: 20 PASSED, 4 REVIEW, 4 SKIPPED, 7
+> WARNING, with every non-pass declared and justified in
+> `e2e/conformance/config/expected.json`. Run them with
 > `make conformance` and `make conformance PLAN=basic`.
 
 ## Why this is different from every other check in the repo
@@ -114,10 +115,9 @@ disagrees":
 
 | category | modules | what it means |
 |---|---|---|
-| `parity` | 5 | The emulator behaves like Entra rather than like the bare spec. |
-| `not-in-entra` | 3 | Neither supports the feature, so the suite skips the module. |
-| `gap` | 4 | A real defect this run found. |
-| `needs-a-human` | 3 | Blocked on a screenshot; every condition passes. |
+| `parity` | 7 | The emulator behaves like Entra rather than like the bare spec. |
+| `not-in-entra` | 4 | Neither supports the feature, so the suite skips the module. |
+| `needs-a-human` | 4 | Blocked on a screenshot; every condition passes. |
 
 **The `parity` group is the whole argument for running this.** Real Entra puts
 `name`, `preferred_username` and `ver` in every v2.0 id_token whether or not
@@ -130,22 +130,59 @@ why `oidf:` is a different axis from `diff:` and not a stronger one.
 `acr_values` is the same shape: the spec says an OP SHOULD return `acr`, and
 Entra v2.0 does not.
 
-**The four gaps are worth fixing**, and none was visible to any existing test:
+### The four defects, and what became of them
 
-1. **An unsupported inline `request` parameter is refused with an HTML error
-   page** instead of `request_not_supported` redirected to the `redirect_uri`.
-   Refusing it is correct and matches Entra; delivering the refusal as a page is
-   not, once `client_id` and `redirect_uri` are both valid (OIDC Core 3.1.2.6,
-   RFC 6749 4.1.2.1). The suite's browser lands on a page it has no task for and
-   the module waits forever, which is why the harness needed stall handling.
-2. **Userinfo does not accept the access token in the POST body**, which OIDC
-   Core 5.3.1 allows. GET and POST-with-header both pass.
-3. **Userinfo does not return the full `profile` claim set** (`given_name`,
-   `family_name` and the rest).
-4. **Replaying an authorization code does not revoke the access token already
-   issued from it.** The code itself is correctly single-use.
+The first run of this plan reported four defects. Two were real and are fixed;
+one was real and is fixed as far as the architecture allows; one was not a
+defect at all, and the original description of it was wrong.
 
-`max_age` and `auth_time` were the fifth gap when this harness first ran, and
+**Fixed: the refusal of an inline `request` parameter was delivered as an HTML
+error page** instead of `error=request_not_supported` on the `redirect_uri`.
+Refusing the parameter is correct and matches Entra; delivering the refusal as a
+page is not, once `client_id` and `redirect_uri` are both usable (OIDC Core
+3.1.2.6, RFC 6749 4.1.2.1). An unusable one still gets a page, which is the
+open-redirect guard, and a test now pins both halves. The module used to hang
+waiting for a redirect that never came; it now reports the behaviour as
+"permitted" in the suite's own words.
+
+**Fixed: userinfo did not accept the access token in the POST body** (OIDC Core
+5.3.1, RFC 6750 2.2). It does now, validated identically to the header form, and
+presenting both at once is an `invalid_request` rather than a silent preference
+for one. Graph itself still takes the header alone, as real Entra's Graph does.
+`oidcc-userinfo-post-body` passes.
+
+**Fixed as far as it can be: a replayed authorization code did not revoke what
+it had produced.** RFC 6749 4.1.2 asks for revocation "when possible", and the
+refresh chain is the possible part: it is revoked now, inherited across
+rotations, so a replay costs continued access rather than one exchange. The
+access token is not revoked, here or in Entra, because it is a stateless JWT a
+resource server verifies offline against JWKS. Microsoft's own documentation is
+explicit that before continuous access evaluation "clients would replay the
+access token from its cache as long as it wasn't expired", and that CAE exists
+so "a resource provider can reject a token when it isn't expired" — a separate
+subscription mechanism, first-party services only, up to 15 minutes of latency.
+Revoking centrally would need stateful validation production does not have.
+`oidcc-codereuse-30seconds` therefore stays a declared warning, now with that
+reasoning rather than "unmeasured".
+
+**Not a defect: "userinfo does not return the full `profile` claim set".** That
+description was wrong; the endpoint already returns `given_name` and
+`family_name`. What the condition actually wants is every claim OIDC associates
+with the scope, including `middle_name`, `nickname`, `gender`, `birthdate`,
+`zoneinfo`, `locale`, `updated_at` and `email_verified`. Microsoft documents
+that its UserInfo endpoint returns `sub`, `name`, `family_name`, `given_name`,
+`picture` and `email`, that "the claims shown in the response are all those that
+the UserInfo endpoint can return", and that "you can't add to or customize"
+them. Synthesising a gender or a birthdate would invent data Entra cannot
+return. Reclassified as `parity`.
+
+Two smaller differences on that same surface are recorded rather than changed,
+because the evidence for them is one documentation sample and this repo's bar
+for a projection change is a live diff (`e2e/differential`), which has not been
+captured for userinfo: Entra returns `picture` and the emulator does not, and
+the emulator returns `oid` and `tid`, which that reference does not list.
+
+`max_age` and `auth_time` were a fifth defect when this harness first ran, and
 both `oidcc-max-age-1` and `oidcc-max-age-10000` failed on
 `CheckIdTokenAuthTimeClaimPresentDueToMaxAge`. They were implemented in #170
 while this was in flight, and `oidcc-max-age-10000` now passes outright. One
@@ -176,7 +213,8 @@ run unless declared.
 All three were exercised. Pointing `PUBLIC_ORIGIN` at `http://` while still
 serving TLS produces 7 condition failures and a red run; removing the
 `allow_unexpected_metadata_fields` declaration produces a `WARNING` and a red
-run; the stall path is what the inline-`request` gap above actually does.
+run; the stall path is how the inline-`request` defect above presented before
+it was fixed, and no module stalls today.
 
 The witness checker has the same treatment. `oidf:<module>` must name a module
 the runner runs **and** one that `expected.json` does not declare as a non-pass,
