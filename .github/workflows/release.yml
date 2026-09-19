@@ -43,6 +43,15 @@ jobs:
           # secret is unset the winget step self-skips (skip_upload).
           WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
 
+      # GoReleaser writes the cask it published into dist/homebrew/. Checking
+      # the artifact rather than the config is what survives GoReleaser changing
+      # its template underneath us; it runs after the push, so it cannot stop a
+      # bad cask being published, but it makes the release red instead of
+      # letting the deprecation land silently.
+      - uses: astral-sh/setup-uv@v7
+      - name: The published cask uses no deprecated stanza
+        run: uv run --no-project --python 3.12 scripts/check_cask_stanzas.py --rendered dist/homebrew
+
   image:
     name: Docker image → GHCR
     needs: make-targets
