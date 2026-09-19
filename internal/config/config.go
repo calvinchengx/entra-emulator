@@ -64,7 +64,16 @@ type Config struct {
 	// e2e hangs after a successful build, and the emulator's log showed only
 	// startup, which could mean nothing arrived OR that nothing is recorded.
 	// Those are different diagnoses and the log could not tell them apart.
-	RequestLog      bool
+	RequestLog bool
+	// RecordResponses names a file the emulator appends one JSON line to for
+	// every Microsoft Graph response it serves (method, path, query, status,
+	// body; never a header). Empty, the default, records nothing. It exists so
+	// the e2e suites that already drive real SDKs can double as the input to
+	// scripts/check_graph_conformance.py, which holds those responses to
+	// Microsoft's published OpenAPI. Environment only, deliberately not a config
+	// file key: it is a diagnostic for CI, and a file path baked into a config
+	// somebody commits is a recording nobody asked for.
+	RecordResponses string
 	Lifetimes       TokenLifetimes
 	DeviceInterval  int
 	GraphResourceID string
@@ -160,6 +169,7 @@ func Load(getenv func(string) string) (*Config, error) {
 	c.GraphPermissions = resolveBool(getenv("GRAPH_PERMISSIONS"), file.GraphPermissions, false, "GRAPH_PERMISSIONS", fail)
 	c.SeedOnStart = resolveBool(getenv("SEED_ON_START"), file.SeedOnStart, true, "SEED_ON_START", fail)
 	c.RequestLog = resolveBool(getenv("REQUEST_LOG"), file.RequestLog, false, "REQUEST_LOG", fail)
+	c.RecordResponses = getenv("RECORD_RESPONSES")
 
 	if file.TLS != nil {
 		if file.TLS.CertPath != nil {

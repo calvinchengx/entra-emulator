@@ -38,6 +38,7 @@ key(s)** — no partial boot.
 | `MANAGED_IDENTITY_SECRET` | `managedIdentitySecret` | string | `managed-identity-secret` | Matched against `X-IDENTITY-HEADER` on `/msi/token` (dev value). |
 | `MANAGED_IDENTITY_CLIENT_ID` | `managedIdentityClientId` | GUID | seeded daemon app | The system-assigned managed identity's appId. |
 | `LOG_LEVEL` | `logLevel` | enum | `info` | `error|warn|info|debug`. |
+| `RECORD_RESPONSES` | — | path | unset | Append one JSON line per Microsoft Graph response (method, path, query, status, body; **never a header**, so no bearer token) to this file. Diagnostic for CI: the recording is the input to `scripts/check_graph_conformance.py`, which holds real-SDK traffic to Microsoft's published Graph OpenAPI. Environment only, deliberately not a config-file key. An unwritable path logs and records nothing rather than stopping the emulator. |
 | `CONFIG_FILE` | — | path | `./entra-emulator.config.json` | Config-file location. |
 
 ## Origin derivation (order of precedence per surface)
