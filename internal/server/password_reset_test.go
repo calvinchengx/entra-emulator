@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/calvinchengx/entra-emulator/internal/store"
@@ -29,7 +30,7 @@ func TestPasswordReset(t *testing.T) {
 	const upn = "alice@entraemulator.dev"
 	const oldPassword = "Password1!"
 	resetURL := hts.URL + "/graph/v1.0/users/" + aliceID +
-		"/authentication/passwordMethods/28c10230-6103-485e-b985-444c60001490/resetPassword"
+		"/authentication/methods/28c10230-6103-485e-b985-444c60001490/resetPassword"
 
 	// Baseline: the seeded credential works.
 	if s := ropcStatus(t, hts.URL, upn, oldPassword); s != http.StatusOK {
@@ -59,22 +60,35 @@ func TestPasswordReset(t *testing.T) {
 		if generated == "" {
 			t.Fatalf("a system-generated reset must return the password: %v", body)
 		}
-		if body["@odata.type"] != "#microsoft.graph.passwordResetResponse" {
-			t.Errorf("@odata.type = %v", body["@odata.type"])
+		if ctx, _ := body["@odata.context"].(string); !strings.HasSuffix(ctx, "#microsoft.graph.passwordResetResponse") {
+			t.Errorf("@odata.context = %v, want it to end in #microsoft.graph.passwordResetResponse", body["@odata.context"])
 		}
 		if s := ropcStatus(t, hts.URL, upn, generated); s != http.StatusOK {
 			t.Fatalf("the generated password must sign in, got %d", s)
 		}
 	})
 
+	t.Run("the invented passwordMethods spelling is not served", func(t *testing.T) {
+		// This emulator used to serve resetPassword under /passwordMethods/ and
+		// call it documented. Microsoft's spec has no such operation, so an app
+		// that worked here would 404 against Entra, which is the outcome an
+		// emulator exists to prevent. Serving a route production lacks is worse
+		// than not serving one production has.
+		invented := hts.URL + "/graph/v1.0/users/" + aliceID +
+			"/authentication/passwordMethods/28c10230-6103-485e-b985-444c60001490/resetPassword"
+		if code, _ := postJSONAuth(t, invented, app, map[string]any{"newPassword": "X1!aaaaa"}); code == http.StatusAccepted {
+			t.Fatalf("the undocumented /passwordMethods/.../resetPassword route is being served (%d)", code)
+		}
+	})
+
 	t.Run("unknown user and wrong method id are 404", func(t *testing.T) {
 		bad := hts.URL + "/graph/v1.0/users/" + store.NewGUID() +
-			"/authentication/passwordMethods/28c10230-6103-485e-b985-444c60001490/resetPassword"
+			"/authentication/methods/28c10230-6103-485e-b985-444c60001490/resetPassword"
 		if code, _ := postJSONAuth(t, bad, app, map[string]any{"newPassword": "X1!aaaaa"}); code != http.StatusNotFound {
 			t.Errorf("unknown user: want 404, got %d", code)
 		}
 		wrongMethod := hts.URL + "/graph/v1.0/users/" + aliceID +
-			"/authentication/passwordMethods/" + store.NewGUID() + "/resetPassword"
+			"/authentication/methods/" + store.NewGUID() + "/resetPassword"
 		if code, _ := postJSONAuth(t, wrongMethod, app, map[string]any{"newPassword": "X1!aaaaa"}); code != http.StatusNotFound {
 			t.Errorf("wrong method id: want 404, got %d", code)
 		}

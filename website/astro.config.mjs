@@ -115,6 +115,7 @@ export default defineConfig({
             { slug: '18-fabric-companion' },
             { slug: '22-arm-companion' },
             { slug: '23-oidf-conformance' },
+            { slug: '24-graph-conformance' },
           ],
         },
         {

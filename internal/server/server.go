@@ -252,6 +252,12 @@ func (s *Server) Listen() error {
 		handler = logRequests(handler)
 		log.Printf("request logging on (REQUEST_LOG)")
 	}
+	// Outermost, so it sees the request as the client sent it (including the
+	// /graph prefix compat mode adds) before any surface routing.
+	if rec := newRecorder(s.Cfg.RecordResponses); rec != nil {
+		handler = record(rec, handler)
+		log.Printf("recording Graph responses to %s (RECORD_RESPONSES)", s.Cfg.RecordResponses)
+	}
 	srv := &http.Server{Addr: addr, Handler: handler}
 	if !s.Cfg.TLSEnabled {
 		return srv.ListenAndServe()

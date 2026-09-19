@@ -171,3 +171,4 @@ and bump the pin. The sibling fabric-emulator pins `fabric-docs` the same way.
 | [18-fabric-companion.md](18-fabric-companion.md) | The Fabric control-plane companion emulator (sibling `fabric-emulator` repo) |
 | [22-arm-companion.md](22-arm-companion.md) | The ARM control-plane companion emulator (sibling `arm-emulator` repo), and the family's dependency order |
 | [23-oidf-conformance.md](23-oidf-conformance.md) | Running the OpenID Foundation's conformance suite against the emulator: what it witnesses that the golden references cannot, and the remaining rungs |
+| [24-graph-conformance.md](24-graph-conformance.md) | Holding real SDK traffic to Microsoft's published Graph OpenAPI: the recorder, the vendored spec, the checker, and the two gates not yet built |
