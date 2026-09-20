@@ -11,6 +11,7 @@
 // Env: EMU_ORIGIN, EMU_TENANT, EMU_CERT.
 import * as msal from '@azure/msal-node';
 import { Client } from '@microsoft/microsoft-graph-client';
+import { VirtualAuthenticator } from './authenticator.mjs';
 
 // Local emulator uses a self-signed cert; trust it for this process only.
 // Keep TLS validation enabled and provide the emulator CA/cert instead.
@@ -77,6 +78,18 @@ const ropcWorks = async (username, password) => !!(await ropcToken(username, pas
 /** The status of a call expected to fail, or 0 if it succeeded. */
 async function statusOf(call) {
   try { await call(); return 0; } catch (e) { return e.statusCode ?? -1; }
+}
+
+/** One step of a WebAuthn ceremony. The emulator keeps the ceremony's state
+ *  behind a cookie, so the cookie from `begin` has to ride along on `finish`. */
+async function webauthn(step, body, cookie) {
+  const res = await fetch(`${AUTHORITY}/webauthn/${step}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
+    body: JSON.stringify(body),
+  });
+  const setCookie = res.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
+  return { status: res.status, body: await res.json(), cookie: setCookie };
 }
 
 async function main() {
@@ -542,6 +555,53 @@ async function main() {
   check('/me refuses an app-only token', (await statusOf(() => api(`${GRAPH}/me`).get())) === 403);
   check('/me/getMemberGroups refuses an app-only token',
     (await statusOf(() => api(`${GRAPH}/me/getMemberGroups`).post({}))) === 403);
+
+  // 5o. Passkeys. Graph only lists and deletes fido2Methods; a passkey arrives by
+  // the WebAuthn ceremony, so a software authenticator registers one here. It
+  // is proved real rather than assumed: the same key signs an assertion before
+  // the delete and the assertion is impossible after it.
+  const authenticator = new VirtualAuthenticator();
+  const regBegin = await webauthn('register/begin', { upn });
+  check('passkey registration begins', regBegin.status === 200 && !!regBegin.body.publicKey);
+  const regFinish = await webauthn('register/finish',
+    authenticator.create(regBegin.body.publicKey, ORIGIN), regBegin.cookie);
+  check('the emulator accepts the passkey', regFinish.status === 200 &&
+    regFinish.body.registered === true && regFinish.body.credentialId === authenticator.id,
+    JSON.stringify(regFinish.body));
+
+  const fido = await api(`${GRAPH}/users/${uid}/authentication/fido2Methods`).get();
+  const listed = fido.value ?? [];
+  check('fido2Methods lists exactly the passkey just registered',
+    listed.length === 1 && listed[0].id === authenticator.id, JSON.stringify(listed));
+  check('the passkey is a fido2AuthenticationMethod',
+    listed[0]?.['@odata.type'] === '#microsoft.graph.fido2AuthenticationMethod' &&
+    !!listed[0]?.createdDateTime);
+  const allMethods = await api(`${GRAPH}/users/${uid}/authentication/methods`).get();
+  check('authentication/methods includes the passkey next to the password',
+    (allMethods.value ?? []).some((m) => m.id === authenticator.id) &&
+    (allMethods.value ?? []).some((m) => m.id === PASSWORD_METHOD_ID));
+  const meFido2 = await me('/me/authentication/fido2Methods').get();
+  check('/me/authentication/fido2Methods lists the passkey for the signed-in user',
+    (meFido2.value ?? []).some((m) => m.id === authenticator.id));
+
+  const assertOnce = async () => {
+    const begin = await webauthn('assert/begin', { upn });
+    if (begin.status !== 200) return { begin };
+    const finish = await webauthn('assert/finish',
+      authenticator.get(begin.body.publicKey, ORIGIN, regBegin.body.publicKey.user.id), begin.cookie);
+    return { begin, finish };
+  };
+  const before = await assertOnce();
+  check('the passkey signs the user in before it is deleted',
+    before.finish?.status === 200 && before.finish.body.amr === 'fido', JSON.stringify(before.finish?.body));
+
+  await api(`${GRAPH}/users/${uid}/authentication/fido2Methods/${authenticator.id}`).delete();
+  const afterDelete = await api(`${GRAPH}/users/${uid}/authentication/fido2Methods`).get();
+  check('fido2Methods is empty once the passkey is deleted', (afterDelete.value ?? []).length === 0);
+  const denied = await assertOnce();
+  check('the deleted passkey can no longer start a sign-in', denied.begin.status === 400, JSON.stringify(denied.begin.body));
+  check('deleting the passkey again is a 404',
+    (await statusOf(() => api(`${GRAPH}/users/${uid}/authentication/fido2Methods/${authenticator.id}`).delete())) === 404);
 
   // Updates.
   await api(`${GRAPH}/applications/${app.id}`).update({ displayName: `SDK App Renamed ${stamp}` });

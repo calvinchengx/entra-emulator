@@ -112,7 +112,7 @@ missing recording is a failure, not a pass.
 ## The surface ledger
 
 Conformance asks "did what we answered match the schema", and its denominator is
-whatever a suite happened to touch: 129 responses. It is silent about the 17,870
+whatever a suite happened to touch: 135 responses. It is silent about the 17,870
 operations Microsoft documents. The ledger's denominator is **the spec**.
 
 ```
@@ -197,7 +197,7 @@ the ledger says which documented operations are served. Neither says anything
 about routes this emulator **registers** that no suite has ever driven, and those
 are where a wrong shape lives longest: nobody is looking.
 
-**94 registered `/v1.0` routes. 90 driven to a 2xx. 4 not yet.** Before the Graph
+**94 registered `/v1.0` routes. 91 driven to a 2xx. 3 not yet.** Before the Graph
 suite was extended it was 46 and 48, a number that had not been visible at all.
 
 The gate is that the number cannot get worse, in every direction:
@@ -266,18 +266,29 @@ answers 403. They now share the delegated-only guard, and
 403 is the guard and not a broken route. The nine new recordings (seven
 successes, two 403s) came in with no new conformance findings.
 
-### The four that remain, and why
+### The passkey delete
+
+Graph lists and deletes `fido2Methods` but cannot create one: a passkey arrives
+by the WebAuthn ceremony. Block 5o registers one with a software authenticator
+(`e2e/graph/authenticator.mjs`, ES256 and `none` attestation, written from the
+WebAuthn and CTAP2 specs on `node:crypto` alone, so the emulator's go-webauthn
+verifies bytes it did not help produce). The passkey is proved real, not just
+listed: the same key signs an assertion before the delete, and after the delete
+the user has no passkeys to start a sign-in with. Deleting it twice is a 404.
+Corrupting one byte of the signature turns the "signs the user in" check red,
+so that assertion can fail.
+
+### The three that remain, and why
 
 | routes | why |
 |---|---|
 | `GET/POST/DELETE /oAuth2PermissionGrants` (capital A) | the uncited second casing, pinned as an open question in the ledger. Driving it would be asserting something nobody has measured |
-| `DELETE .../fido2Methods/{id}` | needs a registered passkey to delete |
 
 ## Not built yet
 
 Nothing in the three-gate design. Open items, none settled by this work:
 
-- The union is 129 recorded responses. That is the honest ceiling on what a pass
+- The union is 135 recorded responses. That is the honest ceiling on what a pass
   means today.
 - `Location` on `resetPassword` points at the method resource; Graph points at an
   `authentication/operations/{id}` resource that is not served.
