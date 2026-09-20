@@ -11,8 +11,9 @@ import (
 // actually serves requests: every enumerated pattern must be accepted by a
 // ServeMux (which panics on a malformed or conflicting one), and none may repeat.
 // There are more patterns than HandleFunc call sites (97 against 89 when this was
-// written) because some calls sit in loops, which is the whole reason the source
-// cannot simply be counted.
+// written, 94 once the uncited oAuth2PermissionGrants duplicates went) because
+// some calls sit in loops, which is the whole reason the source cannot simply be
+// counted.
 func TestRegisteredPatternsIsCompleteAndServable(t *testing.T) {
 	patterns := RegisteredPatterns("")
 
@@ -31,8 +32,8 @@ func TestRegisteredPatternsIsCompleteAndServable(t *testing.T) {
 	// A floor rather than an exact figure, so adding a route is not a test edit;
 	// what it guards is the enumerator silently seeing a fraction, which is the
 	// failure a source regex had (it read 19).
-	if len(patterns) < 97 {
-		t.Fatalf("enumerated %d patterns, but Register installs at least 97", len(patterns))
+	if len(patterns) < 94 {
+		t.Fatalf("enumerated %d patterns, but Register installs at least 94", len(patterns))
 	}
 }
 

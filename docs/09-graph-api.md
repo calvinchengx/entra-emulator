@@ -28,6 +28,12 @@ require a **delegated** token (`oid` present); app-only → 403.
 
 `memberOf` items carry an `@odata.type` (`#microsoft.graph.group`).
 
+**Path casing.** As in Graph, resource, relation and action names in `/v1.0/...` paths are
+case-insensitive (`/v1.0/USERS`, `/v1.0/users/{id}/MEMBEROF`, `/v1.0/oAuth2PermissionGrants`),
+and ids are not: an upper-cased GUID is a different id. Microsoft's
+[call-api](https://learn.microsoft.com/en-us/graph/call-api) page states the rule. Query option
+names such as `$select` are documented as case-insensitive too but are still matched exactly here.
+
 ### Writes (roadmap #18)
 
 | Method | Path | Notes |

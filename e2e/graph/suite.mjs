@@ -603,6 +603,32 @@ async function main() {
   check('deleting the passkey again is a 404',
     (await statusOf(() => api(`${GRAPH}/users/${uid}/authentication/fido2Methods/${authenticator.id}`).delete())) === 404);
 
+  // 5p. Path casing. Microsoft documents path resource names, action names and
+  // property names as case-insensitive and entity ids as case-sensitive
+  // (learn.microsoft.com/graph/call-api), and every request above spells its
+  // resources exactly as the docs do, which is the one thing that could not
+  // notice the emulator matching paths case-sensitively. These are sent the
+  // other way: capitals, and the `oAuth2PermissionGrants` spelling the emulator
+  // used to special-case because nothing said which casing was real.
+  const capsUser = await api(`${GRAPH}/USERS/${uid}`).get();
+  check('a resource name in capitals resolves, and the id comes back as sent', capsUser.id === uid);
+  const capsMembers = await api(`${GRAPH}/GROUPS/${gid}/MEMBERS`).get();
+  check('a nested relation folds too', (capsMembers.value ?? []).some((m) => m.id === uid));
+  const capsAction = await api(`${GRAPH}/users/${uid}/GETMEMBERGROUPS`).post({ securityEnabledOnly: false });
+  check('an action name folds', (capsAction.value ?? []).includes(gid));
+  const second = await api(`${GRAPH}/oAuth2PermissionGrants`).post({
+    clientId: uid, consentType: 'AllPrincipals', resourceId: DAEMON_ID, scope: 'Tasks.ReadWrite',
+  });
+  check('a grant is created under the oAuth2PermissionGrants spelling', !!second.id);
+  const lowerGrants = await api(`${GRAPH}/oauth2permissiongrants`).get();
+  check('and listed under the all-lowercase one', (lowerGrants.value ?? []).some((g) => g.id === second.id));
+  await api(`${GRAPH}/OAUTH2PERMISSIONGRANTS/${second.id}`).delete();
+  const afterGrants = await api(`${GRAPH}/oauth2PermissionGrants`).get();
+  check('and deleted under the all-caps one', !(afterGrants.value ?? []).some((g) => g.id === second.id));
+  // The other half of the rule: an id is NOT case-insensitive.
+  check('an id in the wrong case is a 404',
+    (await statusOf(() => api(`${GRAPH}/users/${uid.toUpperCase()}`).get())) === 404);
+
   // Updates.
   await api(`${GRAPH}/applications/${app.id}`).update({ displayName: `SDK App Renamed ${stamp}` });
   check('patch application', (await api(`${GRAPH}/applications/${app.id}`).get()).displayName === `SDK App Renamed ${stamp}`);

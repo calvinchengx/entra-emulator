@@ -17,12 +17,13 @@ import (
 // {id}, clientId, resourceId, and SP principalId are app ids.
 
 func (g *Graph) registerConsent(mux Router, prefix string) {
-	// oauth2PermissionGrants (register both Entra casings).
-	for _, coll := range []string{"/oauth2PermissionGrants", "/oAuth2PermissionGrants"} {
-		mux.HandleFunc("POST "+prefix+"/v1.0"+coll, g.requireBearer(g.createOAuth2Grant))
-		mux.HandleFunc("GET "+prefix+"/v1.0"+coll, g.requireBearer(g.listOAuth2Grants))
-		mux.HandleFunc("DELETE "+prefix+"/v1.0"+coll+"/{id}", g.requireBearer(g.deleteOAuth2Grant))
-	}
+	// One spelling, the one Microsoft's OpenAPI and docs use. This used to
+	// register a second, "oAuth2PermissionGrants", that nothing cited; Graph
+	// resource paths are case-insensitive (casefold.go), which covers that
+	// spelling and every other.
+	mux.HandleFunc("POST "+prefix+"/v1.0/oauth2PermissionGrants", g.requireBearer(g.createOAuth2Grant))
+	mux.HandleFunc("GET "+prefix+"/v1.0/oauth2PermissionGrants", g.requireBearer(g.listOAuth2Grants))
+	mux.HandleFunc("DELETE "+prefix+"/v1.0/oauth2PermissionGrants/{id}", g.requireBearer(g.deleteOAuth2Grant))
 	mux.HandleFunc("GET "+prefix+"/v1.0/servicePrincipals/{id}/oauth2PermissionGrants",
 		g.requireBearer(g.listSPOAuth2Grants))
 

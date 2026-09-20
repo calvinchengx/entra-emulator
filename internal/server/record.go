@@ -158,7 +158,9 @@ func (c *capture) Unwrap() http.ResponseWriter { return c.ResponseWriter }
 // `beta` is not served.
 func graphPath(path string) (string, bool) {
 	path = strings.TrimPrefix(path, "/graph")
-	if !strings.HasPrefix(path, "/v1.0/") {
+	// Case-insensitively, because Graph paths are (internal/graph/casefold.go):
+	// `/V1.0/Users` is a Graph request and has to be recorded as one.
+	if len(path) < len("/v1.0/") || !strings.EqualFold(path[:len("/v1.0/")], "/v1.0/") {
 		return "", false
 	}
 	return path, true
@@ -171,13 +173,17 @@ func record(rec *recorder, next http.Handler) http.Handler {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path, ok := graphPath(r.URL.Path)
-		if !ok {
+		if _, ok := graphPath(r.URL.Path); !ok {
 			next.ServeHTTP(w, r)
 			return
 		}
 		c := &capture{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(c, r)
+		// Read AFTER serving: the Graph surface rewrites the request path in
+		// place to the spelling Microsoft's OpenAPI uses, and that is the
+		// spelling the conformance checker can match. Reading it before would
+		// record `/v1.0/USERS` as a route nobody documents.
+		path, _ := graphPath(r.URL.Path)
 
 		entry := recorded{Method: r.Method, Path: path, Query: r.URL.RawQuery, Status: c.status}
 		if body := c.body.Bytes(); len(body) > 0 && json.Valid(body) {

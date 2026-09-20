@@ -153,8 +153,10 @@ func (g *Graph) listServicePrincipals(w http.ResponseWriter, r *http.Request, _ 
 	g.writeCollection(w, r, "servicePrincipals", shapes, q)
 }
 
-// spByAppID matches Graph's alternate-key form for a service principal.
-var spByAppID = regexp.MustCompile(`^servicePrincipals\(appId='([^']+)'\)$`)
+// spByAppID matches Graph's alternate-key form for a service principal. The
+// resource and key names are case-insensitive like every other path name; the
+// captured value is not touched.
+var spByAppID = regexp.MustCompile(`(?i)^servicePrincipals\(appId='([^']+)'\)$`)
 
 // getByAlternateKey serves `servicePrincipals(appId='...')`, which is how Graph
 // lets a caller address a service principal by its appId instead of its object
