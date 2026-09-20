@@ -282,6 +282,11 @@ def run(recordings, strict, update, routes_file=None, families=False):
               "classified. Is `go run ./internal/graph/cmd/graphroutes` working?",
               file=sys.stderr)
         return 1
+    missing = [r for r in recordings if not pathlib.Path(r).is_file()]
+    if missing:
+        print("check_graph_ledger: no such recording: " + ", ".join(map(str, missing)),
+              file=sys.stderr)
+        return 1
     states, invented_routes = classify(recordings, routes)
     counts = collections.Counter(states.values())
     print(f"check_graph_ledger: {len(states)} documented operations, "

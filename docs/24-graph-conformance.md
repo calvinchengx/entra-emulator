@@ -1,10 +1,10 @@
 # Graph conformance
 
-> **Status: the recorder, the vendored spec, the checker and the surface ledger
-> have shipped.** Real SDK traffic is held to Microsoft's published Graph OpenAPI
-> on every push, and every one of its 17,870 operations is classified as served,
-> refused or silent. Between them they found two real bugs. The route ratchet
-> (below) is not built.
+> **Status: all three gates have shipped.** Real SDK traffic is held to
+> Microsoft's published Graph OpenAPI on every push; every one of its 17,870
+> operations is classified as served, refused or silent; and the emulator's own 94
+> registered routes are ratcheted so the number that have never been driven can
+> only fall. Between them they found two real bugs.
 
 ## What this is, and what it is not
 
@@ -112,7 +112,7 @@ missing recording is a failure, not a pass.
 ## The surface ledger
 
 Conformance asks "did what we answered match the schema", and its denominator is
-whatever a suite happened to touch: 78 responses. It is silent about the 17,870
+whatever a suite happened to touch: 120 responses. It is silent about the 17,870
 operations Microsoft documents. The ledger's denominator is **the spec**.
 
 ```
@@ -190,25 +190,81 @@ the baseline; a stale baseline, a route that stops being served, and a newly ser
 route nobody recorded all fail, so the file cannot become a story about a tree that
 no longer exists.
 
+## The route ratchet
+
+The conformance checker validates the responses a suite happened to produce, and
+the ledger says which documented operations are served. Neither says anything
+about routes this emulator **registers** that no suite has ever driven, and those
+are where a wrong shape lives longest: nobody is looking.
+
+**94 registered `/v1.0` routes. 83 driven to a 2xx. 11 not yet.** Before the Graph
+suite was extended it was 46 and 48, a number that had not been visible at all.
+
+The gate is that the number cannot get worse, in every direction:
+
+| what happens | result |
+|---|---|
+| a new route is registered with no traffic | fails, so an endpoint arrives with its evidence |
+| a route stops being driven | fails: coverage silently regressing is the same defect as a stale witness |
+| a route **starts** being driven | **also fails**, until the baseline is updated |
+| a baseline entry names a route that no longer exists | fails |
+
+The third row sounds perverse and is the point: the baseline records what is *not*
+yet proved, and an improvement that does not shrink it leaves a lie in the file. It
+fired on all 37 routes closed while building this, and refused to pass until they
+were recorded.
+
+**What counts as driven is stricter than fabric's rule: a 2xx.** A route reached
+only by a 401, a 403 or a 404 has been shown to *exist*, not to *work*: nothing
+watched its success path against the schema.
+
+**An oracle that does not trust the enumeration.** The ledger and the coverage
+count both trust that the registered routes are complete. So every recorded
+**non-404** response must match some registered pattern, because a response the
+emulator really served that matches nothing means the enumerator is blind to
+whatever handled it. Fabric found 95 of these once, all Livy calls past a
+rest-of-path wildcard, by exactly this check. Against the real recordings it finds
+none.
+
+**Precedence is modelled, then checked against the real table.** Where several
+patterns match, the one with the most literal segments wins, which is
+`http.ServeMux`'s rule: `/deletedItems/graph.user` must take the credit for a
+request to it, not the `{id}` wildcard beside it. A test builds a concrete request
+from every one of the emulator's registered routes and requires each to resolve
+back to itself; inverting the precedence fails it.
+
+### What closing 37 routes involved
+
+Extending `e2e/graph/suite.mjs` to list, read, patch and delete what its earlier
+sections had created, and to read the recycle bin under **both** namespace
+spellings, so the alias the ledger found cannot regress unseen. It also put the
+responses for those routes under the conformance checker: 78 recorded responses
+became 120, with no new findings.
+
+One assertion of mine was wrong, and the suite caught it: I asserted that
+`getMemberGroups` lists the group the user joined, but the suite removes the user
+from the group earlier, so an empty answer was correct. The test now asserts the
+empty case *and* re-adds the membership before asserting the positive, because an
+empty answer would pass equally against a handler that ignored membership.
+
+### The eleven that remain, and why
+
+| routes | why |
+|---|---|
+| `GET/POST/DELETE /oAuth2PermissionGrants` (capital A) | the uncited second casing, pinned as an open question in the ledger. Driving it would be asserting something nobody has measured |
+| seven `/me` routes | need a signed-in user's token; this suite uses client credentials |
+| `DELETE .../fido2Methods/{id}` | needs a registered passkey to delete |
+
 ## Not built yet
 
-| gate | question | denominator | state |
-|---|---|---|---|
-| conformance | did the response match the schema? | what a suite happened to touch | **shipped** |
-| surface ledger | is every documented operation served, refused, or silent? | **the spec** (17,870) | **shipped** |
-| route ratchet | is every route we register exercised? | what we register (97) | not built |
+Nothing in the three-gate design. Open items, none settled by this work:
 
-The route ratchet is now cheap, since the registered routes can be enumerated: it
-asks whether each of the 97 was ever driven with a schema watching, and fails when
-that number gets worse.
-
-Other open items, none of them settled by this work:
-
-- The whole union is small: 78 recorded responses. That is the honest ceiling on
-  what a pass means today, and the ratchet is what would stop it shrinking.
+- The union is 120 recorded responses. That is the honest ceiling on what a pass
+  means today.
 - `Location` on `resetPassword` points at the method resource; Graph points at an
   `authentication/operations/{id}` resource that is not served.
 - `graph-resources.golden.json` (26 hand-listed property names) is now a strict
   subset of what this holds responses to, and can be retired once nothing depends
   on it.
 - The `oAuth2PermissionGrants` casing needs one request against a real tenant.
+- The seven `/me` routes could be driven from a suite that signs a user in.

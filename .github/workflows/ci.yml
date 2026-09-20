@@ -557,7 +557,7 @@ jobs:
       # The checker's own controls. It reported almost nothing on 67 real
       # responses, and "the emulator is good" and "the checker is lenient" look
       # identical when green, so each rule is fed a response that must fail.
-      - run: uv run --no-project --python 3.12 python -m unittest scripts/test_check_graph_conformance.py scripts/test_check_graph_ledger.py
+      - run: uv run --no-project --python 3.12 python -m unittest scripts/test_check_graph_conformance.py scripts/test_check_graph_ledger.py scripts/test_check_graph_route_coverage.py
       # EVERY EXPECTED RECORDING, BY NAME. A suite that passes having recorded
       # nothing uploads nothing (if-no-files-found: warn), the union quietly
       # shrinks, and the failure then arrives blaming routes rather than the
@@ -594,6 +594,18 @@ jobs:
           set -euo pipefail
           uv run --no-project --python 3.12 python scripts/check_graph_ledger.py \
             $(cat recordings.txt) --strict --families
+      # THE RATCHET, over the same union. The ledger says which documented
+      # operations are served; this says which registered routes have never been
+      # driven to a 2xx with the schema watching. It ratchets in every direction
+      # against docs/graph-route-coverage.json, including the one that sounds
+      # perverse: a route that STARTS being driven fails until the baseline is
+      # updated, so an improvement is recorded rather than left as a stale file.
+      # It also holds an oracle that does not trust the route enumeration: any
+      # served response matching no registered route means the enumerator is blind.
+      - run: |
+          set -euo pipefail
+          uv run --no-project --python 3.12 python scripts/check_graph_route_coverage.py \
+            $(cat recordings.txt) --strict
 
   lint:
     name: golangci-lint
