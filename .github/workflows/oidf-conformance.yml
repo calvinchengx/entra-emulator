@@ -58,7 +58,7 @@ jobs:
       # summary says PASSED, the logs say which conditions produced it.
       - name: Upload the conformance logs
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: oidf-conformance-${{ matrix.plan }}
           path: e2e/conformance/results/
