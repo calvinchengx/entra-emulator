@@ -16,7 +16,7 @@ import (
 // attribute permissions. The emulator matches that, which is also why adding
 // this feature does not change the default user shape.
 
-func (g *Graph) registerCustomSecurityAttributes(mux *http.ServeMux, prefix string) {
+func (g *Graph) registerCustomSecurityAttributes(mux Router, prefix string) {
 	p := prefix + "/v1.0/directory"
 	mux.HandleFunc("GET "+p+"/attributeSets", g.requireBearer(g.listAttributeSets))
 	mux.HandleFunc("POST "+p+"/attributeSets", g.requireBearer(g.createAttributeSet))

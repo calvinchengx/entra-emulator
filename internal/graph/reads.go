@@ -26,7 +26,7 @@ func splitCSV(s string) []string {
 // SP, and the object id is conflated with appId (documented divergence). Both
 // resources honour the basic OData options from odata.go.
 
-func (g *Graph) registerReads(mux *http.ServeMux, prefix string) {
+func (g *Graph) registerReads(mux Router, prefix string) {
 	mux.HandleFunc("GET "+prefix+"/v1.0/applications", g.requireBearer(g.listApplications))
 	mux.HandleFunc("GET "+prefix+"/v1.0/applications/{id}", g.requireBearer(g.getApplication))
 	mux.HandleFunc("GET "+prefix+"/v1.0/servicePrincipals", g.requireBearer(g.listServicePrincipals))

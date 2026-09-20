@@ -26,9 +26,39 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service, au *audit.Reco
 	return &Graph{Cfg: cfg, Store: st, Tokens: ts, Audit: au, DirAudit: da}
 }
 
+// Router is the one method the registration code uses, and *http.ServeMux
+// satisfies it, so production is unchanged. It exists so the route table can be
+// ENUMERATED: http.ServeMux cannot list its own patterns, and the two ways
+// around that are both worse. Regexing this package's source reads only a
+// fraction of the handlers, because registration goes through several prefix
+// variables; a first attempt parsed 19 of 89 and its result was discarded as
+// invalid. Probing a live mux answers "is this served" but cannot answer "what
+// is registered", which the ledger needs in the other direction too (a route we
+// serve that Microsoft does not document is an invented endpoint).
+type Router interface {
+	HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request))
+}
+
+// PatternCollector is a Router that records patterns and serves nothing.
+type PatternCollector struct{ Patterns []string }
+
+// HandleFunc implements Router.
+func (c *PatternCollector) HandleFunc(pattern string, _ func(http.ResponseWriter, *http.Request)) {
+	c.Patterns = append(c.Patterns, pattern)
+}
+
+// RegisteredPatterns returns every "METHOD /path" pattern Register installs
+// under prefix. It builds a Graph with no dependencies, which is safe because
+// registration only wraps handlers in closures and never calls one.
+func RegisteredPatterns(prefix string) []string {
+	c := &PatternCollector{}
+	(&Graph{}).Register(c, prefix)
+	return c.Patterns
+}
+
 // Register mounts the Graph routes under prefix ("" on the graph host,
 // "/graph" on the compat origin).
-func (g *Graph) Register(mux *http.ServeMux, prefix string) {
+func (g *Graph) Register(mux Router, prefix string) {
 	mux.HandleFunc("GET "+prefix+"/v1.0/me", g.requireDelegated(g.handleMe))
 	mux.HandleFunc("GET "+prefix+"/v1.0/me/memberOf", g.requireDelegated(g.handleMemberOf))
 	mux.HandleFunc("GET "+prefix+"/v1.0/users", g.requireBearer(g.handleUsers))

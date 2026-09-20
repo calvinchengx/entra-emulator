@@ -1,9 +1,10 @@
 # Graph conformance
 
-> **Status: the recorder, the vendored spec and the checker have shipped.** Real
-> SDK traffic is held to Microsoft's published Graph OpenAPI on every push. It
-> found one real bug on its first run. The surface ledger and the route ratchet
-> (below) are not built.
+> **Status: the recorder, the vendored spec, the checker and the surface ledger
+> have shipped.** Real SDK traffic is held to Microsoft's published Graph OpenAPI
+> on every push, and every one of its 17,870 operations is classified as served,
+> refused or silent. Between them they found two real bugs. The route ratchet
+> (below) is not built.
 
 ## What this is, and what it is not
 
@@ -108,23 +109,98 @@ dozens of defects: the first version forgot that the spec's paths carry no
 `/v1.0` prefix and printed 46 "findings" that were all its own. And an empty or
 missing recording is a failure, not a pass.
 
-## Not built yet
+## The surface ledger
 
-This is a port of fabric-emulator's design, which has three gates with three
-different denominators. Only the first exists here.
+Conformance asks "did what we answered match the schema", and its denominator is
+whatever a suite happened to touch: 78 responses. It is silent about the 17,870
+operations Microsoft documents. The ledger's denominator is **the spec**.
+
+```
+graph.RegisteredPatterns  ──▶  internal/graph/cmd/graphroutes  ──▶  scripts/check_graph_ledger.py --strict
+  (the real Register)            prints 97 METHOD /path lines        vs the vendored spec + the recordings
+```
+
+Every documented operation is in exactly one state:
+
+| state | meaning |
+|---|---|
+| **served** | a registered route has the same *shape*: same method, same segments, parameter names ignored (`{user-id}` is `{id}`) |
+| **refused** | not served, and a recording *measured* a 404 for it. Evidence, not a claim |
+| **silent** | neither: nothing serves it and nothing has ever asked |
+
+**Today: 88 served, 0 refused, 17,782 silent (0.49%).** That headline is
+misleading on its own, because most of the spec is Exchange, Teams, SharePoint,
+OneNote and Intune, which a localhost Entra emulator should never serve. No "in
+scope" denominator is asserted here, since which families belong to an Entra
+emulator is a product decision the script does not get to make. The per-family
+view (`--families`) is the honest one:
+
+| family | served / documented |
+|---|---|
+| `oauth2PermissionGrants` | 3 / 7 |
+| `directory` | 20 / 210 (9.5%) |
+| `applications` | 13 / 141 (9.2%) |
+| `auditLogs` | 2 / 23 |
+| `roleManagement` | 9 / 226 (4.0%) |
+| `servicePrincipals` | 8 / 223 (3.6%) |
+| `policies` | 4 / 205 (2.0%) |
+| `users` | 13 / 1,790, mostly Exchange/Teams/OneNote relations |
+
+And whole Entra product areas with nothing served: `identityGovernance` (2,396
+operations), `identity` (234), `admin` (217). `refused` is currently empty: the
+recordings contain 404s only on routes that are served, where a 404 means "not
+found" and not "not implemented", so served correctly wins.
+
+### The reverse direction, which found the second bug
+
+Fabric's ledger goes spec to emulator only. This one also goes emulator to spec:
+a registered route whose shape matches **no** documented operation is an *invented
+endpoint*, so code that works here fails against Entra. That is the class the
+`resetPassword` bug belonged to. It found, on its first run, seven routes to
+adjudicate, and they were three different stories:
+
+| route | verdict |
+|---|---|
+| `directory/deletedItems/microsoft.graph.{user,group,application}` | **A real gap, fixed.** Microsoft's docs write the type cast this way, but the spec, and therefore every Kiota-generated SDK (`DeletedItems.GraphUser`), writes `graph.user`. The emulator served only the docs' spelling, so a generated SDK's own request builder fell through to the `{id}` wildcard and got a 404 naming a resource "graph.user". Both spellings are served now, identically, and the docs' spelling is pinned as a documented-but-not-in-spec route. Microsoft's own page uses *both*: the raw HTTP and JavaScript examples say `microsoft.graph.group`, the C#, Go, Java, PHP and Python snippets on the same page say `.GraphGroup`. |
+| `GET /v1.0/{key}` | **Not invented; a generic route that serves one documented operation.** `getByAlternateKey` answers exactly `servicePrincipals(appId='...')`. Real Graph serves it: the `diff:` fixture `graph-serviceprincipal-shape` was captured from it. Declared in `SERVED_VIA` with that evidence, credited only while the route is registered. |
+| `oAuth2PermissionGrants` (capital A) | **Pinned as an open question.** `consent.go` registers both casings with the comment "register both Entra casings", and the spec has only the lowercase form. Nothing in the tree cites the other. It is harmless if real Graph resolves resource names case-insensitively and a lie if it does not, and that is unmeasured. Left in place rather than deleted on a hunch. |
+
+The conformance checker could not have found the first: it matched
+`deletedItems/microsoft.graph.user` to `deletedItems/{id}` and reported nothing.
+Only a gate whose denominator is the spec, and which compares shapes, sees that a
+wildcard is not the operation.
+
+### Enumerating the routes
+
+`http.ServeMux` cannot list its own patterns. The first attempt regexed the Go
+source and read 19 of the routes; its "0.04% served" was **invalid and never
+reported**. The fix is `graph.Router`, a one-method interface that
+`*http.ServeMux` already satisfies, plus a collector that records patterns and
+serves nothing, run against the real `Register`. It sees **97** patterns, more
+than the 89 `HandleFunc` call sites, because some calls sit in loops: which is the
+whole reason the source cannot simply be counted.
+
+### The ledger has its own tests
+
+21 controls, and mutating four of its rules turns the suite red each time (7, 4,
+1 and 1 failures). Two of them are bugs the tests themselves found: the first
+version returned early on a missing baseline and **hid** invented routes, and its
+baseline message raised when the file was outside the repo. `--update` rewrites
+the baseline; a stale baseline, a route that stops being served, and a newly served
+route nobody recorded all fail, so the file cannot become a story about a tree that
+no longer exists.
+
+## Not built yet
 
 | gate | question | denominator | state |
 |---|---|---|---|
 | conformance | did the response match the schema? | what a suite happened to touch | **shipped** |
-| surface ledger | is every documented operation served, refused, or silent? | **the spec** (17,870) | not built |
-| route ratchet | is every route we register exercised? | what we register | not built |
+| surface ledger | is every documented operation served, refused, or silent? | **the spec** (17,870) | **shipped** |
+| route ratchet | is every route we register exercised? | what we register (97) | not built |
 
-The ledger is the one that would say something new. Route coverage can read 100%
-while most of the API answers nothing, and only a gate whose denominator is the
-spec can tell a silent gap from a refused one. It needs a proper enumeration of
-registered routes, which `http.ServeMux` does not offer and which parsing the Go
-source does not do reliably: a first attempt read 19 of 88 handlers and would have
-reported nonsense.
+The route ratchet is now cheap, since the registered routes can be enumerated: it
+asks whether each of the 97 was ever driven with a schema watching, and fails when
+that number gets worse.
 
 Other open items, none of them settled by this work:
 
@@ -135,3 +211,4 @@ Other open items, none of them settled by this work:
 - `graph-resources.golden.json` (26 hand-listed property names) is now a strict
   subset of what this holds responses to, and can be retired once nothing depends
   on it.
+- The `oAuth2PermissionGrants` casing needs one request against a real tenant.

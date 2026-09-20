@@ -38,7 +38,7 @@ var roleDefByID = func() map[string]roleDef {
 	return m
 }()
 
-func (g *Graph) registerRoles(mux *http.ServeMux, prefix string) {
+func (g *Graph) registerRoles(mux Router, prefix string) {
 	base := prefix + "/v1.0/roleManagement/directory"
 	mux.HandleFunc("GET "+base+"/roleDefinitions", g.requireBearer(g.listRoleDefinitions))
 	mux.HandleFunc("GET "+base+"/roleDefinitions/{id}", g.requireBearer(g.getRoleDefinition))

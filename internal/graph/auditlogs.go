@@ -18,7 +18,7 @@ import (
 // exchanges). It does not journal directory mutations, so
 // auditLogs/directoryAudits is not served rather than served empty.
 
-func (g *Graph) registerAuditLogs(mux *http.ServeMux, prefix string) {
+func (g *Graph) registerAuditLogs(mux Router, prefix string) {
 	mux.HandleFunc("GET "+prefix+"/v1.0/auditLogs/signIns", g.requireBearer(g.listSignIns))
 	mux.HandleFunc("GET "+prefix+"/v1.0/auditLogs/directoryAudits", g.requireBearer(g.listDirectoryAudits))
 }

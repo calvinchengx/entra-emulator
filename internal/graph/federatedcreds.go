@@ -17,7 +17,7 @@ import (
 // Applications are addressed by the emulator's conflated object id / appId
 // (the documented divergence that applies to every /applications route).
 
-func (g *Graph) registerFederatedCredentials(mux *http.ServeMux, prefix string) {
+func (g *Graph) registerFederatedCredentials(mux Router, prefix string) {
 	p := prefix + "/v1.0/applications/{id}/federatedIdentityCredentials"
 	mux.HandleFunc("GET "+p, g.requireBearer(g.listFederatedCreds))
 	mux.HandleFunc("POST "+p, g.requireBearer(g.createFederatedCred))
