@@ -9,10 +9,9 @@
     "stale file behind."
   ],
   "registered": 94,
-  "exercised": 90,
+  "exercised": 91,
   "notYetExercised": [
     "DELETE /v1.0/oAuth2PermissionGrants/{id}",
-    "DELETE /v1.0/users/{id}/authentication/fido2Methods/{methodId}",
     "GET /v1.0/oAuth2PermissionGrants",
     "POST /v1.0/oAuth2PermissionGrants"
   ]
