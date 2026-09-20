@@ -57,19 +57,26 @@ async function freshLifetime() {
   return claims.exp - claims.iat;
 }
 
-/** Whether these credentials sign in over ROPC. Returns false on a rejected
- *  credential rather than throwing, so the caller can assert a denial — a reset
- *  that is only ever checked positively would pass without invalidating the old
- *  password. */
-async function ropcWorks(username, password) {
+/** A delegated Graph access token for this user over ROPC, or null when the
+ *  credential is rejected. Null rather than a throw, so a caller can assert a
+ *  denial: a reset that is only ever checked positively would pass without
+ *  invalidating the old password. */
+async function ropcToken(username, password) {
   try {
     const r = await freshClient().acquireTokenByUsernamePassword({
       scopes: ['https://graph.microsoft.com/User.Read'], username, password,
     });
-    return !!r?.accessToken;
+    return r?.accessToken ?? null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+const ropcWorks = async (username, password) => !!(await ropcToken(username, password));
+
+/** The status of a call expected to fail, or 0 if it succeeded. */
+async function statusOf(call) {
+  try { await call(); return 0; } catch (e) { return e.statusCode ?? -1; }
 }
 
 async function main() {
@@ -495,6 +502,46 @@ async function main() {
   const memberGroups = await api(`${GRAPH}/users/${uid}/getMemberGroups`).post({ securityEnabledOnly: false });
   check('getMemberGroups lists the group the user joined', (memberGroups.value ?? []).includes(gid));
   await api(`${GRAPH}/users/${uid}/getMemberObjects`).post({ securityEnabledOnly: false });
+
+  // 5n. The /me routes, which take a token that names a signed-in user and so
+  // cannot be driven with the client-credentials token everything above uses.
+  // The user is signed in over ROPC (the same path 5k proves is real) and the
+  // answers are checked against what this suite did to that user, rather than
+  // against the shape alone: the group it joined a moment ago must be there.
+  const meToken = await ropcToken(upn, generated.newPassword);
+  check('the user signs in for a delegated token', !!meToken);
+  const meClient = Client.init({
+    authProvider: (done) => done(null, meToken),
+    defaultVersion: 'v1.0',
+    customHosts: new Set([new URL(ORIGIN).hostname]),
+  });
+  const me = (path) => meClient.api(`${GRAPH}${path}`);
+
+  const self = await me('/me').get();
+  check('/me is the signed-in user', self.id === uid && self.userPrincipalName === upn);
+  const meMemberOf = await me('/me/memberOf').get();
+  check('/me/memberOf lists the group the user joined', (meMemberOf.value ?? []).some((g) => g.id === gid));
+  const meGroups = await me('/me/getMemberGroups').post({ securityEnabledOnly: false });
+  check('/me/getMemberGroups lists the group the user joined', (meGroups.value ?? []).includes(gid));
+  const meObjects = await me('/me/getMemberObjects').post({ securityEnabledOnly: false });
+  check('/me/getMemberObjects lists the group the user joined', (meObjects.value ?? []).includes(gid));
+  const meMethods = await me('/me/authentication/methods').get();
+  check('/me/authentication/methods includes the password method',
+    (meMethods.value ?? []).some((m) => m.id === PASSWORD_METHOD_ID));
+  const mePassword = await me('/me/authentication/passwordMethods').get();
+  check('/me/authentication/passwordMethods returns the password method',
+    (mePassword.value ?? []).some((m) => m.id === PASSWORD_METHOD_ID));
+  const meFido = await me('/me/authentication/fido2Methods').get();
+  check('/me/authentication/fido2Methods is an empty list for a user with no passkey',
+    Array.isArray(meFido.value) && meFido.value.length === 0);
+
+  // The negative control: /me is refused, as such, to a token with no user. It
+  // is what stops every check above from passing against a handler that
+  // answered anyone. getMemberGroups is listed because it once fell through to
+  // a user lookup on an empty id and said 404 instead.
+  check('/me refuses an app-only token', (await statusOf(() => api(`${GRAPH}/me`).get())) === 403);
+  check('/me/getMemberGroups refuses an app-only token',
+    (await statusOf(() => api(`${GRAPH}/me/getMemberGroups`).post({}))) === 403);
 
   // Updates.
   await api(`${GRAPH}/applications/${app.id}`).update({ displayName: `SDK App Renamed ${stamp}` });
