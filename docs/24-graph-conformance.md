@@ -112,7 +112,7 @@ missing recording is a failure, not a pass.
 ## The surface ledger
 
 Conformance asks "did what we answered match the schema", and its denominator is
-whatever a suite happened to touch: 120 responses. It is silent about the 17,870
+whatever a suite happened to touch: 129 responses. It is silent about the 17,870
 operations Microsoft documents. The ledger's denominator is **the spec**.
 
 ```
@@ -197,7 +197,7 @@ the ledger says which documented operations are served. Neither says anything
 about routes this emulator **registers** that no suite has ever driven, and those
 are where a wrong shape lives longest: nobody is looking.
 
-**94 registered `/v1.0` routes. 83 driven to a 2xx. 11 not yet.** Before the Graph
+**94 registered `/v1.0` routes. 90 driven to a 2xx. 4 not yet.** Before the Graph
 suite was extended it was 46 and 48, a number that had not been visible at all.
 
 The gate is that the number cannot get worse, in every direction:
@@ -247,19 +247,37 @@ from the group earlier, so an empty answer was correct. The test now asserts the
 empty case *and* re-adds the membership before asserting the positive, because an
 empty answer would pass equally against a handler that ignored membership.
 
-### The eleven that remain, and why
+### The seven `/me` routes
+
+They take a token that names a signed-in user, and every other section of the
+Graph suite uses client credentials. Block 5n signs the suite's user in over
+ROPC, the path 5k already proves is real, and reads all seven with that token.
+The answers are checked against what the suite did to the user, not against
+shape alone: the group the user joined a moment earlier has to appear in
+`/me/memberOf`, `getMemberGroups` and `getMemberObjects`. Two refusals go with
+them, an app-only token on `GET /me` and on `POST /me/getMemberGroups`, so the
+positives cannot pass against a handler that answers anyone.
+
+Driving them found one real defect. `/me/getMemberGroups` and
+`/me/getMemberObjects` took an app-only token's empty subject to the user store
+and answered 404 (`Resource '' does not exist`), where every other `/me` route
+answers 403. They now share the delegated-only guard, and
+`TestMeMemberRoutesAreDelegatedOnly` holds it, with a delegated control so the
+403 is the guard and not a broken route. The nine new recordings (seven
+successes, two 403s) came in with no new conformance findings.
+
+### The four that remain, and why
 
 | routes | why |
 |---|---|
 | `GET/POST/DELETE /oAuth2PermissionGrants` (capital A) | the uncited second casing, pinned as an open question in the ledger. Driving it would be asserting something nobody has measured |
-| seven `/me` routes | need a signed-in user's token; this suite uses client credentials |
 | `DELETE .../fido2Methods/{id}` | needs a registered passkey to delete |
 
 ## Not built yet
 
 Nothing in the three-gate design. Open items, none settled by this work:
 
-- The union is 120 recorded responses. That is the honest ceiling on what a pass
+- The union is 129 recorded responses. That is the honest ceiling on what a pass
   means today.
 - `Location` on `resetPassword` points at the method resource; Graph points at an
   `authentication/operations/{id}` resource that is not served.
@@ -267,4 +285,3 @@ Nothing in the three-gate design. Open items, none settled by this work:
   subset of what this holds responses to, and can be retired once nothing depends
   on it.
 - The `oAuth2PermissionGrants` casing needs one request against a real tenant.
-- The seven `/me` routes could be driven from a suite that signs a user in.

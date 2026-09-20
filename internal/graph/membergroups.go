@@ -23,9 +23,17 @@ import (
 
 func (g *Graph) registerMemberGroups(mux Router, prefix string) {
 	p := prefix + "/v1.0"
-	for _, route := range []string{"/users/{id}/", "/me/"} {
-		mux.HandleFunc("POST "+p+route+"getMemberObjects", g.requireBearer(g.getMemberObjects(true)))
-		mux.HandleFunc("POST "+p+route+"getMemberGroups", g.requireBearer(g.getMemberObjects(false)))
+	// /me is delegated-only, like every other /me route: an app-only token has
+	// no subject to look up.
+	for _, r := range []struct {
+		path  string
+		guard func(handler) http.HandlerFunc
+	}{
+		{"/users/{id}/", g.requireBearer},
+		{"/me/", g.requireDelegated},
+	} {
+		mux.HandleFunc("POST "+p+r.path+"getMemberObjects", r.guard(g.getMemberObjects(true)))
+		mux.HandleFunc("POST "+p+r.path+"getMemberGroups", r.guard(g.getMemberObjects(false)))
 	}
 }
 
