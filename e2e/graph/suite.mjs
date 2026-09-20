@@ -334,6 +334,13 @@ async function main() {
   });
   const assigned = await api(`${GRAPH}/applications/${DAEMON_ID}/tokenLifetimePolicies`).get();
   check('policy lists on the application', (assigned.value ?? []).some((p) => p.id === policy.id));
+  // The policy itself, as a collection and by id. The suite proved the
+  // assignment; nothing had read the policy back through its own routes, so
+  // those answers were unwatched by the conformance recording.
+  const policyList = await api(`${GRAPH}/policies/tokenLifetimePolicies`).get();
+  check('policy lists in its own collection', (policyList.value ?? []).some((p) => p.id === policy.id));
+  const policyBack = await api(`${GRAPH}/policies/tokenLifetimePolicies/${policy.id}`).get();
+  check('policy reads back by id', policyBack.id === policy.id);
   check('assigned policy changes the minted token lifetime',
     (await freshLifetime()) === 8 * 3600, `baseline was ${baseline}`);
 
@@ -437,6 +444,90 @@ async function main() {
   check('an app-only caller reports no user',
     rows.length > 0 && rows.every((a) => a.initiatedBy?.user === undefined));
 
+  // 5m. Routes the sections above created objects for and never read back,
+  // updated, or removed. scripts/check_graph_route_coverage.py lists every route
+  // the emulator registers that no recorded suite has driven to a 2xx, and these
+  // were on it. That matters beyond tidiness: a response nobody recorded is a
+  // response the OpenAPI conformance check never saw.
+  //
+  // Reads first, then updates, then deletes, because a delete would otherwise
+  // remove what a later read wants.
+  const apps = await api(`${GRAPH}/applications`).get();
+  check('applications list contains the one created', (apps.value ?? []).some((a) => a.id === app.id));
+  const groups = await api(`${GRAPH}/groups`).get();
+  check('groups list contains the one created', (groups.value ?? []).some((g) => g.id === gid));
+  const aus = await api(`${GRAPH}/directory/administrativeUnits`).get();
+  check('administrative units list contains the one created', (aus.value ?? []).some((a) => a.id === au.id));
+  const sets = await api(`${GRAPH}/directory/attributeSets`).get();
+  check('attribute sets list contains the one created', (sets.value ?? []).some((a) => a.id === setName));
+  const setBack = await api(`${GRAPH}/directory/attributeSets/${setName}`).get();
+  check('attribute set reads back by id', setBack.id === setName);
+  const csaDefs = await api(`${GRAPH}/directory/customSecurityAttributeDefinitions`).get();
+  check('definitions list contains the one created', (csaDefs.value ?? []).some((d) => d.name === 'Project'));
+  const assignments = await api(`${GRAPH}/roleManagement/directory/roleAssignments`).get();
+  check('role assignments list contains the custom one', (assignments.value ?? []).some((a) => a.id === customAssignment.id));
+  const assignmentBack = await api(`${GRAPH}/roleManagement/directory/roleAssignments/${customAssignment.id}`).get();
+  check('a role assignment reads back by id', assignmentBack.id === customAssignment.id);
+
+  const sps = await api(`${GRAPH}/servicePrincipals`).get();
+  check('service principals list contains the daemon', (sps.value ?? []).some((sp) => sp.appId === DAEMON_ID));
+  const sp = await api(`${GRAPH}/servicePrincipals/${DAEMON_ID}`).get();
+  check('a service principal reads back by id', sp.appId === DAEMON_ID);
+  // By alternate key: `servicePrincipals(appId='...')`, which SDKs reach for and
+  // which was captured from real Graph (graph-serviceprincipal-shape).
+  const spByKey = await api(`${GRAPH}/servicePrincipals(appId='${DAEMON_ID}')`).get();
+  check('a service principal reads back by its appId alternate key', spByKey.appId === DAEMON_ID);
+  const roleAssignedTo = await api(`${GRAPH}/servicePrincipals/${DAEMON_ID}/appRoleAssignedTo`).get();
+  check('appRoleAssignedTo lists the one created', (roleAssignedTo.value ?? []).some((r) => r.id === assignedTo.id));
+  await api(`${GRAPH}/servicePrincipals/${uid}/appRoleAssignments`).get();
+  await api(`${GRAPH}/servicePrincipals/${DAEMON_ID}/oauth2PermissionGrants`).get();
+  const grants = await api(`${GRAPH}/oauth2PermissionGrants`).get();
+  check('grants list contains the one created', (grants.value ?? []).some((g) => g.id === grant.id));
+
+  await api(`${GRAPH}/users/${uid}/authentication/passwordMethods`).get();
+  await api(`${GRAPH}/users/${uid}/authentication/fido2Methods`).get();
+  // The user was removed from the group in 5b, so it is added back: asserting an
+  // empty answer here would pass just as well against a handler that ignored
+  // membership altogether.
+  const noGroups = await api(`${GRAPH}/users/${uid}/getMemberGroups`).post({ securityEnabledOnly: false });
+  check('getMemberGroups is empty for a user in no group', !(noGroups.value ?? []).includes(gid));
+  await api(`${GRAPH}/groups/${gid}/members/$ref`).post({ '@odata.id': `${GRAPH}/directoryObjects/${uid}` });
+  const memberGroups = await api(`${GRAPH}/users/${uid}/getMemberGroups`).post({ securityEnabledOnly: false });
+  check('getMemberGroups lists the group the user joined', (memberGroups.value ?? []).includes(gid));
+  await api(`${GRAPH}/users/${uid}/getMemberObjects`).post({ securityEnabledOnly: false });
+
+  // Updates.
+  await api(`${GRAPH}/applications/${app.id}`).update({ displayName: `SDK App Renamed ${stamp}` });
+  check('patch application', (await api(`${GRAPH}/applications/${app.id}`).get()).displayName === `SDK App Renamed ${stamp}`);
+  await api(`${GRAPH}/groups/${gid}`).update({ description: 'patched by the SDK e2e' });
+  check('patch group', (await api(`${GRAPH}/groups/${gid}`).get()).description === 'patched by the SDK e2e');
+  await api(`${GRAPH}/roleManagement/directory/roleDefinitions/${roleDef.id}`).update({ description: 'patched by the SDK e2e' });
+  check('patch custom role definition', (await api(`${GRAPH}/roleManagement/directory/roleDefinitions/${roleDef.id}`).get()).description === 'patched by the SDK e2e');
+
+  // Deletes, dependants first.
+  await api(`${GRAPH}/roleManagement/directory/roleAssignments/${customAssignment.id}`).delete();
+  await api(`${GRAPH}/roleManagement/directory/roleDefinitions/${roleDef.id}`).delete();
+  await api(`${GRAPH}/servicePrincipals/${DAEMON_ID}/appRoleAssignedTo/${assignedTo.id}`).delete();
+  await api(`${GRAPH}/oauth2PermissionGrants/${grant.id}`).delete();
+  await api(`${GRAPH}/directory/administrativeUnits/${au.id}`).delete();
+  await api(`${GRAPH}/groups/${gid}`).delete();
+  await api(`${GRAPH}/applications/${app.id}`).delete();
+
+  // The group and the application just deleted are in the recycle bin now. Each
+  // cast is read under BOTH namespace spellings: the docs write
+  // `microsoft.graph.group`, the OpenAPI and every generated SDK write
+  // `graph.group`, and the emulator served only the first until the surface
+  // ledger noticed. Reading them here keeps that from regressing unseen.
+  for (const cast of ['group', 'application']) {
+    for (const ns of ['microsoft.graph', 'graph']) {
+      const binned = await api(`${GRAPH}/directory/deletedItems/${ns}.${cast}`).get();
+      check(`${cast} is in the recycle bin under ${ns}.${cast}`,
+        (binned.value ?? []).some((o) => o.id === (cast === 'group' ? gid : app.id)));
+    }
+  }
+  const deletedGroup = await api(`${GRAPH}/directory/deletedItems/${gid}`).get();
+  check('a deleted item reads back by id', deletedGroup.id === gid);
+
   // 6. Soft-delete the user → it lands in the recycle bin.
   await api(`${GRAPH}/users/${uid}`).delete();
   let live404 = false;
@@ -447,6 +538,8 @@ async function main() {
   const bin = await api(`${GRAPH}/directory/deletedItems/microsoft.graph.user`).get();
   check('user listed in recycle bin', (bin.value ?? []).some((u) => u.id === uid &&
     u['@odata.type'] === '#microsoft.graph.user' && !!u.deletedDateTime));
+  const binAlias = await api(`${GRAPH}/directory/deletedItems/graph.user`).get();
+  check('user listed in recycle bin under the graph.user spelling', (binAlias.value ?? []).some((u) => u.id === uid));
 
   // 7. Restore, then confirm it is live again.
   await api(`${GRAPH}/directory/deletedItems/${uid}/restore`).post({});

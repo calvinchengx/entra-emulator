@@ -172,6 +172,13 @@ class Gate(unittest.TestCase):
         _, text = self.go(USERS)
         self.assertIn("match no registered route", text)
 
+    def test_a_missing_recording_is_named_not_a_traceback(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
+            rc = ledger.run([str(self.dir / "nope.jsonl")], True, False, self.routes(USERS))
+        self.assertEqual(rc, 1)
+        self.assertIn("no such recording", out.getvalue())
+
     def test_no_routes_at_all_is_a_failure_not_a_clean_pass(self):
         # A silent zero would make every operation SILENT and every route look
         # absent: no routes READ is not the same as none registered.

@@ -1,0 +1,26 @@
+{
+  "_comment": [
+    "Graph routes the emulator registers that no recorded suite has driven to",
+    "a 2xx. Written by scripts/check_graph_route_coverage.py --update; do not",
+    "hand-edit. This is a record of what is NOT yet proved, and the gate holds",
+    "it down: a new route with no traffic fails, a route that stops being",
+    "driven fails, and a route that starts being driven ALSO fails until the",
+    "baseline is updated, so an improvement is recorded and cannot leave a",
+    "stale file behind."
+  ],
+  "registered": 94,
+  "exercised": 83,
+  "notYetExercised": [
+    "DELETE /v1.0/oAuth2PermissionGrants/{id}",
+    "DELETE /v1.0/users/{id}/authentication/fido2Methods/{methodId}",
+    "GET /v1.0/me",
+    "GET /v1.0/me/authentication/fido2Methods",
+    "GET /v1.0/me/authentication/methods",
+    "GET /v1.0/me/authentication/passwordMethods",
+    "GET /v1.0/me/memberOf",
+    "GET /v1.0/oAuth2PermissionGrants",
+    "POST /v1.0/me/getMemberGroups",
+    "POST /v1.0/me/getMemberObjects",
+    "POST /v1.0/oAuth2PermissionGrants"
+  ]
+}
