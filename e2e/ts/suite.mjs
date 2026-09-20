@@ -84,9 +84,17 @@ async function main() {
   check('authorize: 302 with code + state', submit.status === 302 && submit.headers.location?.includes('state=e2e-state'));
   const code = new URL(submit.headers.location).searchParams.get('code');
 
+  // The nonce sent on the authorize request is passed back here, because msal-node
+  // 6.0.1 REJECTS an ID token that carries a nonce when the caller supplied none
+  // ("Authorization code response contains an ID Token nonce, but no expected
+  // nonce was supplied"). Before 6.0.1 this was silently accepted, so the suite
+  // passed while never binding the response to its request. That is the check a
+  // relying party uses to reject a replayed or substituted ID token, and the
+  // emulator echoing the request's nonce is what makes it pass here.
   const tokens = await pca.acquireTokenByCode({
     code, redirectUri: REDIRECT, codeVerifier: verifier,
     scopes: ['openid', 'profile', 'email', 'offline_access'],
+    nonce: 'e2e-nonce',
   });
   check('acquireTokenByCode: id + access tokens', !!tokens.idToken && !!tokens.accessToken);
   check('account identity from client_info',
