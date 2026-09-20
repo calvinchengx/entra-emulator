@@ -2,9 +2,8 @@
 
 > **Status: all three gates have shipped.** Real SDK traffic is held to
 > Microsoft's published Graph OpenAPI on every push; every one of its 17,870
-> operations is classified as served, refused or silent; and the emulator's own 94
-> registered routes are ratcheted so the number that have never been driven can
-> only fall. Between them they found two real bugs.
+> operations is classified as served, refused or silent; and the emulator's own 91
+> registered routes are ratcheted, and every one of them is now driven. Between them they found two real bugs, and driving the rest found more.
 
 ## What this is, and what it is not
 
@@ -112,7 +111,7 @@ missing recording is a failure, not a pass.
 ## The surface ledger
 
 Conformance asks "did what we answered match the schema", and its denominator is
-whatever a suite happened to touch: 135 responses. It is silent about the 17,870
+whatever a suite happened to touch: 143 responses. It is silent about the 17,870
 operations Microsoft documents. The ledger's denominator is **the spec**.
 
 ```
@@ -163,7 +162,7 @@ adjudicate, and they were three different stories:
 |---|---|
 | `directory/deletedItems/microsoft.graph.{user,group,application}` | **A real gap, fixed.** Microsoft's docs write the type cast this way, but the spec, and therefore every Kiota-generated SDK (`DeletedItems.GraphUser`), writes `graph.user`. The emulator served only the docs' spelling, so a generated SDK's own request builder fell through to the `{id}` wildcard and got a 404 naming a resource "graph.user". Both spellings are served now, identically, and the docs' spelling is pinned as a documented-but-not-in-spec route. Microsoft's own page uses *both*: the raw HTTP and JavaScript examples say `microsoft.graph.group`, the C#, Go, Java, PHP and Python snippets on the same page say `.GraphGroup`. |
 | `GET /v1.0/{key}` | **Not invented; a generic route that serves one documented operation.** `getByAlternateKey` answers exactly `servicePrincipals(appId='...')`. Real Graph serves it: the `diff:` fixture `graph-serviceprincipal-shape` was captured from it. Declared in `SERVED_VIA` with that evidence, credited only while the route is registered. |
-| `oAuth2PermissionGrants` (capital A) | **Pinned as an open question.** `consent.go` registers both casings with the comment "register both Entra casings", and the spec has only the lowercase form. Nothing in the tree cites the other. It is harmless if real Graph resolves resource names case-insensitively and a lie if it does not, and that is unmeasured. Left in place rather than deleted on a hunch. |
+| `oAuth2PermissionGrants` (capital A) | **Not invented; a spelling, and now not a route at all.** `consent.go` registered it with the comment "register both Entra casings" and nothing cited it: the spec, every SDK snippet and the docs all write `oauth2PermissionGrants`, and the capital A belongs to the entity *type* (`oAuth2PermissionGrant`) and the `{oAuth2PermissionGrant-id}` parameter. Microsoft documents path resource names as case-insensitive, so the registration was removed and the rule implemented for every resource (see "Path casing"). |
 
 The conformance checker could not have found the first: it matched
 `deletedItems/microsoft.graph.user` to `deletedItems/{id}` and reported nothing.
@@ -197,7 +196,7 @@ the ledger says which documented operations are served. Neither says anything
 about routes this emulator **registers** that no suite has ever driven, and those
 are where a wrong shape lives longest: nobody is looking.
 
-**94 registered `/v1.0` routes. 91 driven to a 2xx. 3 not yet.** Before the Graph
+**91 registered `/v1.0` routes. 91 driven to a 2xx. 0 not yet.** Before the Graph
 suite was extended it was 46 and 48, a number that had not been visible at all.
 
 The gate is that the number cannot get worse, in every direction:
@@ -278,21 +277,57 @@ the user has no passkeys to start a sign-in with. Deleting it twice is a 404.
 Corrupting one byte of the signature turns the "signs the user in" check red,
 so that assertion can fail.
 
-### The three that remain, and why
+### Path casing, and the last three routes
 
-| routes | why |
-|---|---|
-| `GET/POST/DELETE /oAuth2PermissionGrants` (capital A) | the uncited second casing, pinned as an open question in the ledger. Driving it would be asserting something nobody has measured |
+The three routes still off the list were the capital-A `oAuth2PermissionGrants`
+trio, and they could not be driven honestly: nothing cited that spelling. What
+did exist was a rule. Microsoft's [call-api](https://learn.microsoft.com/en-us/graph/call-api)
+page says "Path URL resource names, query parameters, and action parameters and
+values are case insensitive. However, values you assign, entity IDs, and other
+base64-encoded values are case-sensitive", and
+[traverse-the-graph](https://learn.microsoft.com/en-us/graph/traverse-the-graph)
+says to assume resource, action and function names "are not case-sensitive".
+Microsoft's own examples send `/me/mailfolders` and `/me/mailFolders` for one
+request. The emulator matched paths exactly (Go's `ServeMux`), so `/v1.0/USERS`
+was a 404 where Graph answers it, and the special-cased spelling covered one
+casing of one collection.
+
+`internal/graph/casefold.go` implements the documented rule instead. It sits in
+front of the Graph mux, learns every registered pattern, and rewrites a request
+path so its literal segments carry the registered spelling. Wildcard segments
+(ids, alternate-key values) are passed through as sent, which is what keeps ids
+case-sensitive. Three details carry the weight:
+
+- **The rewrite happens before any handler.** The permission gate reads the path
+  and switches on its first segment case-sensitively, so a handler running on
+  `/USERS` would find no requirement and skip the gate.
+  `TestCaseFoldingDoesNotBypassThePermissionGate` holds that.
+- **A literal beats the `{key}` catch-all**, as in `ServeMux`, or every folded
+  collection would be answered by the alternate-key handler.
+- **It is in place, and the recorder reads the path after serving**, so a
+  recording holds Microsoft's spelling and the conformance checker can match it.
+  The recording of the union contains no non-canonical path.
+
+Only `/v1.0/` paths fold. The `/graph` compat prefix, `/oidc/userinfo` and the
+other surfaces stay exact. A pattern the folder cannot represent (`{x...}`,
+`{$}`) panics at registration rather than folding wrongly.
+
+Suite block 5p sends capitals and the old capital-A spelling for a collection, a
+nested relation, an action, a POST and a DELETE, and asserts an upper-cased id is
+still a 404. Registered routes drop from 94 to 91 and none is left undriven.
+
+**Not done:** query option names (`$select`, `$filter`) are documented as
+case-insensitive too, and the emulator reads them exactly. That is a separate
+change.
 
 ## Not built yet
 
 Nothing in the three-gate design. Open items, none settled by this work:
 
-- The union is 135 recorded responses. That is the honest ceiling on what a pass
+- The union is 143 recorded responses. That is the honest ceiling on what a pass
   means today.
 - `Location` on `resetPassword` points at the method resource; Graph points at an
   `authentication/operations/{id}` resource that is not served.
 - `graph-resources.golden.json` (26 hand-listed property names) is now a strict
   subset of what this holds responses to, and can be retired once nothing depends
   on it.
-- The `oAuth2PermissionGrants` casing needs one request against a real tenant.

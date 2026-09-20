@@ -8,11 +8,7 @@
     "baseline is updated, so an improvement is recorded and cannot leave a",
     "stale file behind."
   ],
-  "registered": 94,
+  "registered": 91,
   "exercised": 91,
-  "notYetExercised": [
-    "DELETE /v1.0/oAuth2PermissionGrants/{id}",
-    "GET /v1.0/oAuth2PermissionGrants",
-    "POST /v1.0/oAuth2PermissionGrants"
-  ]
+  "notYetExercised": []
 }

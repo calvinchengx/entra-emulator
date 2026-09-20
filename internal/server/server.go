@@ -78,7 +78,8 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service, cert *tlscert.
 
 	// graph surface: unprefixed Graph + userinfo.
 	graphMux := http.NewServeMux()
-	gr.Register(graphMux, "")
+	graphFold := graph.NewCaseFolder(graphMux, "")
+	gr.Register(graphFold, "")
 	graphMux.HandleFunc("GET /{$}", surfaceDescriptor("graph"))
 
 	// portal surface: admin API + health + SPA fallback.
@@ -90,13 +91,16 @@ func New(cfg *config.Config, st *store.Store, ts *tokens.Service, cert *tlscert.
 	compatMux := http.NewServeMux()
 	id.Register(compatMux)
 	id.RegisterMSI(compatMux)
-	gr.Register(compatMux, "/graph")
+	compatFold := graph.NewCaseFolder(compatMux, "/graph")
+	gr.Register(compatFold, "/graph")
 	ad.Register(compatMux)
 	sc.Register(compatMux, "/scim")
 	compatMux.HandleFunc("/", portalFallback)
 
 	root := &hostRouter{
-		cfg: cfg, login: loginMux, graph: graphMux, portal: portalMux, compat: compatMux,
+		cfg: cfg, login: loginMux, portal: portalMux,
+		// Graph resource paths are case-insensitive (internal/graph/casefold.go).
+		graph: graphFold.Wrap(graphMux), compat: compatFold.Wrap(compatMux),
 	}
 	return &Server{Cfg: cfg, Handler: root, cert: cert}
 }
