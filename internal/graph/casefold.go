@@ -34,6 +34,14 @@ import (
 // first segment case-sensitively, so a handler that ran on `/v1.0/USERS` would
 // find no requirement for "USERS" and skip the permission gate.
 //
+// QUERY OPTION NAMES fold too, on the same documented sentence ("query
+// parameters ... are case insensitive"): `$TOP=1` and `$Select=id` mean what
+// `$top` and `$select` mean. Every OData system query option is spelled in
+// lower case, so any `$`-prefixed key is lower-cased. VALUES ARE NEVER TOUCHED,
+// nor are keys that do not start with `$`, so `$filter=displayName eq 'Alice'`
+// keeps its literal exactly. Property names inside `$select` and `$filter` are a
+// separate matter and are not folded here.
+//
 // Only paths under prefix + "/v1.0/" are folded. The rule Microsoft documents is
 // about Graph resource paths; the emulator's own routes (/oidc/userinfo, the
 // compat-mode /graph prefix itself, everything on the other surfaces) are left
@@ -137,6 +145,7 @@ func (f *CaseFolder) fold(r *http.Request) {
 	if len(rest) < len("v1.0/") || !strings.EqualFold(rest[:len("v1.0/")], "v1.0/") {
 		return
 	}
+	foldQuery(r.URL)
 	segs := strings.Split(rest, "/")
 
 	// A pattern for this method is preferred; failing that, any method's, so a
@@ -193,4 +202,36 @@ func (f *CaseFolder) match(method string, segs []string) *foldPattern {
 		}
 	}
 	return best
+}
+
+// foldQuery lower-cases the names of `$`-prefixed query options in place, and
+// changes nothing else: the order, the values and their encoding are kept, so a
+// query that is already canonical is byte-identical afterwards.
+func foldQuery(u *url.URL) {
+	if u.RawQuery == "" {
+		return
+	}
+	parts := strings.Split(u.RawQuery, "&")
+	changed := false
+	for i, part := range parts {
+		key, val, hasVal := strings.Cut(part, "=")
+		name, err := url.QueryUnescape(key)
+		if err != nil || !strings.HasPrefix(name, "$") {
+			continue
+		}
+		lower := strings.ToLower(name)
+		if lower == name {
+			continue // already canonical: leave the original bytes alone
+		}
+		// `$` is legal in a query and is how the options are conventionally
+		// written, which is also what the recorder then reports.
+		parts[i] = strings.ReplaceAll(url.QueryEscape(lower), "%24", "$")
+		if hasVal {
+			parts[i] += "=" + val
+		}
+		changed = true
+	}
+	if changed {
+		u.RawQuery = strings.Join(parts, "&")
+	}
 }

@@ -129,3 +129,69 @@ func TestRecorderWritesTheCanonicalPathForAMixedCaseRequest(t *testing.T) {
 		t.Errorf("recorded path = %q, want %q", got[0].Path, want)
 	}
 }
+
+// Query option names are case-insensitive too; their values are not.
+func TestGraphQueryOptionNamesAreCaseInsensitive(t *testing.T) {
+	hts, _, _ := newTestServer(t)
+	app := appGraphToken(t, hts.URL)
+
+	rows := func(path string) ([]any, map[string]any) {
+		t.Helper()
+		st, body := graphGet(t, hts.URL, path, app)
+		if st != 200 {
+			t.Fatalf("%s = %d %v", path, st, body)
+		}
+		v, _ := body["value"].([]any)
+		return v, body
+	}
+
+	// $top: the canonical answer is a single row, so a folded option must be too.
+	if v, _ := rows("/graph/v1.0/users?$top=1"); len(v) != 1 {
+		t.Fatalf("control: $top=1 returned %d rows", len(v))
+	}
+	if v, _ := rows("/graph/v1.0/users?$TOP=1"); len(v) != 1 {
+		t.Errorf("$TOP=1 returned %d rows, want 1", len(v))
+	}
+
+	// $select projects to the named property alone.
+	v, _ := rows("/graph/v1.0/users?$Select=displayName")
+	if len(v) == 0 {
+		t.Fatal("no users")
+	}
+	for _, row := range v {
+		if m := row.(map[string]any); len(m) != 1 || m["displayName"] == nil {
+			t.Errorf("$Select=displayName returned %v, want displayName alone", m)
+		}
+	}
+
+	// $count and the paging link, which is rebuilt from the query.
+	_, body := rows("/graph/v1.0/users?$COUNT=true&$Top=1")
+	if body["@odata.count"] == nil {
+		t.Errorf("$COUNT=true did not produce @odata.count: %v", body)
+	}
+	next, _ := body["@odata.nextLink"].(string)
+	if next == "" || strings.Contains(next, "TOP") || !strings.Contains(strings.ToLower(next), "top=1") {
+		t.Errorf("nextLink should carry the canonical, lower-case $top: %q", next)
+	}
+
+	// A value keeps its case: $filter still compares the literal exactly.
+	if v, _ := rows("/graph/v1.0/users?$FILTER=displayName%20eq%20%27ALICE%27"); len(v) != 0 {
+		t.Errorf("a $filter literal was case-folded: matched %d rows for 'ALICE'", len(v))
+	}
+}
+
+func TestRecorderWritesTheCanonicalQueryToo(t *testing.T) {
+	hts, _, _ := newTestServer(t)
+	app := appGraphToken(t, hts.URL)
+	file := t.TempDir() + "/responses.jsonl"
+	rec := newRecorder(file)
+	t.Cleanup(func() { _ = rec.Close() })
+	front := httptest.NewServer(record(rec, hts.Config.Handler))
+	t.Cleanup(front.Close)
+
+	graphGet(t, front.URL, "/graph/v1.0/USERS?$TOP=1&$Select=id", app)
+	got := readRecording(t, file)
+	if len(got) != 1 || got[0].Query != "$top=1&$select=id" {
+		t.Errorf("recorded %+v, want query $top=1&$select=id", got)
+	}
+}
