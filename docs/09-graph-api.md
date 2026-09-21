@@ -32,7 +32,8 @@ require a **delegated** token (`oid` present); app-only → 403.
 case-insensitive (`/v1.0/USERS`, `/v1.0/users/{id}/MEMBEROF`, `/v1.0/oAuth2PermissionGrants`),
 and ids are not: an upper-cased GUID is a different id. Microsoft's
 [call-api](https://learn.microsoft.com/en-us/graph/call-api) page states the rule. Query option
-names such as `$select` are documented as case-insensitive too but are still matched exactly here.
+names (`$TOP`, `$Select`) fold the same way and their values do not. Property names inside
+`$select` and `$filter` are documented as case-insensitive too but are still matched exactly here.
 
 ### Writes (roadmap #18)
 

@@ -111,7 +111,7 @@ missing recording is a failure, not a pass.
 ## The surface ledger
 
 Conformance asks "did what we answered match the schema", and its denominator is
-whatever a suite happened to touch: 143 responses. It is silent about the 17,870
+whatever a suite happened to touch: 146 responses. It is silent about the 17,870
 operations Microsoft documents. The ledger's denominator is **the spec**.
 
 ```
@@ -316,15 +316,24 @@ Suite block 5p sends capitals and the old capital-A spelling for a collection, a
 nested relation, an action, a POST and a DELETE, and asserts an upper-cased id is
 still a 404. Registered routes drop from 94 to 91 and none is left undriven.
 
-**Not done:** query option names (`$select`, `$filter`) are documented as
-case-insensitive too, and the emulator reads them exactly. That is a separate
-change.
+Query option names fold on the same documented sentence: `$TOP`, `$Select` and
+`$COUNT` mean what `$top`, `$select` and `$count` mean, and the paging link is
+built from the folded query. Every OData system option is lower case, so any
+`$`-prefixed key is lower-cased; values are never touched (a `$filter` literal
+keeps its case, and the suite proves it with an exact-case control) and neither
+are keys that do not start with `$`. The recorder reads the query after serving
+too, so recordings hold the canonical option names.
+
+**Not done:** property names *inside* `$select` and `$filter` (`$select=DISPLAYNAME`)
+are documented as case-insensitive as well, and are still matched exactly. That
+touches how a projection echoes back in `@odata.context`, which has not been
+measured against a real tenant.
 
 ## Not built yet
 
 Nothing in the three-gate design. Open items, none settled by this work:
 
-- The union is 143 recorded responses. That is the honest ceiling on what a pass
+- The union is 146 recorded responses. That is the honest ceiling on what a pass
   means today.
 - `Location` on `resetPassword` points at the method resource; Graph points at an
   `authentication/operations/{id}` resource that is not served.

@@ -628,6 +628,21 @@ async function main() {
   // The other half of the rule: an id is NOT case-insensitive.
   check('an id in the wrong case is a 404',
     (await statusOf(() => api(`${GRAPH}/users/${uid.toUpperCase()}`).get())) === 404);
+  // Query option names fold too, values do not. Sent with fetch rather than the
+  // SDK, whose query builder would otherwise decide the spelling before the
+  // emulator ever saw it.
+  const raw = async (query) => (await fetch(`${GRAPH}/users?${query}`,
+    { headers: { Authorization: `Bearer ${tok.accessToken}` } })).json();
+  const capsQuery = await raw('$TOP=1&$Select=id');
+  check('$TOP limits and $Select projects when spelled in capitals',
+    (capsQuery.value ?? []).length === 1 && Object.keys(capsQuery.value[0]).join() === 'id',
+    JSON.stringify(capsQuery).slice(0, 200));
+  // The control first: the right case matches, so the empty answer below is the
+  // literal being compared exactly and not a filter that matches nothing.
+  const exactFilter = await raw("$FILTER=displayName eq 'SDK User Renamed'");
+  const capsFilter = await raw("$FILTER=displayName eq 'SDK USER RENAMED'");
+  check('a $filter literal keeps its case',
+    (exactFilter.value ?? []).length === 1 && (capsFilter.value ?? []).length === 0);
 
   // Updates.
   await api(`${GRAPH}/applications/${app.id}`).update({ displayName: `SDK App Renamed ${stamp}` });

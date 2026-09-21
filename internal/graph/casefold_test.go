@@ -3,6 +3,7 @@ package graph
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 )
 
@@ -153,4 +154,46 @@ func lowerASCII(s string) string {
 		}
 	}
 	return string(b)
+}
+
+func TestFoldQueryLowerCasesOptionNamesAndTouchesNothingElse(t *testing.T) {
+	for _, tc := range []struct{ name, in, want string }{
+		{"empty", "", ""},
+		{"already canonical is byte-identical", "$top=1&$select=a%2Cb&$filter=x%20eq%20%27Y%27", "$top=1&$select=a%2Cb&$filter=x%20eq%20%27Y%27"},
+		{"names fold, order kept", "$TOP=2&$Select=id", "$top=2&$select=id"},
+		{"an encoded dollar folds", "%24Select=id", "$select=id"},
+		{"values keep their case", "$FILTER=displayName%20eq%20%27Alice%27", "$filter=displayName%20eq%20%27Alice%27"},
+		{"a key without a value", "$COUNT", "$count"},
+		{"keys that do not start with a dollar are left alone", "Foo=Bar&id=ABC", "Foo=Bar&id=ABC"},
+		{"mixed", "id=ABC&$TOP=1&Foo=Bar&$SkipToken=5", "id=ABC&$top=1&Foo=Bar&$skiptoken=5"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			u := &url.URL{RawQuery: tc.in}
+			foldQuery(u)
+			if u.RawQuery != tc.want {
+				t.Errorf("foldQuery(%q) = %q, want %q", tc.in, u.RawQuery, tc.want)
+			}
+		})
+	}
+}
+
+// The folder applies it to Graph paths and only to them.
+func TestCaseFolderFoldsTheQueryOnlyOnGraphPaths(t *testing.T) {
+	mux := http.NewServeMux()
+	f := NewCaseFolder(mux, "")
+	var got string
+	record := func(w http.ResponseWriter, r *http.Request) { got = r.URL.RawQuery }
+	f.HandleFunc("GET /v1.0/users", record)
+	f.HandleFunc("GET /oidc/userinfo", record)
+	h := f.Wrap(mux)
+
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/v1.0/USERS?$TOP=1", nil))
+	if got != "$top=1" {
+		t.Errorf("Graph path: query = %q, want $top=1", got)
+	}
+	got = ""
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/oidc/userinfo?$TOP=1", nil))
+	if got != "$TOP=1" {
+		t.Errorf("a non-Graph path must keep its query exactly, got %q", got)
+	}
 }
