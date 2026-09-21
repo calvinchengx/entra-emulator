@@ -643,6 +643,16 @@ async function main() {
   const capsFilter = await raw("$FILTER=displayName eq 'SDK USER RENAMED'");
   check('a $filter literal keeps its case',
     (exactFilter.value ?? []).length === 1 && (capsFilter.value ?? []).length === 0);
+  // Property NAMES inside $select and $filter are case-insensitive as well (the
+  // literal above is not): the answer is keyed by the property's own spelling.
+  const capsSelect = await raw('$SELECT=DISPLAYNAME');
+  check('$select=DISPLAYNAME returns displayName under its own spelling',
+    (capsSelect.value ?? []).length > 0 &&
+    capsSelect.value.every((u) => Object.keys(u).join() === 'displayName'),
+    JSON.stringify(capsSelect).slice(0, 200));
+  const capsProp = await raw("$filter=DISPLAYNAME eq 'SDK User Renamed'");
+  check('$filter=DISPLAYNAME eq matches, the property name having been folded',
+    (capsProp.value ?? []).length === 1);
 
   // Updates.
   await api(`${GRAPH}/applications/${app.id}`).update({ displayName: `SDK App Renamed ${stamp}` });

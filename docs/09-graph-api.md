@@ -32,8 +32,9 @@ require a **delegated** token (`oid` present); app-only → 403.
 case-insensitive (`/v1.0/USERS`, `/v1.0/users/{id}/MEMBEROF`, `/v1.0/oAuth2PermissionGrants`),
 and ids are not: an upper-cased GUID is a different id. Microsoft's
 [call-api](https://learn.microsoft.com/en-us/graph/call-api) page states the rule. Query option
-names (`$TOP`, `$Select`) fold the same way and their values do not. Property names inside
-`$select` and `$filter` are documented as case-insensitive too but are still matched exactly here.
+names (`$TOP`, `$Select`) and the property names inside `$select` and `$filter` fold the same
+way, while `$filter` literals and ids do not. The `@odata.context` of a projection echoes the
+`$select` as sent, which has not been compared with Entra.
 
 ### Writes (roadmap #18)
 
