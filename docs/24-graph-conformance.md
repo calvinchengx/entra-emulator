@@ -111,7 +111,7 @@ missing recording is a failure, not a pass.
 ## The surface ledger
 
 Conformance asks "did what we answered match the schema", and its denominator is
-whatever a suite happened to touch: 146 responses. It is silent about the 17,870
+whatever a suite happened to touch: 148 responses. It is silent about the 17,870
 operations Microsoft documents. The ledger's denominator is **the spec**.
 
 ```
@@ -324,16 +324,30 @@ keeps its case, and the suite proves it with an exact-case control) and neither
 are keys that do not start with `$`. The recorder reads the query after serving
 too, so recordings hold the canonical option names.
 
-**Not done:** property names *inside* `$select` and `$filter` (`$select=DISPLAYNAME`)
-are documented as case-insensitive as well, and are still matched exactly. That
-touches how a projection echoes back in `@odata.context`, which has not been
-measured against a real tenant.
+Property names inside `$select` and `$filter` fold as well, on the sentence that
+says "any API property names" are not case-sensitive. `$select=DISPLAYNAME`
+returns `displayName`: the answer is keyed by the property's own spelling, not by
+what the caller typed. In `$filter` the property name folds and the quoted
+literal does not, so `DISPLAYNAME eq 'Alice'` matches and `displayName eq 'ALICE'`
+does not. The suite proves both halves, and the server test carries a second,
+non-matching grant so a filter that was simply ignored cannot pass as one that
+matched (an earlier draft of that check survived a mutant for exactly that reason).
+
+**Deliberately not folded, and unmeasured:** the `@odata.context` echo. The
+emulator echoes the `$select` it was sent (`#users(DISPLAYNAME)/$entity`), as it
+already did for an unknown property, which Entra answers verbatim. Whether Entra
+normalises a case-variant to the property's own spelling in the context has not
+been captured. The `az` session available when this was written was signed in to
+a different tenant from the `entraemulatordiff` capture tenant, and
+`tenant-guard.sh` exists to refuse that, so nothing was run. Operators and
+functions in `$filter` (`eq`, `startswith`) are OData keywords and are matched
+exactly.
 
 ## Not built yet
 
 Nothing in the three-gate design. Open items, none settled by this work:
 
-- The union is 146 recorded responses. That is the honest ceiling on what a pass
+- The union is 148 recorded responses. That is the honest ceiling on what a pass
   means today.
 - `Location` on `resetPassword` points at the method resource; Graph points at an
   `authentication/operations/{id}` resource that is not served.

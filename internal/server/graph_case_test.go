@@ -195,3 +195,79 @@ func TestRecorderWritesTheCanonicalQueryToo(t *testing.T) {
 		t.Errorf("recorded %+v, want query $top=1&$select=id", got)
 	}
 }
+
+// Property names inside $select and $filter are case-insensitive; the literal in
+// a $filter and the echo of the request are not rewritten.
+func TestGraphPropertyNamesInSelectAndFilterAreCaseInsensitive(t *testing.T) {
+	hts, _, _ := newTestServer(t)
+	app := appGraphToken(t, hts.URL)
+
+	// $select on a collection: the row is keyed by the property's own name.
+	_, coll := graphGet(t, hts.URL, "/graph/v1.0/users?$select=DISPLAYNAME", app)
+	rows, _ := coll["value"].([]any)
+	if len(rows) == 0 {
+		t.Fatalf("no users: %v", coll)
+	}
+	for _, row := range rows {
+		m := row.(map[string]any)
+		if _, ok := m["displayName"]; !ok || len(m) != 1 {
+			t.Errorf("$select=DISPLAYNAME returned %v, want displayName alone under its own spelling", m)
+		}
+	}
+
+	// $select on one entity, mixed case, several properties.
+	_, one := graphGet(t, hts.URL, "/graph/v1.0/users/"+aliceID+"?$select=DisplayName,USERPRINCIPALNAME", app)
+	for _, k := range []string{"displayName", "userPrincipalName"} {
+		if one[k] == nil {
+			t.Errorf("entity is missing %s: %v", k, one)
+		}
+	}
+	// The context echoes what the caller sent. Whether Graph normalises it has not
+	// been measured against a tenant, and the emulator already echoes an unknown
+	// property verbatim, so this stays as it is rather than guessing.
+	if got := one["@odata.context"]; !strings.Contains(got.(string), "users(DisplayName,USERPRINCIPALNAME)") {
+		t.Errorf("@odata.context = %v, want the select echoed as sent", got)
+	}
+
+	// $filter: the property name folds, the literal does not.
+	filterCount := func(expr string) int {
+		_, body := graphGet(t, hts.URL, "/graph/v1.0/users?$filter="+strings.ReplaceAll(expr, " ", "%20"), app)
+		v, _ := body["value"].([]any)
+		return len(v)
+	}
+	if n := filterCount("userPrincipalName eq 'alice@entraemulator.dev'"); n != 1 {
+		t.Fatalf("control: the canonical filter matched %d rows, want 1", n)
+	}
+	if n := filterCount("USERPRINCIPALNAME eq 'alice@entraemulator.dev'"); n != 1 {
+		t.Errorf("an upper-cased property name matched %d rows, want 1", n)
+	}
+	if n := filterCount("userPrincipalName eq 'ALICE@ENTRAEMULATOR.DEV'"); n != 0 {
+		t.Errorf("a filter literal was compared without regard to case: %d rows", n)
+	}
+
+	// A property that only materialises when selected, named in capitals.
+	_, csa := graphGet(t, hts.URL, "/graph/v1.0/users/"+aliceID+"?$select=CUSTOMSECURITYATTRIBUTES", app)
+	if _, ok := csa["customSecurityAttributes"]; !ok {
+		t.Errorf("$select=CUSTOMSECURITYATTRIBUTES did not materialise customSecurityAttributes: %v", csa)
+	}
+
+	// The role-assignment and grant filters read their fields by regexp.
+	// Two grants that differ by client, so a filter that is ignored returns two
+	// rows and is told apart from one that matched exactly one.
+	for _, client := range []string{spaID, daemonID} {
+		st, _ := graphSend(t, "POST", hts.URL, "/graph/v1.0/oauth2PermissionGrants", app, map[string]any{
+			"clientId": client, "resourceId": daemonID, "consentType": "AllPrincipals", "scope": "Tasks.Read",
+		})
+		if st != 201 {
+			t.Fatal("could not create a grant")
+		}
+	}
+	_, grants := graphGet(t, hts.URL, "/graph/v1.0/oauth2PermissionGrants?$filter=CLIENTID%20eq%20%27"+spaID+"%27", app)
+	if v, _ := grants["value"].([]any); len(v) != 1 {
+		t.Errorf("CLIENTID filter matched %d grants, want 1: %v", len(v), grants)
+	}
+	_, none := graphGet(t, hts.URL, "/graph/v1.0/oauth2PermissionGrants?$filter=clientId%20eq%20%27"+strings.ToUpper(spaID)+"%27", app)
+	if v, _ := none["value"].([]any); len(v) != 0 {
+		t.Errorf("a grant filter literal was case-folded: %v", none)
+	}
+}

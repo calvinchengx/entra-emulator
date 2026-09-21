@@ -92,7 +92,9 @@ func (g *Graph) createOAuth2Grant(w http.ResponseWriter, r *http.Request, _ *tok
 // grantFilterField matches a single `field eq 'value'` clause anywhere in a
 // $filter (compound `and` clauses are supported by scanning each field).
 func grantFilterField(raw, field string) (string, bool) {
-	re := regexp.MustCompile(field + `\s+eq\s+'([^']*)'`)
+	// The property name is case-insensitive; the quoted literal is compared
+	// exactly by the caller.
+	re := regexp.MustCompile(`(?i:` + regexp.QuoteMeta(field) + `)\s+eq\s+'([^']*)'`)
 	if m := re.FindStringSubmatch(raw); m != nil {
 		return m[1], true
 	}

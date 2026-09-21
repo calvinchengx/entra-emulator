@@ -71,7 +71,8 @@ func parseFilter(expr string) (func(map[string]any) bool, error) {
 			return nil, fmt.Errorf("unparseable filter value %q", rawVal)
 		}
 		return func(shape map[string]any) bool {
-			eq := valueEquals(shape[field], want, isStr)
+			got, _ := lookupField(shape, field)
+			eq := valueEquals(got, want, isStr)
 			if op == "ne" {
 				return !eq
 			}
@@ -110,8 +111,24 @@ func valueEquals(got, want any, wantIsStr bool) bool {
 	return got == want
 }
 
+// lookupField finds a property by name, ignoring case: Microsoft documents API
+// property names as case-insensitive (learn.microsoft.com/graph/traverse-the-graph),
+// so `$filter=DISPLAYNAME eq 'x'` addresses displayName. An exact match wins, so
+// a shape that really holds two spellings still answers the one that was asked.
+func lookupField(shape map[string]any, field string) (any, bool) {
+	if v, ok := shape[field]; ok {
+		return v, true
+	}
+	for k, v := range shape {
+		if strings.EqualFold(k, field) {
+			return v, true
+		}
+	}
+	return nil, false
+}
+
 func fieldString(shape map[string]any, field string) string {
-	v, ok := shape[field]
+	v, ok := lookupField(shape, field)
 	if !ok || v == nil {
 		return ""
 	}
@@ -131,11 +148,22 @@ func applySelect(shape map[string]any, fields []string) map[string]any {
 	if len(fields) == 0 {
 		return shape
 	}
+	// Property names are case-insensitive, and the answer is keyed by the
+	// property's own name, not by what the caller typed: `$select=DISPLAYNAME`
+	// returns `displayName`, as the property is spelled everywhere else.
+	canonical := make(map[string]string, len(shape))
+	for k := range shape {
+		canonical[strings.ToLower(k)] = k
+	}
 	out := make(map[string]any, len(fields))
 	for _, f := range fields {
-		if v, ok := shape[f]; ok {
-			out[f] = v
+		k, ok := f, false
+		if _, exact := shape[f]; exact {
+			ok = true
+		} else if k, ok = canonical[strings.ToLower(f)]; !ok {
+			continue
 		}
+		out[k] = shape[k]
 	}
 	return out
 }
