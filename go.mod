@@ -4,9 +4,9 @@ go 1.26.6
 
 require (
 	github.com/beevik/etree v1.8.0
-	github.com/brianvoe/gofakeit/v7 v7.17.0
+	github.com/brianvoe/gofakeit/v7 v7.17.1
 	github.com/descope/virtualwebauthn v1.0.5
-	github.com/go-webauthn/webauthn v0.18.1
+	github.com/go-webauthn/webauthn v0.18.2
 	github.com/russellhaering/goxmldsig v1.6.1
 	golang.org/x/crypto v0.57.0
 	modernc.org/sqlite v1.59.0
@@ -14,7 +14,7 @@ require (
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/fxamacker/cbor/v2 v2.9.3 // indirect
+	github.com/fxamacker/cbor/v2 v2.9.4 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/go-webauthn/x v0.3.1 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
