@@ -40,7 +40,7 @@ services:
       - "${CONFORMANCE_EMULATOR_PORT:-8444}:8443"
 
   mongodb:
-    image: mongo:6.0.13
+    image: mirror.gcr.io/library/mongo:6.0.13
     tmpfs:
       - /data/db
 
