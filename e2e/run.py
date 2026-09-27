@@ -149,10 +149,13 @@ def suite_scim(env):
     """scim2-tester, an independent RFC 7643/7644 compliance checker.
 
     Run through uv rather than a venv: the checker is only needed here, and uv
-    resolves it per-run without leaving a tree in the repo.
+    resolves it per-run without leaving a tree in the repo. Versions are pinned:
+    scim2-client 0.9.0 renamed its httpx engine to httpx2 and broke every run
+    overnight, so an upgrade is a deliberate edit here, not a surprise.
     """
     return run(["uv", "run", "--no-project", "--python", "3.12",
-                "--with", "scim2-client[httpx]", "--with", "scim2-tester", "--with", "httpx",
+                "--with", "scim2-client[httpx2]==0.9.0", "--with", "scim2-tester==0.4.0",
+                "--with", "httpx2==2.13.1",
                 "python", "suite.py"], ROOT / "e2e" / "scim", env)
 
 
