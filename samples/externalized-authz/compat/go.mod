@@ -22,7 +22,7 @@ require (
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/beevik/etree v1.8.0 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.6.1 // indirect
-	github.com/brianvoe/gofakeit/v7 v7.17.0 // indirect
+	github.com/brianvoe/gofakeit/v7 v7.17.1 // indirect
 	github.com/casbin/govaluate v1.3.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -38,12 +38,12 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/fxamacker/cbor/v2 v2.9.3 // indirect
+	github.com/fxamacker/cbor/v2 v2.9.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
-	github.com/go-webauthn/webauthn v0.18.1 // indirect
+	github.com/go-webauthn/webauthn v0.18.2 // indirect
 	github.com/go-webauthn/x v0.3.1 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/goccy/go-json v0.10.6 // indirect

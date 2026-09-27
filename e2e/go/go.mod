@@ -10,11 +10,11 @@ require (
 
 require (
 	github.com/beevik/etree v1.8.0 // indirect
-	github.com/brianvoe/gofakeit/v7 v7.17.0 // indirect
+	github.com/brianvoe/gofakeit/v7 v7.17.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/fxamacker/cbor/v2 v2.9.3 // indirect
+	github.com/fxamacker/cbor/v2 v2.9.4 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
-	github.com/go-webauthn/webauthn v0.18.1 // indirect
+	github.com/go-webauthn/webauthn v0.18.2 // indirect
 	github.com/go-webauthn/x v0.3.1 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
 	github.com/jonboulle/clockwork v0.5.0 // indirect
