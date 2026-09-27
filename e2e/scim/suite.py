@@ -20,8 +20,8 @@ import collections
 import os
 import sys
 
-from httpx import Client
-from scim2_client.engines.httpx import SyncSCIMClient
+from httpx2 import Client
+from scim2_client.engines.httpx2 import SyncSCIMClient
 from scim2_tester import check_server
 
 ORIGIN = os.environ["EMU_ORIGIN"]
