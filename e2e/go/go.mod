@@ -3,13 +3,13 @@ module github.com/calvinchengx/entra-emulator/e2e/go
 go 1.26.6
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.1
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.2
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.1
-	github.com/AzureAD/microsoft-authentication-library-for-go v1.9.0
+	github.com/AzureAD/microsoft-authentication-library-for-go v1.10.1
 )
 
 require (
-	github.com/beevik/etree v1.8.0 // indirect
+	github.com/beevik/etree v1.8.1 // indirect
 	github.com/brianvoe/gofakeit/v7 v7.17.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.4 // indirect
@@ -26,10 +26,10 @@ require (
 	github.com/tinylib/msgp v1.6.4 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	golang.org/x/sync v0.23.0 // indirect
-	modernc.org/libc v1.75.7 // indirect
+	modernc.org/libc v1.77.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
-	modernc.org/sqlite v1.59.0 // indirect
+	modernc.org/sqlite v1.60.1 // indirect
 )
 
 require (
