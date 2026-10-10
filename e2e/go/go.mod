@@ -3,14 +3,14 @@ module github.com/calvinchengx/entra-emulator/e2e/go
 go 1.27.2
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.2
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.3
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.1
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.10.1
 	github.com/calvinchengx/entra-emulator v0.0.0
 )
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.13.0 // indirect
 	github.com/beevik/etree v1.8.1 // indirect
 	github.com/brianvoe/gofakeit/v7 v7.17.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
