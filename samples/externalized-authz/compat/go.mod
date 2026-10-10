@@ -4,7 +4,7 @@
 // e2e/go and samples/msal-go.
 module github.com/calvinchengx/entra-emulator/samples/externalized-authz/compat
 
-go 1.26.6
+go 1.27.2
 
 require (
 	github.com/calvinchengx/entra-emulator v0.0.0
