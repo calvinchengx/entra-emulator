@@ -106,7 +106,7 @@ jobs:
         id: sim
         # No model pin — available device models change with the runner's
         # Xcode version; any booted iPhone simulator works for this test.
-        uses: futureware-tech/simulator-action@v5
+        uses: futureware-tech/simulator-action@v6
         with:
           os: iOS
       # TIMED OUT AT THE STEP, NOT AT THE JOB, AND IT SAYS WHAT IT SAW.
