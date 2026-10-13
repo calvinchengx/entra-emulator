@@ -1085,3 +1085,91 @@ func TestServiceStoreErrorPaths(t *testing.T) {
 		t.Fatal("group lookup failure should leave the groups claim unset")
 	}
 }
+
+// User app-role assignments surface as `roles` in the ID token (client app)
+// and in the delegated access token (resource app); the access token also
+// carries name and preferred_username.
+func TestDelegatedTokensCarryUserAppRoles(t *testing.T) {
+	st, svc, _ := newService(t)
+	app := makeApp(t, st, &store.App{ID: "spa-app", AppIDURI: "api://spa-app"})
+	user := makeUser(t, st, "user-roles", "Role", "Holder")
+	other := makeUser(t, st, "user-noroles", "No", "Roles")
+
+	for _, r := range []*store.AppRole{
+		{ID: "11111111-1111-4111-8111-111111111111", AppID: app.ID, Value: "TMS.NCCUser", AllowedMemberTypes: "User", IsEnabled: true},
+		{ID: "22222222-2222-4222-8222-222222222222", AppID: app.ID, Value: "TMS.SysAdmin", AllowedMemberTypes: "User", IsEnabled: true},
+	} {
+		if err := st.AddRole(r); err != nil {
+			t.Fatalf("AddRole: %v", err)
+		}
+		if err := st.CreateAppRoleAssignment(&store.AppRoleAssignment{
+			ID: "ara-" + r.Value, PrincipalID: user.ID, PrincipalType: "User",
+			ResourceID: app.ID, AppRoleID: r.ID, CreatedAt: st.Now(),
+		}); err != nil {
+			t.Fatalf("CreateAppRoleAssignment: %v", err)
+		}
+	}
+
+	resp, err := svc.BuildDelegatedResponse(DelegatedGrant{
+		App: app, User: user, Scopes: []string{"openid", "profile", "access_as_user"},
+		Resource: app.AppIDURI,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]bool{"TMS.NCCUser": true, "TMS.SysAdmin": true}
+	checkRoles := func(kind string, claims map[string]any) {
+		t.Helper()
+		got, _ := claims["roles"].([]any)
+		if len(got) != len(want) {
+			t.Fatalf("%s roles = %v, want %v", kind, claims["roles"], want)
+		}
+		for _, v := range got {
+			if !want[v.(string)] {
+				t.Fatalf("%s unexpected role %v", kind, v)
+			}
+		}
+	}
+	idClaims, err := DecodeUnverified(resp.IDToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkRoles("id token", idClaims)
+	atClaims, err := DecodeUnverified(resp.AccessToken)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkRoles("access token", atClaims)
+	if atClaims["name"] != user.DisplayName || atClaims["preferred_username"] != user.UserPrincipalName {
+		t.Fatalf("access token name/preferred_username = %v / %v", atClaims["name"], atClaims["preferred_username"])
+	}
+
+	// A Graph access token for the same user carries no app roles.
+	respG, err := svc.BuildDelegatedResponse(DelegatedGrant{
+		App: app, User: user, Scopes: []string{"User.Read"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gClaims, _ := DecodeUnverified(respG.AccessToken)
+	if _, ok := gClaims["roles"]; ok {
+		t.Fatalf("graph token should not carry app roles: %v", gClaims["roles"])
+	}
+
+	// A user with no assignments gets no roles claim at all.
+	resp2, err := svc.BuildDelegatedResponse(DelegatedGrant{
+		App: app, User: other, Scopes: []string{"openid", "access_as_user"},
+		Resource: app.AppIDURI,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id2, _ := DecodeUnverified(resp2.IDToken)
+	at2, _ := DecodeUnverified(resp2.AccessToken)
+	if _, ok := id2["roles"]; ok {
+		t.Fatalf("unexpected id token roles: %v", id2["roles"])
+	}
+	if _, ok := at2["roles"]; ok {
+		t.Fatalf("unexpected access token roles: %v", at2["roles"])
+	}
+}

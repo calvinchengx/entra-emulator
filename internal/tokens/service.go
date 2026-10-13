@@ -321,6 +321,11 @@ func (s *Service) mintIDToken(g DelegatedGrant, now int64) (string, error) {
 	if g.User.Mail != "" {
 		claims["email"] = g.User.Mail
 	}
+	// App roles assigned to the user on this app (aud = client id), as real
+	// Entra emits them in the ID token.
+	if roles := s.userAppRoles(g.User.ID, g.App.ID); len(roles) > 0 {
+		claims["roles"] = roles
+	}
 	if g.Nonce != "" {
 		claims["nonce"] = g.Nonce
 	}
@@ -386,9 +391,32 @@ func (s *Service) mintAccessDelegated(g DelegatedGrant, aud string, now int64) (
 		}
 		claims["scp"] = strings.Join(kept, " ")
 	}
+	// v2.0 delegated access tokens carry the user's name and username, and
+	// the app roles assigned to the user on the RESOURCE app. Graph tokens get
+	// no app roles: resourceApp falls back to the client app for Graph, and
+	// Graph reads `roles` as application permissions.
+	claims["name"] = g.User.DisplayName
+	claims["preferred_username"] = g.User.UserPrincipalName
+	if aud != s.Cfg.GraphResourceID {
+		if roles := s.userAppRoles(g.User.ID, resourceApp.ID); len(roles) > 0 {
+			claims["roles"] = roles
+		}
+	}
 	s.applyTokenConfig(claims, resourceApp, g.User, "accessToken")
 	s.enrich(claims, g.App, g.User, "accessToken")
 	return s.signTenant(tid, claims)
+}
+
+// userAppRoles returns the values of the app roles assigned to a user on an
+// app (appRoleAssignments with principalType User). The default-access
+// assignment (zero GUID) carries no role value and is skipped. A lookup error
+// yields no roles rather than failing token issuance.
+func (s *Service) userAppRoles(userID, appID string) []string {
+	values, _, err := s.Store.AssignedAppRoleValues(userID, appID)
+	if err != nil {
+		return nil
+	}
+	return values
 }
 
 // ---- Optional claims & group claims (docs/04, token configuration) ----
