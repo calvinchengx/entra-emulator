@@ -132,6 +132,11 @@ not verify, or a deleted credential each fail with `invalid_client` (AADSTS70021
 Token configuration (optional claims / group claims) is managed via app PATCH fields
 `optionalClaims`, `groupMembershipClaims`, `groupOverageLimit` (see 04).
 
+`accessTokenAcceptedVersion` (create or PATCH; `1`, `2`, or `0` to clear; `null` in the
+DTO when unset) mirrors Entra's manifest setting: with `2`, access tokens for the app
+(delegated and client credentials) carry `aud` = the app's client id instead of its App
+ID URI, which is the audience Entra puts in v2.0 tokens.
+
 ## Token forge (roadmap #2 — testing superpower)
 
 `POST /admin/api/tokens` mints an **arbitrary signed JWT** without running any flow —

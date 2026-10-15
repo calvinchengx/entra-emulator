@@ -154,7 +154,15 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	scopes := SplitScopes(st.Scope)
-	if !containsScope(scopes, "openid") {
+	if len(scopes) == 0 {
+		redirectErr("invalid_scope", "AADSTS900144: The request body must contain the following parameter: 'scope'.")
+		return
+	}
+	// Like Entra, openid is only required when an id_token is requested. A
+	// code-only request for a resource scope (e.g. Swagger UI asking for just
+	// api://<app>/access_as_user) is allowed and its token response simply has
+	// no id_token (tokens.BuildDelegatedResponse only mints one for openid).
+	if st.ResponseType != "code" && !containsScope(scopes, "openid") {
 		redirectErr("invalid_scope", "The openid scope is required.")
 		return
 	}

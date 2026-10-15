@@ -79,7 +79,8 @@ JSON, correct 4xx, `Cache-Control: no-store`:
 ## Authorize — `GET|POST /{tenant}/oauth2/v2.0/authorize`
 
 Params: `client_id`* , `response_type`* (=`code`), `redirect_uri`* (exact match against
-registered), `scope`* (must include `openid`), `state` (echoed), `code_challenge`
+registered), `scope`* (must include `openid` when an ID token is returned; a
+`response_type=code` request may ask for resource scopes alone, as in Entra), `state` (echoed), `code_challenge`
 (required for public clients) + `code_challenge_method` (`S256`|`plain`), `nonce`,
 `response_mode` (`query` default | `fragment` | `form_post` auto-submit HTML), `prompt`
 (`login`/`select_account` force picker; `none` without session → redirect

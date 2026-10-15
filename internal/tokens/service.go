@@ -321,6 +321,11 @@ func (s *Service) mintIDToken(g DelegatedGrant, now int64) (string, error) {
 	if g.User.Mail != "" {
 		claims["email"] = g.User.Mail
 	}
+	// App roles assigned to the user on this app (aud = client id), as real
+	// Entra emits them in the ID token.
+	if roles := s.userAppRoles(g.User.ID, g.App.ID); len(roles) > 0 {
+		claims["roles"] = roles
+	}
 	if g.Nonce != "" {
 		claims["nonce"] = g.Nonce
 	}
@@ -366,11 +371,19 @@ func (s *Service) mintAccessDelegated(g DelegatedGrant, aud string, now int64) (
 	// Access-token optional claims come from the RESOURCE app's config; the
 	// emulator resolves the resource app when the audience is a local app.
 	resourceApp := g.App
+	resourceResolved := false
 	if aud != s.Cfg.GraphResourceID {
 		if byURI, err := s.Store.GetAppByIDURI(aud); err == nil {
-			resourceApp = byURI
+			resourceApp, resourceResolved = byURI, true
 		} else if byID, err := s.Store.GetApp(aud); err == nil {
-			resourceApp = byID
+			resourceApp, resourceResolved = byID, true
+		}
+	}
+	// Entra issues v2.0 tokens for an app set to accept them with
+	// aud = its client id, however the resource was named in the scope.
+	if resourceResolved {
+		if version, err := s.Store.AccessTokenAcceptedVersion(resourceApp.ID); err == nil && version == 2 {
+			claims["aud"] = resourceApp.ID
 		}
 	}
 	// Delegated consent (docs/20-stateful-directory.md): when explicit
@@ -386,9 +399,32 @@ func (s *Service) mintAccessDelegated(g DelegatedGrant, aud string, now int64) (
 		}
 		claims["scp"] = strings.Join(kept, " ")
 	}
+	// v2.0 delegated access tokens carry the user's name and username, and
+	// the app roles assigned to the user on the RESOURCE app. Graph tokens get
+	// no app roles: resourceApp falls back to the client app for Graph, and
+	// Graph reads `roles` as application permissions.
+	claims["name"] = g.User.DisplayName
+	claims["preferred_username"] = g.User.UserPrincipalName
+	if aud != s.Cfg.GraphResourceID {
+		if roles := s.userAppRoles(g.User.ID, resourceApp.ID); len(roles) > 0 {
+			claims["roles"] = roles
+		}
+	}
 	s.applyTokenConfig(claims, resourceApp, g.User, "accessToken")
 	s.enrich(claims, g.App, g.User, "accessToken")
 	return s.signTenant(tid, claims)
+}
+
+// userAppRoles returns the values of the app roles assigned to a user on an
+// app (appRoleAssignments with principalType User). The default-access
+// assignment (zero GUID) carries no role value and is skipped. A lookup error
+// yields no roles rather than failing token issuance.
+func (s *Service) userAppRoles(userID, appID string) []string {
+	values, _, err := s.Store.AssignedAppRoleValues(userID, appID)
+	if err != nil {
+		return nil
+	}
+	return values
 }
 
 // ---- Optional claims & group claims (docs/04, token configuration) ----

@@ -183,9 +183,30 @@ func (a *Admin) appDTO(app *store.App) map[string]any {
 		"id": app.ID, "displayName": app.DisplayName, "isConfidential": app.IsConfidential,
 		"appIdUri": nullable(app.AppIDURI), "redirectUris": redirectDTOs,
 		"exposedScopes": scopeDTOs, "appRoles": roleDTOs, "secrets": secretDTOs,
-		"groupMembershipClaims": app.GroupMembershipClaims,
-		"createdAt":             iso(app.CreatedAt),
+		"groupMembershipClaims":      app.GroupMembershipClaims,
+		"accessTokenAcceptedVersion": a.accessTokenVersionDTO(app.ID),
+		"createdAt":                  iso(app.CreatedAt),
 	}
+}
+
+// accessTokenVersionDTO is the app's accessTokenAcceptedVersion, or nil when
+// unset (Entra's manifest shows null).
+func (a *Admin) accessTokenVersionDTO(appID string) any {
+	version, err := a.Store.AccessTokenAcceptedVersion(appID)
+	if err != nil || version == 0 {
+		return nil
+	}
+	return version
+}
+
+// validAccessTokenVersion rejects anything but 0, 1 or 2.
+func validAccessTokenVersion(w http.ResponseWriter, version *int) bool {
+	if version == nil || *version == 0 || *version == 1 || *version == 2 {
+		return true
+	}
+	httpx.WriteAdminError(w, http.StatusBadRequest, "validation_error", "Invalid app.",
+		httpx.AdminDetail{Field: "accessTokenAcceptedVersion", Message: "Must be 1 or 2 (or 0 to clear)."})
+	return false
 }
 
 func splitCSV(s string) []string {
@@ -225,7 +246,10 @@ type appBody struct {
 	GroupOverageLimit     *int    `json:"groupOverageLimit"`
 	OptionalClaims        any     `json:"optionalClaims"`
 	FrontchannelLogoutURI *string `json:"frontchannelLogoutUri"`
-	RedirectUris          []struct {
+	// Entra's accessTokenAcceptedVersion: 2 makes access tokens for this app
+	// carry aud = its client id; 1 (or 0 to clear) keeps the App ID URI.
+	AccessTokenAcceptedVersion *int `json:"accessTokenAcceptedVersion"`
+	RedirectUris               []struct {
 		URI  string `json:"uri"`
 		Type string `json:"type"`
 	} `json:"redirectUris"`
@@ -239,6 +263,9 @@ func (a *Admin) createApp(w http.ResponseWriter, r *http.Request) {
 	if b.DisplayName == nil || *b.DisplayName == "" {
 		httpx.WriteAdminError(w, http.StatusBadRequest, "validation_error", "Invalid app.",
 			httpx.AdminDetail{Field: "displayName", Message: "Required."})
+		return
+	}
+	if !validAccessTokenVersion(w, b.AccessTokenAcceptedVersion) {
 		return
 	}
 	tenantID := a.Cfg.TenantID
@@ -261,6 +288,12 @@ func (a *Admin) createApp(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, ru := range b.RedirectUris {
 		if _, err := a.Store.AddRedirectURI(app.ID, ru.URI, ru.Type); err != nil {
+			writeStoreErr(w, err)
+			return
+		}
+	}
+	if b.AccessTokenAcceptedVersion != nil {
+		if err := a.Store.SetAccessTokenAcceptedVersion(app.ID, *b.AccessTokenAcceptedVersion); err != nil {
 			writeStoreErr(w, err)
 			return
 		}
@@ -311,6 +344,9 @@ func (a *Admin) patchApp(w http.ResponseWriter, r *http.Request) {
 	if !decodeBody(w, r, &b) {
 		return
 	}
+	if !validAccessTokenVersion(w, b.AccessTokenAcceptedVersion) {
+		return
+	}
 	applyAppBody(app, &b)
 	if err := a.Store.UpdateApp(app); err != nil {
 		writeStoreErr(w, err)
@@ -320,6 +356,12 @@ func (a *Admin) patchApp(w http.ResponseWriter, r *http.Request) {
 	// separately from the generic app body.
 	if b.FrontchannelLogoutURI != nil {
 		if err := a.Store.SetFrontchannelLogoutURI(app.ID, *b.FrontchannelLogoutURI); err != nil {
+			writeStoreErr(w, err)
+			return
+		}
+	}
+	if b.AccessTokenAcceptedVersion != nil {
+		if err := a.Store.SetAccessTokenAcceptedVersion(app.ID, *b.AccessTokenAcceptedVersion); err != nil {
 			writeStoreErr(w, err)
 			return
 		}

@@ -74,7 +74,8 @@ CREATE TABLE IF NOT EXISTS app_registrations (
   group_membership_claims TEXT NOT NULL DEFAULT 'None',
   group_overage_limit     INTEGER,
   created_at              INTEGER NOT NULL,
-  frontchannel_logout_uri TEXT
+  frontchannel_logout_uri TEXT,
+  access_token_accepted_version INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_apps_tenant ON app_registrations(tenant_id);
 CREATE TABLE IF NOT EXISTS app_redirect_uris (
@@ -390,6 +391,7 @@ func (s *Store) migrate() error {
 		`ALTER TABLE users ADD COLUMN user_type TEXT NOT NULL DEFAULT 'Member'`,
 		`ALTER TABLE users ADD COLUMN external_user_state TEXT`,
 		`ALTER TABLE app_registrations ADD COLUMN frontchannel_logout_uri TEXT`,
+		`ALTER TABLE app_registrations ADD COLUMN access_token_accepted_version INTEGER`,
 		`ALTER TABLE users ADD COLUMN invite_redirect_url TEXT`,
 	} {
 		if _, err := s.db.Exec(alter); err != nil &&
