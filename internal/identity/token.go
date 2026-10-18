@@ -371,6 +371,11 @@ func (i *Identity) grantClientCredentials(w http.ResponseWriter, r *http.Request
 		} else {
 			aud = resourceApp.ID
 		}
+		// Entra issues v2.0 tokens for an app set to accept them with
+		// aud = its client id, however the resource was named.
+		if version, err := i.Store.AccessTokenAcceptedVersion(resourceApp.ID); err == nil && version == 2 {
+			aud = resourceApp.ID
+		}
 		// App permissions: explicit appRoleAssignments are authoritative when
 		// present (docs/20-stateful-directory.md); otherwise fall back to
 		// auto-granting every enabled Application-type role.
