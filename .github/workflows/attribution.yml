@@ -75,5 +75,13 @@ jobs:
         env:
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.event.after }}
+        # After a force push (or on a branch's first push) BEFORE is not in
+        # this clone, and `git log BEFORE..AFTER` exits 128. Then check all of
+        # main's history instead: strict, never skipped.
         run: |
-          uv run --no-project --python 3.12 python scripts/check_attribution.py --range "$BEFORE..$AFTER"
+          range="$BEFORE..$AFTER"
+          if ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "before $BEFORE is not in history (force push?); checking all of $AFTER"
+            range="$AFTER"
+          fi
+          uv run --no-project --python 3.12 python scripts/check_attribution.py --range "$range"
