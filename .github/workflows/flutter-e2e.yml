@@ -26,8 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
       - name: Build and start the emulator (plain HTTP for device reachability)
@@ -38,7 +38,7 @@ jobs:
             PUBLIC_ORIGIN=http://10.0.2.2:8443 \
             nohup /tmp/entra-emulator > server.log 2>&1 &
           for i in $(seq 1 50); do curl -s http://localhost:8443/health && break; sleep 0.2; done
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
           flutter-version: 3.44.0
@@ -72,7 +72,7 @@ jobs:
       # into a failure that arrives three times sooner and names this step.
       - name: Run integration test on the Android emulator
         timeout-minutes: 15
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: 34
           arch: x86_64
@@ -86,8 +86,8 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
       - name: Build and start the emulator (plain HTTP on loopback)
@@ -97,7 +97,7 @@ jobs:
           TLS_ENABLED=false PORT=8443 ORIGIN_MODE=compat REQUEST_LOG=true \
             nohup /tmp/entra-emulator > server.log 2>&1 &
           for i in $(seq 1 50); do curl -s http://localhost:8443/health && break; sleep 0.2; done
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: stable
           flutter-version: 3.44.0
@@ -106,7 +106,7 @@ jobs:
         id: sim
         # No model pin — available device models change with the runner's
         # Xcode version; any booted iPhone simulator works for this test.
-        uses: futureware-tech/simulator-action@v6
+        uses: futureware-tech/simulator-action@c768f52966d5f70335ec77881f9806b24a52f80e # v6
         with:
           os: iOS
       # TIMED OUT AT THE STEP, NOT AT THE JOB, AND IT SAYS WHAT IT SAW.
