@@ -12,9 +12,11 @@ name: Attribution
 #
 # The push run exists because a merge can add trailers the pull request never
 # had: GitHub's generated squash message appends `Co-authored-by:` for the
-# pull request's commit authors (it did for every Dependabot merge). That run
-# cannot block anything; it makes the commit that landed one fail loudly.
-# Merge with an explicit message (`gh pr merge --squash --body ...`) to avoid it.
+# pull request's commit authors, and the repository's squash setting (PR title
+# and body) does not stop it: #221, #227, #233 and #234 all landed with one.
+# That run cannot block anything; it makes the commit that landed one fail
+# loudly. Merge with `make merge PR=N` (scripts/merge_pr.py), which passes the
+# message explicitly and checks the commit that landed.
 
 on:
   pull_request:
@@ -39,7 +41,7 @@ jobs:
           version: "0.11.32"
       # The checker's own controls first: a gate that never fires is
       # indistinguishable from a clean pull request.
-      - run: uv run --no-project --python 3.12 python -m unittest scripts/test_check_attribution.py
+      - run: uv run --no-project --python 3.12 python -m unittest scripts/test_check_attribution.py scripts/test_merge_pr.py
       # The description goes through env and a file, never into the script
       # text: it is attacker-controlled input on a fork pull request.
       - name: Check commits and description

@@ -140,6 +140,8 @@ jobs:
           done
           # The documented override must expand too.
           make -n up ENTRA_PORT=8460
+          # merge refuses without PR=, so it is expanded with one.
+          make -n merge PR=1
 
       # The native path needs no container runtime, so it is the same on all
       # three platforms — which is the point of this emulator being one binary.
