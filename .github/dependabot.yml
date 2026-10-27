@@ -44,6 +44,17 @@ updates:
       e2e-go:
         patterns: ['*']
 
+  # Java e2e harness. Unwatched until 2026-10-27, msal4j sat at 1.17.2 while
+  # its transitive jackson/nimbus/json-smart collected 16 advisories; 1.26.0
+  # dropped all of them from its runtime tree.
+  - package-ecosystem: maven
+    directory: /e2e/java
+    schedule:
+      interval: weekly
+    groups:
+      e2e-java:
+        patterns: ['*']
+
   # GitHub Actions.
   - package-ecosystem: github-actions
     directory: /
