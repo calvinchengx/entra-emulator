@@ -1,7 +1,7 @@
 // Isolated module so the MSAL Go dependency doesn't reach the emulator binary.
 module github.com/calvinchengx/entra-emulator/samples/msal-go
 
-go 1.25.11
+go 1.27.3
 
 require github.com/AzureAD/microsoft-authentication-library-for-go v1.7.2
 

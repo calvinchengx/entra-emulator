@@ -103,3 +103,10 @@ jobs:
       # Reports only vulnerabilities the code can actually REACH, so a finding
       # here is a call path rather than a dependency-tree coincidence.
       - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      # The other two Go modules each carry an osv-scanner.toml ignoring
+      # GO-2026-5932 on the strength of "nothing imports openpgp". This is the
+      # check that keeps that claim true, so it must reach them too.
+      - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+        working-directory: e2e/go
+      - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+        working-directory: samples/externalized-authz/compat
