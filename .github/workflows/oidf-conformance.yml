@@ -48,8 +48,8 @@ jobs:
           - plan: basic
             name: Basic OP certification profile
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
 
       - name: Run the plan
         run: uv run --no-project --python 3.12 python e2e/conformance/run.py ${{ matrix.plan }}
@@ -58,7 +58,7 @@ jobs:
       # summary says PASSED, the logs say which conditions produced it.
       - name: Upload the conformance logs
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: oidf-conformance-${{ matrix.plan }}
           path: e2e/conformance/results/

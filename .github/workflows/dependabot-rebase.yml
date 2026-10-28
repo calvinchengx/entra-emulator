@@ -25,6 +25,10 @@ jobs:
       - name: Ask Dependabot to rebase the branches that fell behind
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # `gh` infers the repository from the working directory's git remote,
+          # and this job has no checkout -- so without this every run died on
+          # its first command with "fatal: not a git repository".
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           gh pr list --author "app/dependabot" --state open --limit 100 \
