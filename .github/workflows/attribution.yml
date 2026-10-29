@@ -18,8 +18,17 @@ name: Attribution
 # loudly. Merge with `make merge PR=N` (scripts/merge_pr.py), which passes the
 # message explicitly and checks the commit that landed.
 
+#
+# WHY pull_request_target AND NOT pull_request. On `pull_request`, GitHub runs
+# the workflow file from the pull request itself, so a contributor could edit
+# this check to pass in their own PR. `pull_request_target` always runs main's
+# copy. That is safe here because nothing from the PR is executed: the checkout
+# is main, the script and its tests come from main, and the PR's commits are
+# only fetched as git objects and read with `git log`. Never add a step that
+# checks out, builds or runs the PR's tree to this workflow.
+
 on:
-  pull_request:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] -- PR commits are read as data, never run; see above
     types: [opened, edited, synchronize, reopened]
   push:
     branches: [main]
@@ -33,9 +42,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # main on pull_request_target (its default), the pushed commit on push.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           version: "0.11.32"
@@ -43,14 +54,19 @@ jobs:
       # indistinguishable from a clean pull request.
       - run: uv run --no-project --python 3.12 python -m unittest scripts/test_check_attribution.py scripts/test_merge_pr.py
       # The description goes through env and a file, never into the script
-      # text: it is attacker-controlled input on a fork pull request.
+      # text: it is attacker-controlled input on a fork pull request. The PR's
+      # commits are fetched as objects only (no checkout), then read by git log.
       - name: Check commits and description
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request_target'
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          git fetch --no-tags --quiet origin "+refs/pull/$PR_NUMBER/head:refs/remotes/pr/head"
+          test "$(git rev-parse refs/remotes/pr/head)" = "$HEAD_SHA" \
+            || { echo "::error::refs/pull/$PR_NUMBER/head moved past $HEAD_SHA; re-run the check"; exit 1; }
           printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
           uv run --no-project --python 3.12 python scripts/check_attribution.py \
             --range "$BASE_SHA..$HEAD_SHA" --body-file "$RUNNER_TEMP/pr-body.md"
@@ -59,5 +75,13 @@ jobs:
         env:
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.event.after }}
+        # After a force push (or on a branch's first push) BEFORE is not in
+        # this clone, and `git log BEFORE..AFTER` exits 128. Then check all of
+        # main's history instead: strict, never skipped.
         run: |
-          uv run --no-project --python 3.12 python scripts/check_attribution.py --range "$BEFORE..$AFTER"
+          range="$BEFORE..$AFTER"
+          if ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "before $BEFORE is not in history (force push?); checking all of $AFTER"
+            range="$AFTER"
+          fi
+          uv run --no-project --python 3.12 python scripts/check_attribution.py --range "$range"
