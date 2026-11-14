@@ -4,12 +4,12 @@ go 1.27.3
 
 require (
 	github.com/beevik/etree v1.8.1
-	github.com/brianvoe/gofakeit/v7 v7.18.0
+	github.com/brianvoe/gofakeit/v7 v7.18.2
 	github.com/descope/virtualwebauthn v1.0.5
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/russellhaering/goxmldsig v1.6.1
-	golang.org/x/crypto v0.58.0
-	modernc.org/sqlite v1.61.0
+	golang.org/x/crypto v0.59.0
+	modernc.org/sqlite v1.62.0
 )
 
 require (
@@ -27,8 +27,8 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	golang.org/x/sys v0.49.0 // indirect
-	modernc.org/libc v1.79.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
+	modernc.org/libc v1.80.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 )
