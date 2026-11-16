@@ -70,22 +70,22 @@ func scanKey(row interface{ Scan(...any) error }) (*SigningKey, error) {
 
 func (s *Store) InsertAuthCode(c *AuthCode) error {
 	_, err := s.db.Exec(`INSERT INTO authorization_codes
-		(code, app_id, user_id, redirect_uri, scopes, resource, code_challenge, code_challenge_method, nonce, amr, auth_time, max_age_requested, expires_at, consumed, created_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)`,
+		(code, app_id, user_id, redirect_uri, scopes, resource, code_challenge, code_challenge_method, nonce, amr, auth_time, max_age_requested, session_id, expires_at, consumed, created_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)`,
 		c.Code, c.AppID, c.UserID, c.RedirectURI, c.Scopes, nullable(c.Resource),
 		nullable(c.CodeChallenge), nullable(c.CodeChallengeMethod), nullable(c.Nonce),
-		nullable(c.AMR), c.AuthTime, c.MaxAgeRequested, c.ExpiresAt, c.CreatedAt)
+		nullable(c.AMR), c.AuthTime, c.MaxAgeRequested, nullable(c.SessionID), c.ExpiresAt, c.CreatedAt)
 	return mapConstraint(err)
 }
 
 func (s *Store) GetAuthCode(code string) (*AuthCode, error) {
 	row := s.db.QueryRow(`SELECT code, app_id, user_id, redirect_uri, scopes, COALESCE(resource,''),
 		COALESCE(code_challenge,''), COALESCE(code_challenge_method,''), COALESCE(nonce,''),
-		COALESCE(amr,''), COALESCE(auth_time,0), COALESCE(max_age_requested,0),
+		COALESCE(amr,''), COALESCE(auth_time,0), COALESCE(max_age_requested,0), COALESCE(session_id,''),
 		expires_at, consumed, created_at FROM authorization_codes WHERE code=?`, code)
 	c := &AuthCode{}
 	err := row.Scan(&c.Code, &c.AppID, &c.UserID, &c.RedirectURI, &c.Scopes, &c.Resource,
-		&c.CodeChallenge, &c.CodeChallengeMethod, &c.Nonce, &c.AMR, &c.AuthTime, &c.MaxAgeRequested,
+		&c.CodeChallenge, &c.CodeChallengeMethod, &c.Nonce, &c.AMR, &c.AuthTime, &c.MaxAgeRequested, &c.SessionID,
 		&c.ExpiresAt, &c.Consumed, &c.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -110,11 +110,11 @@ func (s *Store) ConsumeAuthCode(code string) (bool, error) {
 // reuse detection depends on observing revoked rows.
 func (s *Store) GetRefreshTokenByHash(hash string) (*RefreshToken, error) {
 	row := s.db.QueryRow(`SELECT token, app_id, user_id, scopes, COALESCE(resource,''),
-		COALESCE(amr,''), COALESCE(auth_time,0), COALESCE(auth_code,''),
+		COALESCE(amr,''), COALESCE(auth_time,0), COALESCE(auth_code,''), COALESCE(session_id,''),
 		expires_at, COALESCE(rotated_from,''), revoked, created_at FROM refresh_tokens WHERE token=?`, hash)
 	t := &RefreshToken{}
 	err := row.Scan(&t.TokenHash, &t.AppID, &t.UserID, &t.Scopes, &t.Resource,
-		&t.AMR, &t.AuthTime, &t.AuthCode,
+		&t.AMR, &t.AuthTime, &t.AuthCode, &t.SessionID,
 		&t.ExpiresAt, &t.RotatedFrom, &t.Revoked, &t.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -124,10 +124,10 @@ func (s *Store) GetRefreshTokenByHash(hash string) (*RefreshToken, error) {
 
 func (s *Store) InsertRefreshToken(t *RefreshToken) error {
 	_, err := s.db.Exec(`INSERT INTO refresh_tokens
-		(token, app_id, user_id, scopes, resource, amr, auth_time, auth_code, expires_at, rotated_from, revoked, created_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,0,?)`,
+		(token, app_id, user_id, scopes, resource, amr, auth_time, auth_code, session_id, expires_at, rotated_from, revoked, created_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?)`,
 		t.TokenHash, t.AppID, t.UserID, t.Scopes, nullable(t.Resource),
-		nullable(t.AMR), t.AuthTime, nullable(t.AuthCode), t.ExpiresAt,
+		nullable(t.AMR), t.AuthTime, nullable(t.AuthCode), nullable(t.SessionID), t.ExpiresAt,
 		nullable(t.RotatedFrom), t.CreatedAt)
 	return mapConstraint(err)
 }
@@ -151,11 +151,11 @@ func (s *Store) RotateRefreshToken(oldHash string, successor *RefreshToken) (boo
 		}
 		won = true
 		_, err = tx.Exec(`INSERT INTO refresh_tokens
-			(token, app_id, user_id, scopes, resource, amr, auth_time, auth_code, expires_at, rotated_from, revoked, created_at)
-			VALUES (?,?,?,?,?,?,?,?,?,?,0,?)`,
+			(token, app_id, user_id, scopes, resource, amr, auth_time, auth_code, session_id, expires_at, rotated_from, revoked, created_at)
+			VALUES (?,?,?,?,?,?,?,?,?,?,?,0,?)`,
 			successor.TokenHash, successor.AppID, successor.UserID, successor.Scopes,
 			nullable(successor.Resource), nullable(successor.AMR), successor.AuthTime,
-			nullable(successor.AuthCode), successor.ExpiresAt, oldHash, successor.CreatedAt)
+			nullable(successor.AuthCode), nullable(successor.SessionID), successor.ExpiresAt, oldHash, successor.CreatedAt)
 		return err
 	})
 	return won, err
