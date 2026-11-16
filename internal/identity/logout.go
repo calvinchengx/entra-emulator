@@ -5,7 +5,9 @@ import (
 	"html"
 	"net/http"
 	"net/url"
+	"strings"
 
+	"github.com/calvinchengx/entra-emulator/internal/httpx"
 	"github.com/calvinchengx/entra-emulator/internal/tokens"
 )
 
@@ -33,39 +35,13 @@ func (i *Identity) handleLogout(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 	if len(rpLogoutURIs) > 0 {
-		i.renderFrontchannelLogout(w, rpLogoutURIs, i.validatedPostLogoutRedirect(q), sessionID)
+		i.renderFrontchannelLogout(w, rpLogoutURIs, i.validatedPostLogoutRedirect(q), tokens.FrontchannelSID(sessionID))
 		return
 	}
-	target := q.Get("post_logout_redirect_uri")
+	target := i.validatedPostLogoutRedirect(q)
 	if target == "" {
 		i.renderSignedOut(w)
 		return
-	}
-
-	clientID := q.Get("client_id")
-	if clientID == "" {
-		// Best-effort inference from the unverified id_token_hint's aud.
-		if hint := q.Get("id_token_hint"); hint != "" {
-			if claims, err := tokens.DecodeUnverified(hint); err == nil {
-				clientID, _ = claims["aud"].(string)
-			}
-		}
-	}
-	if clientID == "" {
-		i.renderSignedOut(w) // never redirect to an unvalidated URI
-		return
-	}
-	if ok, _ := i.Store.HasRedirectURI(clientID, target); !ok {
-		i.renderSignedOut(w)
-		return
-	}
-
-	if state := q.Get("state"); state != "" {
-		sep := "?"
-		if u, err := url.Parse(target); err == nil && u.RawQuery != "" {
-			sep = "&"
-		}
-		target += sep + "state=" + url.QueryEscape(state)
 	}
 	http.Redirect(w, r, target, http.StatusFound)
 }
@@ -76,13 +52,32 @@ func (i *Identity) handleLogout(w http.ResponseWriter, r *http.Request) {
 func (i *Identity) renderFrontchannelLogout(w http.ResponseWriter, uris []string, target, sid string) {
 	frames := ""
 	for _, u := range uris {
-		sep := "?"
-		if parsed, err := url.Parse(u); err == nil && parsed.RawQuery != "" {
-			sep = "&"
+		// Old databases/imported fixtures may contain unvalidated registrations.
+		if !httpx.ValidFrontchannelLogoutURI(u) {
+			continue
 		}
-		src := u + sep + url.Values{"iss": {i.Cfg.Issuer}, "sid": {sid}}.Encode()
+		parsed, _ := url.Parse(u) // validated above
+		// Keep application parameters byte for byte, including valueless keys
+		// and pairs net/url.ParseQuery would discard (for example, semicolons).
+		// Replace only the OP-owned fields, including percent-encoded names.
+		parts := make([]string, 0, 4)
+		for _, part := range strings.Split(parsed.RawQuery, "&") {
+			key, _, _ := strings.Cut(part, "=")
+			decoded, err := url.QueryUnescape(key)
+			if part == "" || (err == nil && (decoded == "iss" || decoded == "sid")) {
+				continue
+			}
+			parts = append(parts, part)
+		}
+		parts = append(parts, url.Values{"iss": {i.Cfg.Issuer}, "sid": {sid}}.Encode())
+		parsed.RawQuery = strings.Join(parts, "&")
+		src := parsed.String()
 		frames += fmt.Sprintf(`<iframe src="%s" style="display:none" title="logout"></iframe>`,
 			html.EscapeString(src))
+	}
+	if frames == "" && target == "" {
+		i.renderSignedOut(w)
+		return
 	}
 	cont := ""
 	if target != "" {
@@ -116,5 +111,15 @@ func (i *Identity) validatedPostLogoutRedirect(q url.Values) string {
 	if ok, _ := i.Store.HasRedirectURI(clientID, target); !ok {
 		return ""
 	}
-	return target
+	u, err := url.Parse(target)
+	if err != nil {
+		return ""
+	}
+	if state := q.Get("state"); state != "" {
+		if u.RawQuery != "" {
+			u.RawQuery += "&"
+		}
+		u.RawQuery += "state=" + url.QueryEscape(state)
+	}
+	return u.String()
 }

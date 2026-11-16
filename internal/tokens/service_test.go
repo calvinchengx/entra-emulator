@@ -439,10 +439,12 @@ func TestEnrich(t *testing.T) {
 		return map[string]any{
 			"custom_claim": "hello-" + kind,
 			"sub":          "HIJACKED", // protected: must be ignored
+			"sid":          "HIJACKED", // must not redirect logout correlation
 		}
 	}
 	resp, err := svc.BuildDelegatedResponse(DelegatedGrant{
 		App: app, User: user, Scopes: []string{"openid", "User.Read"},
+		SessionID: "public-session-id",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -454,9 +456,15 @@ func TestEnrich(t *testing.T) {
 	if c["sub"] == "HIJACKED" {
 		t.Fatal("enricher must not override protected sub claim")
 	}
+	if c["sid"] != "public-session-id" {
+		t.Fatal("enricher must not override protected sid claim")
+	}
 	ac, _ := DecodeUnverified(resp.AccessToken)
 	if ac["custom_claim"] != "hello-accessToken" {
 		t.Fatalf("access custom_claim = %v", ac["custom_claim"])
+	}
+	if _, ok := ac["sid"]; ok {
+		t.Fatal("enricher must not introduce sid into access tokens")
 	}
 
 	// nil enricher is a no-op.

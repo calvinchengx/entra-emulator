@@ -37,6 +37,13 @@ device code); **omitted** for client credentials. `Cache-Control: no-store`,
 
 ## ID token claims
 
+Browser sign-ins also carry `sid`, a public identifier matching the session's
+front-channel logout notifications. It is derived from the provider session with
+a domain-separated SHA-256 hash; the bearer SSO cookie is never exposed to RPs.
+Code, implicit and hybrid flows share it, and refresh-token rotations preserve it.
+Grants without a browser session omit it. Existing grants migrated from an older
+database also omit it until a fresh browser sign-in establishes the correlation.
+
 | Claim | Value |
 |---|---|
 | `iss` | GUID-form issuer `${loginOrigin}/${tenantId}/v2.0` |

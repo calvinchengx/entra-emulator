@@ -216,9 +216,11 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	if user != nil {
 		amr := "pwd"
 		var authTime int64
+		sessionID := ""
 		if sess != nil {
 			amr = sess.AuthMethod
 			authTime = sess.AuthTime()
+			sessionID = tokens.FrontchannelSID(sess.ID)
 		}
 		if i.Cfg.RequireConsent && prompt != "none" {
 			i.renderConsent(w, st, app)
@@ -227,7 +229,7 @@ func (i *Identity) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		if sess != nil {
 			_ = i.Store.RecordSessionApp(sess.ID, app.ID)
 		}
-		i.issueCodeAndDeliver(w, st, app, user, amr, authTime)
+		i.issueCodeAndDeliver(w, st, app, user, amr, authTime, sessionID)
 		return
 	}
 
@@ -256,7 +258,7 @@ func (i *Identity) handleConsentDecision(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	_ = i.Store.RecordSessionApp(sess.ID, app.ID)
-	i.issueCodeAndDeliver(w, st, app, user, sess.AuthMethod, sess.AuthTime())
+	i.issueCodeAndDeliver(w, st, app, user, sess.AuthMethod, sess.AuthTime(), tokens.FrontchannelSID(sess.ID))
 }
 
 // renderSignIn shows the account picker or password form for the request.
@@ -329,11 +331,15 @@ func (i *Identity) handleSignInSubmit(w http.ResponseWriter, r *http.Request) {
 		i.renderConsent(w, st, app)
 		return
 	}
-	i.issueCodeAndDeliver(w, st, app, user, "pwd", authTime)
+	sessionID := ""
+	if newSess != nil {
+		sessionID = tokens.FrontchannelSID(newSess.ID)
+	}
+	i.issueCodeAndDeliver(w, st, app, user, "pwd", authTime, sessionID)
 }
 
 // issueCodeAndDeliver mints the auth code and returns it per response_mode.
-func (i *Identity) issueCodeAndDeliver(w http.ResponseWriter, st authorizeState, app *store.App, user *store.User, amr string, authTime int64) {
+func (i *Identity) issueCodeAndDeliver(w http.ResponseWriter, st authorizeState, app *store.App, user *store.User, amr string, authTime int64, sessionID string) {
 	resolved := i.ResolveDelegatedScopes(SplitScopes(st.Scope))
 	if resolved == nil {
 		i.deliverAuthorizeError(w, st, "invalid_scope", "A requested resource scope is not registered.")
@@ -343,7 +349,7 @@ func (i *Identity) issueCodeAndDeliver(w http.ResponseWriter, st authorizeState,
 		AppID: app.ID, UserID: user.ID, RedirectURI: st.RedirectURI,
 		Scopes: resolved.Granted, Resource: resolved.Resource,
 		CodeChallenge: st.Challenge, ChallengeMethod: st.Method, Nonce: st.Nonce, AMR: amr,
-		AuthTime: authTime, MaxAgeRequested: st.HasMaxAge,
+		AuthTime: authTime, MaxAgeRequested: st.HasMaxAge, SessionID: sessionID,
 	})
 	if err != nil {
 		i.renderErrorPage(w, http.StatusInternalServerError, "Error", "Could not issue an authorization code.")
@@ -357,7 +363,7 @@ func (i *Identity) issueCodeAndDeliver(w http.ResponseWriter, st authorizeState,
 		idToken, err := i.Tokens.MintIDToken(tokens.DelegatedGrant{
 			App: app, User: user, Scopes: resolved.Granted,
 			Resource: resolved.Resource, Nonce: st.Nonce, AMR: amr,
-			AuthTime: authTime, MaxAgeRequested: st.HasMaxAge,
+			AuthTime: authTime, MaxAgeRequested: st.HasMaxAge, SessionID: sessionID,
 		})
 		if err != nil {
 			i.renderErrorPage(w, http.StatusInternalServerError, "Error", "Could not issue an ID token.")

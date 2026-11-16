@@ -30,7 +30,7 @@ type Service struct {
 var protectedClaims = map[string]bool{
 	"iss": true, "aud": true, "exp": true, "iat": true, "nbf": true,
 	"sub": true, "tid": true, "oid": true, "azp": true, "appid": true,
-	"scp": true, "roles": true, "ver": true, "nonce": true,
+	"scp": true, "roles": true, "ver": true, "nonce": true, "sid": true,
 	"name": true, "preferred_username": true, "email": true,
 }
 
@@ -192,12 +192,24 @@ func (s *Service) clientInfo(userOID, tid string) string {
 	return base64.RawURLEncoding.EncodeToString(raw)
 }
 
+// FrontchannelSID derives a public logout identifier from a bearer SSO cookie.
+// The one-way, domain-separated hash lets RPs correlate ID tokens and logout
+// notifications without giving them a credential for the provider session.
+func FrontchannelSID(sessionCookie string) string {
+	if sessionCookie == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte("entra-emulator/frontchannel-sid/v1|" + sessionCookie))
+	return base64.RawURLEncoding.EncodeToString(sum[:])
+}
+
 // DelegatedGrant carries everything needed to build a delegated response.
 type DelegatedGrant struct {
-	App      *store.App
-	User     *store.User
-	Scopes   []string // granted scope names (OIDC + short resource names) -> scp claim
-	Resource string   // resolved audience ("" -> GraphResourceID)
+	SessionID string // public sid, never the provider session cookie
+	App       *store.App
+	User      *store.User
+	Scopes    []string // granted scope names (OIDC + short resource names) -> scp claim
+	Resource  string   // resolved audience ("" -> GraphResourceID)
 	// ScopeEcho is what the token RESPONSE's `scope` parameter reports, as
 	// distinct from the `scp` claim. They differ for resource scopes: `scp`
 	// carries short names ("access_as_user"), while the response echoes what
@@ -267,7 +279,7 @@ func (s *Service) BuildDelegatedResponse(g DelegatedGrant) (*TokenResponse, erro
 	if hasScope(g.Scopes, "offline_access") && !g.SkipRefreshToken {
 		rt, err := s.IssueRefreshToken(RefreshRequest{
 			AppID: g.App.ID, UserID: g.User.ID, Scopes: g.Scopes, Resource: g.Resource,
-			AMR: g.AMR, AuthTime: g.AuthTime, AuthCode: g.AuthCode,
+			AMR: g.AMR, AuthTime: g.AuthTime, AuthCode: g.AuthCode, SessionID: g.SessionID,
 		})
 		if err != nil {
 			return nil, err
@@ -320,6 +332,9 @@ func (s *Service) mintIDToken(g DelegatedGrant, now int64) (string, error) {
 	}
 	if g.User.Mail != "" {
 		claims["email"] = g.User.Mail
+	}
+	if g.SessionID != "" {
+		claims["sid"] = g.SessionID
 	}
 	if g.Nonce != "" {
 		claims["nonce"] = g.Nonce
@@ -508,6 +523,7 @@ func (s *Service) applyTokenConfig(claims map[string]any, app *store.App, user *
 // ---- Authorization codes ----
 
 type AuthCodeRequest struct {
+	SessionID                             string // public sid for the browser session
 	AppID, UserID, RedirectURI            string
 	Scopes                                []string
 	Resource                              string
@@ -525,7 +541,7 @@ func (s *Service) IssueAuthCode(r AuthCodeRequest) (string, error) {
 		Code: code, AppID: r.AppID, UserID: r.UserID, RedirectURI: r.RedirectURI,
 		Scopes: strings.Join(r.Scopes, " "), Resource: r.Resource,
 		CodeChallenge: r.CodeChallenge, CodeChallengeMethod: r.ChallengeMethod,
-		Nonce: r.Nonce, AMR: r.AMR, AuthTime: r.AuthTime, MaxAgeRequested: r.MaxAgeRequested,
+		Nonce: r.Nonce, AMR: r.AMR, AuthTime: r.AuthTime, MaxAgeRequested: r.MaxAgeRequested, SessionID: r.SessionID,
 		ExpiresAt: now + int64(s.Cfg.Lifetimes.AuthCode), CreatedAt: now,
 	})
 	if err != nil {
@@ -607,6 +623,7 @@ func verifyPKCE(challenge, method, verifier string) bool {
 // `rotatedFrom` and `amr` sitting adjacent in a call is exactly the shape that
 // gets silently transposed.
 type RefreshRequest struct {
+	SessionID     string // inherited public sid; empty for grants without a browser session
 	AppID, UserID string
 	Scopes        []string
 	Resource      string
@@ -630,7 +647,7 @@ func (s *Service) IssueRefreshToken(r RefreshRequest) (string, error) {
 	err := s.Store.InsertRefreshToken(&store.RefreshToken{
 		TokenHash: store.HashToken(plain), AppID: r.AppID, UserID: r.UserID,
 		Scopes: strings.Join(r.Scopes, " "), Resource: r.Resource,
-		AMR: r.AMR, AuthTime: r.AuthTime, AuthCode: r.AuthCode,
+		AMR: r.AMR, AuthTime: r.AuthTime, AuthCode: r.AuthCode, SessionID: r.SessionID,
 		ExpiresAt:   now + int64(refreshSec),
 		RotatedFrom: r.RotatedFrom, CreatedAt: now,
 	})
@@ -642,6 +659,7 @@ func (s *Service) IssueRefreshToken(r RefreshRequest) (string, error) {
 
 // RedeemedRefresh is the result of a successful rotation.
 type RedeemedRefresh struct {
+	SessionID        string
 	UserID, Resource string
 	Scopes           []string
 	NewRefreshToken  string // plaintext successor (issued iff offline_access kept)
@@ -698,7 +716,7 @@ func (s *Service) RedeemRefreshToken(plaintext, appID string, requestedScopes []
 		// auth_code for the same reason: a chain rotated a dozen times is still
 		// descended from the code that started it, and a replay of that code
 		// must reach the whole chain.
-		AMR: row.AMR, AuthTime: row.AuthTime, AuthCode: row.AuthCode,
+		AMR: row.AMR, AuthTime: row.AuthTime, AuthCode: row.AuthCode, SessionID: row.SessionID,
 		ExpiresAt: now + int64(s.Cfg.Lifetimes.RefreshToken), CreatedAt: now,
 	})
 	if err != nil {
@@ -713,7 +731,7 @@ func (s *Service) RedeemRefreshToken(plaintext, appID string, requestedScopes []
 	}
 
 	out := &RedeemedRefresh{UserID: row.UserID, Resource: row.Resource, Scopes: scopes,
-		AMR: row.AMR, AuthTime: row.AuthTime}
+		AMR: row.AMR, AuthTime: row.AuthTime, SessionID: row.SessionID}
 	if hasScope(scopes, "offline_access") {
 		out.NewRefreshToken = successorPlain
 	}

@@ -153,6 +153,7 @@ func (a *Admin) appDTO(app *store.App) map[string]any {
 	scopes, _ := a.Store.ListScopes(app.ID)
 	roles, _ := a.Store.ListRoles(app.ID)
 	secrets, _ := a.Store.ListSecrets(app.ID)
+	logoutURI, _ := a.Store.FrontchannelLogoutURI(app.ID)
 
 	redirectDTOs := make([]map[string]any, 0, len(redirects))
 	for _, u := range redirects {
@@ -184,6 +185,7 @@ func (a *Admin) appDTO(app *store.App) map[string]any {
 		"appIdUri": nullable(app.AppIDURI), "redirectUris": redirectDTOs,
 		"exposedScopes": scopeDTOs, "appRoles": roleDTOs, "secrets": secretDTOs,
 		"groupMembershipClaims": app.GroupMembershipClaims,
+		"frontchannelLogoutUri": nullable(logoutURI),
 		"createdAt":             iso(app.CreatedAt),
 	}
 }
@@ -236,6 +238,11 @@ func (a *Admin) createApp(w http.ResponseWriter, r *http.Request) {
 	if !decodeBody(w, r, &b) {
 		return
 	}
+	if b.FrontchannelLogoutURI != nil && *b.FrontchannelLogoutURI != "" && !httpx.ValidFrontchannelLogoutURI(*b.FrontchannelLogoutURI) {
+		httpx.WriteAdminError(w, http.StatusBadRequest, "validation_error", "Invalid frontchannelLogoutUri.",
+			httpx.AdminDetail{Field: "frontchannelLogoutUri", Message: "Must be an absolute HTTP(S) URI without userinfo or fragment."})
+		return
+	}
 	if b.DisplayName == nil || *b.DisplayName == "" {
 		httpx.WriteAdminError(w, http.StatusBadRequest, "validation_error", "Invalid app.",
 			httpx.AdminDetail{Field: "displayName", Message: "Required."})
@@ -258,6 +265,12 @@ func (a *Admin) createApp(w http.ResponseWriter, r *http.Request) {
 	if err := a.Store.CreateApp(app); err != nil {
 		writeStoreErr(w, err)
 		return
+	}
+	if b.FrontchannelLogoutURI != nil {
+		if err := a.Store.SetFrontchannelLogoutURI(app.ID, *b.FrontchannelLogoutURI); err != nil {
+			writeStoreErr(w, err)
+			return
+		}
 	}
 	for _, ru := range b.RedirectUris {
 		if _, err := a.Store.AddRedirectURI(app.ID, ru.URI, ru.Type); err != nil {
@@ -309,6 +322,11 @@ func (a *Admin) patchApp(w http.ResponseWriter, r *http.Request) {
 	}
 	var b appBody
 	if !decodeBody(w, r, &b) {
+		return
+	}
+	if b.FrontchannelLogoutURI != nil && *b.FrontchannelLogoutURI != "" && !httpx.ValidFrontchannelLogoutURI(*b.FrontchannelLogoutURI) {
+		httpx.WriteAdminError(w, http.StatusBadRequest, "validation_error", "Invalid frontchannelLogoutUri.",
+			httpx.AdminDetail{Field: "frontchannelLogoutUri", Message: "Must be an absolute HTTP(S) URI without userinfo or fragment."})
 		return
 	}
 	applyAppBody(app, &b)
