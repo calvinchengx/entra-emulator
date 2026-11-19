@@ -180,6 +180,35 @@ func (s *Store) DeleteAppRoleAssignment(id string) error {
 	return requireRow(res)
 }
 
+// UserAppRoleValues returns the app-role values a user holds on resource: the
+// roles assigned to the user directly plus those assigned to any group the
+// user is a direct member of. Entra does not expand nested groups for app-role
+// assignments (and this directory has none). The default assignment (all-zero
+// appRoleId) matches no role row, so it grants no value. Sorted and distinct.
+func (s *Store) UserAppRoleValues(userID, resourceID string) ([]string, error) {
+	rows, err := s.db.Query(
+		`SELECT DISTINCT r.value
+		   FROM app_role_assignments ara
+		   JOIN app_roles r ON r.id = ara.app_role_id
+		  WHERE ara.resource_id = ? AND r.value <> ''
+		    AND (ara.principal_id = ?
+		         OR ara.principal_id IN (SELECT group_id FROM group_members WHERE user_id = ?))
+		  ORDER BY r.value`, resourceID, userID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var values []string
+	for rows.Next() {
+		var v string
+		if err := rows.Scan(&v); err != nil {
+			return nil, err
+		}
+		values = append(values, v)
+	}
+	return values, rows.Err()
+}
+
 // AssignedAppRoleValues returns the app-role values assigned to principal on
 // resource (resolving app_role_id → role value, skipping the zero-GUID default)
 // and whether any assignment exists for the pair. When an assignment exists the

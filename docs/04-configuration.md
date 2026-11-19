@@ -58,3 +58,20 @@ key(s)** — no partial boot.
 - Exactly one of `TLS_CERT`/`TLS_KEY` set → error ("both or neither").
 - Lifetimes must be positive integers.
 - The frozen, validated config struct is the single source read by every package.
+
+## User app roles (`roles` claim)
+
+App roles reach a signed-in user's tokens through stored assignments, not configuration.
+Assign a role with `POST /v1.0/servicePrincipals/{resource app id}/appRoleAssignedTo`,
+using the user's or a group's id as `principalId` (`docs/20-stateful-directory.md`):
+
+- The **access token** carries the user's roles on the resource app it is issued for.
+  Graph-audience tokens never carry a local app's roles.
+- The **ID token** carries the user's roles on the client app it is issued to.
+- A role assigned to a **group** reaches the group's direct members; nested groups are not
+  expanded, as in Entra. Direct and group assignments combine.
+- There is no auto-grant for users. With no specific role assignment, or only the default
+  (all-zero `appRoleId`) assignment, `roles` is omitted. Otherwise it is always an array,
+  sorted and with duplicates removed.
+
+Claim shapes are in `docs/07-token-service.md`.

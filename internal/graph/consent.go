@@ -169,6 +169,10 @@ func (g *Graph) araShape(a *store.AppRoleAssignment) map[string]any {
 		if u, err := g.Store.GetUser(a.PrincipalID); err == nil {
 			shape["principalDisplayName"] = u.DisplayName
 		}
+	} else if a.PrincipalType == "Group" {
+		if grp, err := g.Store.GetGroup(a.PrincipalID); err == nil {
+			shape["principalDisplayName"] = grp.DisplayName
+		}
 	} else if app, err := g.Store.GetApp(a.PrincipalID); err == nil {
 		shape["principalDisplayName"] = app.DisplayName
 	}
@@ -198,9 +202,12 @@ func (g *Graph) createAppRoleAssignment(w http.ResponseWriter, r *http.Request, 
 	}
 	principalType := b.PrincipalType
 	if principalType == "" {
-		// Infer: a known user id → User, otherwise a service principal.
+		// Infer: a known user id → User, a known group id → Group, otherwise
+		// a service principal.
 		if _, err := g.Store.GetUser(b.PrincipalID); err == nil {
 			principalType = "User"
+		} else if _, err := g.Store.GetGroup(b.PrincipalID); err == nil {
+			principalType = "Group"
 		} else {
 			principalType = "ServicePrincipal"
 		}
