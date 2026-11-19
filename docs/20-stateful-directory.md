@@ -132,7 +132,8 @@ kinds (Microsoft docs: `identity/enterprise-apps/grant-consent-single-user.md`):
   **user** tokens.
 - **Application** permissions → `appRoleAssignment` objects
   (`servicePrincipals/{id}/appRoleAssignedTo`) → the `roles` claim in **app-only**
-  tokens.
+  tokens. The same assignments made to a **user** drive the `roles` claim in that
+  user's tokens.
 
 Because an app registration is its own service principal here, `clientId` /
 `resourceId` / `{id}` below are all **app (client) IDs**.
@@ -185,6 +186,14 @@ Because an app registration is its own service principal here, `clientId` /
   the `oauth2PermissionGrant`s that apply to `(client, resource, user)`
   (`AllPrincipals`, or `Principal` matching the signed-in user); only consented
   scopes land in `scp`.
+- **User app roles** — `appRoleAssignment`s whose principal is a user, or a group
+  the user is a direct member of, put the assigned role values in the `roles` claim
+  of that user's tokens: the access token when the resource is that app, and the ID
+  token when the client is that app. Nested groups are not expanded, as in Entra.
+  A group `principalId` is inferred as `principalType: Group`.
+  There is no auto-grant for users; with no specific assignment (or only the
+  all-zero default assignment), `roles` is omitted, as in Entra. Graph-audience
+  tokens never carry a local app's roles.
 
 **Divergence.** The emulator's client-credentials flow historically auto-grants an
 app its declared roles (`docs/07-token-service.md`). That fallback is preserved for

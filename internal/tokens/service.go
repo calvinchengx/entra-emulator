@@ -344,9 +344,26 @@ func (s *Service) mintIDToken(g DelegatedGrant, now int64) (string, error) {
 	if g.AuthTime > 0 && (g.MaxAgeRequested || appRequestsOptionalClaim(g.App, "idToken", "auth_time")) {
 		claims["auth_time"] = g.AuthTime
 	}
+	// The ID token's audience is the client, so it carries the user's roles
+	// on the client app itself (Entra's ID token `roles` claim).
+	s.addUserRoles(claims, g.User.ID, g.App.ID)
 	s.applyTokenConfig(claims, g.App, g.User, "idToken")
 	s.enrich(claims, g.App, g.User, "idToken")
 	return s.signTenant(tid, claims)
+}
+
+// addUserRoles sets the `roles` claim of a user token to the app-role values
+// the user holds on resourceAppID (Graph: appRoleAssignedTo), whether assigned
+// to the user directly or to a group the user belongs to. Unlike the app-only
+// path there is no auto-grant fallback: a user with no specific role
+// assignment gets no `roles` claim at all, as in Entra. The default assignment
+// (all-zero appRoleId) grants access but no role value.
+func (s *Service) addUserRoles(claims map[string]any, userID, resourceAppID string) {
+	values, err := s.Store.UserAppRoleValues(userID, resourceAppID)
+	if err != nil || len(values) == 0 {
+		return
+	}
+	claims["roles"] = values
 }
 
 func (s *Service) mintAccessDelegated(g DelegatedGrant, aud string, now int64) (string, error) {
@@ -366,12 +383,19 @@ func (s *Service) mintAccessDelegated(g DelegatedGrant, aud string, now int64) (
 	// Access-token optional claims come from the RESOURCE app's config; the
 	// emulator resolves the resource app when the audience is a local app.
 	resourceApp := g.App
+	resourceIsLocal := false
 	if aud != s.Cfg.GraphResourceID {
 		if byURI, err := s.Store.GetAppByIDURI(aud); err == nil {
-			resourceApp = byURI
+			resourceApp, resourceIsLocal = byURI, true
 		} else if byID, err := s.Store.GetApp(aud); err == nil {
-			resourceApp = byID
+			resourceApp, resourceIsLocal = byID, true
 		}
+	}
+	// The user's app roles on the resource. Only for a local resource app:
+	// resourceApp falls back to the client for Graph and unresolved audiences,
+	// and the client's roles do not belong in a token for someone else.
+	if resourceIsLocal {
+		s.addUserRoles(claims, g.User.ID, resourceApp.ID)
 	}
 	// Delegated consent (docs/20-stateful-directory.md): when explicit
 	// oauth2PermissionGrants exist for (client, resource), scp is the requested
