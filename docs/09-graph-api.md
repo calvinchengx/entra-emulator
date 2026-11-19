@@ -64,7 +64,9 @@ Backed by the same store as the admin API. Store errors map to Graph shapes: not
 
 Application shape: `{ id, appId, displayName, signInAudience, identifierUris, appRoles,
 api: { oauth2PermissionScopes } }`. Service-principal shape adds `servicePrincipalType`,
-`accountEnabled`, `oauth2PermissionScopes`, and `servicePrincipalNames`. There is **no
+`accountEnabled`, `oauth2PermissionScopes`, and `servicePrincipalNames` (`appId` then every
+identifier URI). `identifierUris` holds every URI the app answers to as a resource; create
+and PATCH replace the whole set (`[]` clears it), and a URI another app holds is refused. There is **no
 separate SP store** — each app registration is its own service principal and the object
 `id` is conflated with `appId` (documented divergence).
 

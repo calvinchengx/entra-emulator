@@ -138,7 +138,7 @@ On success: issue code (via token service) → deliver `code` + `state` per resp
 
 ### grant_type=client_credentials
 `client_id`*, `client_secret`*, `scope`* = exactly one `<resource>/.default`.
-Resolution order: `GRAPH_RESOURCE_ID` → app by `app_id_uri` → app by GUID → else
+Resolution order: `GRAPH_RESOURCE_ID` → app by any of its `identifierUris` → app by GUID → else
 `invalid_scope`. **Reserved OIDC scopes (`openid profile offline_access`) accompanying
 `.default` are silently ignored** — MSAL Go and azidentity append them to
 client-credentials requests and real Entra tolerates that (found by the Go e2e
@@ -151,7 +151,7 @@ A confidential middle-tier exchanges a user access token it received for a downs
 token as the same user. Params: `client_id`* + `client_secret`* (confidential only),
 `assertion`* (the incoming user token), `scope`* (downstream), `requested_token_use`*
 = `on_behalf_of`. **Rule (entra-docs):** the assertion's `aud` must be this middle-tier
-(its `appId` or `app_id_uri`) — a token for another resource (e.g. Graph) is rejected
+(its `appId` or any of its `identifierUris`) — a token for another resource (e.g. Graph) is rejected
 `invalid_grant`. The assertion must be delegated (has `oid`); app-only → `invalid_grant`.
 Result: a new delegated token, same `oid`/`sub`-user, `azp`/`appid` = the middle-tier,
 `aud` = the downstream resource. (Cert-based `client_assertion` is roadmap #13.)

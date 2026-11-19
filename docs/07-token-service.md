@@ -61,8 +61,9 @@ device code); **omitted** for client credentials. `Cache-Control: no-store`,
 | `scp` | space-delimited granted scope **names** | **omitted** |
 | `roles` | omitted | array of auto-granted app roles (may be `[]`) |
 
-**Audience rule:** resource scope `api://<x>/<scope>` or app GUID → `aud` = that
-`app_id_uri`/GUID. Graph scopes (`https://graph.microsoft.com/...` or known bare names
+**Audience rule:** resource scope `<identifier URI>/<scope>` or app GUID → `aud` = that
+identifier URI/GUID. An app can have several identifier URIs (`identifierUris`, e.g.
+`api://x` and `https://x.example.com`); each resolves the app, and `aud` is the one requested. Graph scopes (`https://graph.microsoft.com/...` or known bare names
 like `User.Read`) → `aud` = `GRAPH_RESOURCE_ID`. OIDC-only requests → `aud` defaults to
 `GRAPH_RESOURCE_ID` (so `/me` works post-sign-in). `scp` carries short names only
 (`User.Read`, not the prefixed form).

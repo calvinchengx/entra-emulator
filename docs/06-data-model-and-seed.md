@@ -17,7 +17,7 @@ booleans are `INTEGER 0/1`.
 | `users` | **id**, tenant_id FK, user_principal_name UNIQUE, display_name, given_name?, surname?, mail?, password_hash?, account_enabled=1, created_at | `id` == `oid`. Index on mail. |
 | `groups` | **id**, tenant_id FK, display_name, description?, created_at | |
 | `group_members` | **(group_id, user_id)** both FK CASCADE | Index on user_id. |
-| `app_registrations` | **app_id**, tenant_id FK, display_name, is_confidential=0, app_id_uri?, optional_claims? (JSON), group_membership_claims='None', group_overage_limit?, created_at | `app_id_uri` unique when non-null (enforced by admin API, 409 on dup). |
+| `app_registrations` | **app_id**, tenant_id FK, display_name, is_confidential=0, app_id_uri?, additional_identifier_uris? (JSON array), optional_claims? (JSON), group_membership_claims='None', group_overage_limit?, created_at | `identifierUris` = `app_id_uri` then `additional_identifier_uris`. Every identifier URI is unique across apps (enforced by the store, 409 on dup). |
 | `app_redirect_uris` | **id** AUTOINC, app_id FK CASCADE, uri, type='web' | UNIQUE(app_id, uri); type ∈ web\|spa\|native. |
 | `app_secrets` | **id**, app_id FK CASCADE, display_name?, secret_hash, hint?, expires_at?, created_at | Plaintext returned once at creation (admin API). |
 | `app_scopes` | **id**, app_id FK CASCADE, value, admin_consent_display_name?, is_enabled=1 | UNIQUE(app_id, value). Delegated `scp` values. |
