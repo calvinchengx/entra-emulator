@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/calvinchengx/entra-emulator/main/schemas/manifest.schema.json",
+  "title": "Entra Emulator manifest",
+  "description": "Declarative directory loaded at startup when MANIFEST_FILE is set (docs/04-configuration.md). It replaces the deterministic seed, and its tenantId and tokenLifetimes replace TENANT_ID and TOKEN_LIFETIME_*. Property names follow Microsoft Graph's application, user and group resources.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tenantId"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "tenantId": {
+      "$ref": "#/$defs/guid",
+      "description": "The tenant's id: the {tenant} path segment and the tid claim."
+    },
+    "tokenLifetimes": { "$ref": "#/$defs/tokenLifetimes" },
+    "applications": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/application" }
+    },
+    "users": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/user" }
+    },
+    "groups": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/group" }
+    }
+  },
+  "$defs": {
+    "guid": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "seconds": { "type": "integer", "minimum": 1 },
+    "tokenLifetimes": {
+      "type": "object",
+      "description": "Token lifetimes in seconds. Omitted values use the defaults.",
+      "additionalProperties": false,
+      "properties": {
+        "authCode": { "$ref": "#/$defs/seconds", "default": 300 },
+        "idToken": { "$ref": "#/$defs/seconds", "default": 3600 },
+        "accessToken": { "$ref": "#/$defs/seconds", "default": 3600 },
+        "refreshToken": { "$ref": "#/$defs/seconds", "default": 86400 },
+        "deviceCode": { "$ref": "#/$defs/seconds", "default": 900 }
+      }
+    },
+    "application": {
+      "type": "object",
+      "description": "An app registration, which is also its own service principal. It is a confidential client when it has clientSecrets.",
+      "additionalProperties": false,
+      "required": ["appId", "displayName"],
+      "properties": {
+        "appId": { "$ref": "#/$defs/guid", "description": "The client id." },
+        "displayName": { "type": "string", "minLength": 1 },
+        "identifierUris": {
+          "type": "array",
+          "description": "The URI the app is known by as a resource, e.g. api://my-api. Unique across applications.",
+          "maxItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "clientSecrets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/clientSecret" }
+        },
+        "web": { "$ref": "#/$defs/redirectUris" },
+        "spa": { "$ref": "#/$defs/redirectUris" },
+        "publicClient": { "$ref": "#/$defs/redirectUris" },
+        "api": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "oauth2PermissionScopes": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/permissionScope" }
+            }
+          }
+        },
+        "appRoles": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/appRole" }
+        },
+        "groupMembershipClaims": {
+          "enum": ["None", "SecurityGroup", "DirectoryRole", "ApplicationGroup", "All"],
+          "default": "None"
+        },
+        "appRoleAssignments": {
+          "type": "array",
+          "description": "Application permissions this app holds on other apps (roles allowing the Application member type).",
+          "items": { "$ref": "#/$defs/appRoleAssignment" }
+        }
+      }
+    },
+    "clientSecret": {
+      "type": "object",
+      "description": "A client secret in plain text. It is stored hashed.",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "displayName": { "type": "string" },
+        "value": { "type": "string", "minLength": 1 }
+      }
+    },
+    "redirectUris": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "redirectUris": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "permissionScope": {
+      "type": "object",
+      "description": "A delegated permission the app exposes, requested as <identifierUri>/<value>.",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "id": { "$ref": "#/$defs/guid", "description": "Derived from the appId and value when omitted." },
+        "value": { "type": "string", "minLength": 1 },
+        "adminConsentDisplayName": { "type": "string" },
+        "isEnabled": { "type": "boolean", "default": true }
+      }
+    },
+    "appRole": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "allowedMemberTypes"],
+      "properties": {
+        "id": { "$ref": "#/$defs/guid", "description": "Derived from the appId and value when omitted." },
+        "value": { "type": "string", "minLength": 1 },
+        "displayName": { "type": "string" },
+        "allowedMemberTypes": {
+          "type": "array",
+          "description": "User covers users and groups; Application covers apps (application permissions).",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["User", "Application"] }
+        },
+        "isEnabled": { "type": "boolean", "default": true }
+      }
+    },
+    "user": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["userPrincipalName", "displayName"],
+      "properties": {
+        "id": { "$ref": "#/$defs/guid", "description": "The oid claim. Derived from the userPrincipalName when omitted." },
+        "userPrincipalName": { "type": "string", "pattern": "^[^@\\s]+@[^@\\s]+$" },
+        "displayName": { "type": "string", "minLength": 1 },
+        "givenName": { "type": "string" },
+        "surname": { "type": "string" },
+        "mail": { "type": "string" },
+        "password": {
+          "type": "string",
+          "description": "Needed only for password sign-in (REQUIRE_PASSWORD, ROPC). Stored hashed."
+        },
+        "accountEnabled": { "type": "boolean", "default": true },
+        "appRoleAssignments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/appRoleAssignment" }
+        }
+      }
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["displayName"],
+      "properties": {
+        "id": { "$ref": "#/$defs/guid", "description": "Derived from the displayName when omitted." },
+        "displayName": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "members": {
+          "type": "array",
+          "description": "Direct members: each a user's userPrincipalName or id.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "appRoleAssignments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/appRoleAssignment" }
+        }
+      }
+    },
+    "appRoleAssignment": {
+      "type": "object",
+      "description": "A role on another application, held by the enclosing user, group or application.",
+      "additionalProperties": false,
+      "required": ["resourceAppId"],
+      "properties": {
+        "resourceAppId": { "$ref": "#/$defs/guid", "description": "appId of the application defining the role." },
+        "appRole": {
+          "type": "string",
+          "description": "The role's value. Omit for the default access assignment, which carries no role."
+        }
+      }
+    }
+  }
+}

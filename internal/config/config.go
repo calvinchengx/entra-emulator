@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/calvinchengx/entra-emulator/internal/manifest"
 )
 
 const (
@@ -58,6 +60,12 @@ type Config struct {
 	// valid Graph-audience token, so enabling it is opt-in.
 	GraphPermissions bool
 	SeedOnStart      bool
+	// ManifestPath names the JSON manifest the directory is loaded from
+	// (MANIFEST_FILE); Manifest is that manifest, parsed and validated. With a
+	// manifest the deterministic seed is skipped, and the manifest's tenant
+	// and token lifetimes replace TENANT_ID and TOKEN_LIFETIME_*.
+	ManifestPath string
+	Manifest     *manifest.Manifest
 	// RequestLog prints one line per HTTP request. OFF by default: this is a
 	// dev server people leave running, and a request line per token refresh is
 	// noise. It exists because the ABSENCE of requests was unreadable: the iOS
@@ -102,6 +110,7 @@ type fileConfig struct {
 	RequireConsent   *bool           `json:"requireConsent"`
 	GraphPermissions *bool           `json:"graphPermissions"`
 	SeedOnStart      *bool           `json:"seedOnStart"`
+	ManifestFile     *string         `json:"manifestFile"`
 	RequestLog       *bool           `json:"requestLog"`
 	DeviceInterval   *int            `json:"deviceCodeInterval"`
 	GraphResourceID  *string         `json:"graphResourceId"`
@@ -126,6 +135,27 @@ type fileTLifetimes struct {
 	AccessToken  *int `json:"accessToken"`
 	RefreshToken *int `json:"refreshToken"`
 	DeviceCode   *int `json:"deviceCode"`
+}
+
+// defaultLifetimes are the token lifetimes, in seconds, when nothing sets them.
+var defaultLifetimes = TokenLifetimes{AuthCode: 300, IDToken: 3600, AccessToken: 3600, RefreshToken: 86400, DeviceCode: 900}
+
+// manifestLifetimes overlays a manifest's token lifetimes on the defaults.
+func manifestLifetimes(m *manifest.TokenLifetimes) TokenLifetimes {
+	lf := defaultLifetimes
+	if m == nil {
+		return lf
+	}
+	for _, f := range []struct {
+		dst *int
+		v   int
+	}{{&lf.AuthCode, m.AuthCode}, {&lf.IDToken, m.IDToken}, {&lf.AccessToken, m.AccessToken},
+		{&lf.RefreshToken, m.RefreshToken}, {&lf.DeviceCode, m.DeviceCode}} {
+		if f.v > 0 {
+			*f.dst = f.v
+		}
+	}
+	return lf
 }
 
 var guidRe = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
@@ -194,12 +224,28 @@ func Load(getenv func(string) string) (*Config, error) {
 
 	lf := &TokenLifetimes{}
 	fileLT := file.TokenLifetimes
-	lf.AuthCode = resolveInt(getenv("TOKEN_LIFETIME_AUTH_CODE_SECONDS"), ltp(fileLT, func(t *fileTLifetimes) *int { return t.AuthCode }), 300, "TOKEN_LIFETIME_AUTH_CODE_SECONDS", fail)
-	lf.IDToken = resolveInt(getenv("TOKEN_LIFETIME_ID_SECONDS"), ltp(fileLT, func(t *fileTLifetimes) *int { return t.IDToken }), 3600, "TOKEN_LIFETIME_ID_SECONDS", fail)
-	lf.AccessToken = resolveInt(getenv("TOKEN_LIFETIME_ACCESS_SECONDS"), ltp(fileLT, func(t *fileTLifetimes) *int { return t.AccessToken }), 3600, "TOKEN_LIFETIME_ACCESS_SECONDS", fail)
-	lf.RefreshToken = resolveInt(getenv("TOKEN_LIFETIME_REFRESH_SECONDS"), ltp(fileLT, func(t *fileTLifetimes) *int { return t.RefreshToken }), 86400, "TOKEN_LIFETIME_REFRESH_SECONDS", fail)
-	lf.DeviceCode = resolveInt(getenv("TOKEN_LIFETIME_DEVICE_CODE_SECONDS"), ltp(fileLT, func(t *fileTLifetimes) *int { return t.DeviceCode }), 900, "TOKEN_LIFETIME_DEVICE_CODE_SECONDS", fail)
+	lf.AuthCode = resolveInt(getenv("TOKEN_LIFETIME_AUTH_CODE_SECONDS"), ltp(fileLT, func(t *fileTLifetimes) *int { return t.AuthCode }), defaultLifetimes.AuthCode, "TOKEN_LIFETIME_AUTH_CODE_SECONDS", fail)
+	lf.IDToken = resolveInt(getenv("TOKEN_LIFETIME_ID_SECONDS"), ltp(fileLT, func(t *fileTLifetimes) *int { return t.IDToken }), defaultLifetimes.IDToken, "TOKEN_LIFETIME_ID_SECONDS", fail)
+	lf.AccessToken = resolveInt(getenv("TOKEN_LIFETIME_ACCESS_SECONDS"), ltp(fileLT, func(t *fileTLifetimes) *int { return t.AccessToken }), defaultLifetimes.AccessToken, "TOKEN_LIFETIME_ACCESS_SECONDS", fail)
+	lf.RefreshToken = resolveInt(getenv("TOKEN_LIFETIME_REFRESH_SECONDS"), ltp(fileLT, func(t *fileTLifetimes) *int { return t.RefreshToken }), defaultLifetimes.RefreshToken, "TOKEN_LIFETIME_REFRESH_SECONDS", fail)
+	lf.DeviceCode = resolveInt(getenv("TOKEN_LIFETIME_DEVICE_CODE_SECONDS"), ltp(fileLT, func(t *fileTLifetimes) *int { return t.DeviceCode }), defaultLifetimes.DeviceCode, "TOKEN_LIFETIME_DEVICE_CODE_SECONDS", fail)
 	c.Lifetimes = *lf
+
+	// MANIFEST_FILE: a declarative directory (internal/manifest). Its tenant
+	// and token lifetimes replace TENANT_ID and TOKEN_LIFETIME_*, from the
+	// environment and this file alike, and it replaces the seed.
+	if path := resolveStr(getenv("MANIFEST_FILE"), file.ManifestFile, ""); path != "" {
+		m, err := manifest.Load(path)
+		if err != nil {
+			fail("MANIFEST_FILE", err.Error())
+		} else {
+			c.ManifestPath, c.Manifest = path, m
+			c.TenantID = m.TenantID
+			c.SeedOnStart = false
+			*lf = manifestLifetimes(m.TokenLifetimes)
+			c.Lifetimes = *lf
+		}
+	}
 
 	if raw := resolveStr(getenv("LOCAL_DOMAINS"), file.LocalDomains, ""); raw != "" {
 		for _, d := range strings.Split(raw, ",") {

@@ -9,6 +9,7 @@ first (`ORIGIN_MODE=compat ./entra-emulator` keeps everything on
 | [msal-node](msal-node/) | `@azure/msal-node` (Node.js) | Client credentials → call Graph |
 | [msal-python](msal-python/) | `msal` (Python) | Client credentials → call Graph |
 | [msal-go](msal-go/) | MSAL Go | Client credentials → call Graph (isolated module) |
+| [manifest](manifest/) | JSON | A `MANIFEST_FILE` directory: API, SPA, BFF, worker, users, a group and role assignments ([docs](https://calvinchengx.github.io/entra-emulator/04-configuration/#manifest)) |
 | [externalized-authz](externalized-authz/) | Go | Validate emulator tokens, then delegate fine-grained decisions to a PDP — with a [compat suite](externalized-authz/compat/) proving it against real OpenFGA + Casbin ([docs](https://calvinchengx.github.io/entra-emulator/15-externalized-authorization/)) |
 
 Each MSAL sample defaults to the seeded dev constants and accepts `EMU_*` env

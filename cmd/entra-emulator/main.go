@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/calvinchengx/entra-emulator/internal/config"
+	"github.com/calvinchengx/entra-emulator/internal/manifest"
 	"github.com/calvinchengx/entra-emulator/internal/server"
 	"github.com/calvinchengx/entra-emulator/internal/store"
 	"github.com/calvinchengx/entra-emulator/internal/tlscert"
@@ -65,7 +66,13 @@ func boot(cfg *config.Config) (*server.Server, *store.Store, error) {
 		_ = st.Close()
 		return nil, nil, fmt.Errorf("ensure tenant: %w", err)
 	}
-	if cfg.SeedOnStart {
+	if cfg.Manifest != nil {
+		if err := manifest.Apply(st, cfg.Manifest); err != nil {
+			_ = st.Close()
+			return nil, nil, fmt.Errorf("manifest %s: %w", cfg.ManifestPath, err)
+		}
+		log.Printf("loaded directory from manifest %s (tenant %s)", cfg.ManifestPath, cfg.TenantID)
+	} else if cfg.SeedOnStart {
 		if seeded, err := st.Seed(cfg.TenantID, cfg.Issuer); err != nil {
 			_ = st.Close()
 			return nil, nil, fmt.Errorf("seed: %w", err)

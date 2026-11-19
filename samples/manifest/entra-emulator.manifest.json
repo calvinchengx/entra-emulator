@@ -1,0 +1,67 @@
+{
+  "$schema": "../../schemas/manifest.schema.json",
+  "tenantId": "3c8f2a91-6d4e-4b7a-9e15-0a2b7c4d8e6f",
+  "tokenLifetimes": {
+    "accessToken": 3600,
+    "refreshToken": 86400
+  },
+  "applications": [
+    {
+      "appId": "8a1d5e7c-2f4b-4c9a-b3e6-5d7f9a1c3e2b",
+      "displayName": "Contoso API",
+      "identifierUris": ["api://contoso-api"],
+      "api": {
+        "oauth2PermissionScopes": [
+          { "value": "access_as_user", "adminConsentDisplayName": "Access the API as the signed-in user" }
+        ]
+      },
+      "appRoles": [
+        { "value": "Tasks.Admin", "displayName": "Task administrators", "allowedMemberTypes": ["User"] },
+        { "value": "Tasks.Read.All", "displayName": "Read all tasks", "allowedMemberTypes": ["Application"] }
+      ]
+    },
+    {
+      "appId": "4b6c8d2e-1a3f-4e5b-8c7d-9f0a2b4c6d8e",
+      "displayName": "Contoso SPA",
+      "spa": { "redirectUris": ["https://localhost:5173"] }
+    },
+    {
+      "appId": "c2e4f6a8-3b5d-4f7a-9c1e-2d4f6a8b0c3e",
+      "displayName": "Contoso BFF",
+      "clientSecrets": [{ "displayName": "local dev", "value": "bff-dev-secret" }],
+      "web": { "redirectUris": ["https://localhost:7001/signin-oidc"] }
+    },
+    {
+      "appId": "e5f7a9b1-4c6d-4e8f-a2b4-6c8e0f2a4b6d",
+      "displayName": "Contoso worker",
+      "clientSecrets": [{ "value": "worker-dev-secret" }],
+      "appRoleAssignments": [
+        { "resourceAppId": "8a1d5e7c-2f4b-4c9a-b3e6-5d7f9a1c3e2b", "appRole": "Tasks.Read.All" }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "userPrincipalName": "alice@contoso.local",
+      "displayName": "Alice Admin",
+      "givenName": "Alice",
+      "mail": "alice@contoso.local",
+      "password": "Password1!"
+    },
+    {
+      "userPrincipalName": "bob@contoso.local",
+      "displayName": "Bob User",
+      "password": "Password1!",
+      "appRoleAssignments": [{ "resourceAppId": "8a1d5e7c-2f4b-4c9a-b3e6-5d7f9a1c3e2b" }]
+    }
+  ],
+  "groups": [
+    {
+      "displayName": "Task admins",
+      "members": ["alice@contoso.local"],
+      "appRoleAssignments": [
+        { "resourceAppId": "8a1d5e7c-2f4b-4c9a-b3e6-5d7f9a1c3e2b", "appRole": "Tasks.Admin" }
+      ]
+    }
+  ]
+}
