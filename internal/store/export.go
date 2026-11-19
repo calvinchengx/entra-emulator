@@ -83,108 +83,138 @@ func (s *Store) ExportDirectory() (*DirectorySnapshot, error) {
 // cleared (they reference users/apps that are about to change).
 func (s *Store) ImportDirectory(snap *DirectorySnapshot, tenantID string) error {
 	now := s.Now()
+	return s.tx(func(tx *sql.Tx) error { return importDirectoryTx(tx, snap, tenantID, now) })
+}
+
+// ReplaceDirectory replaces the directory with snap, as ImportDirectory does,
+// and also replaces every app-role assignment with assignments, all in one
+// transaction. The startup manifest uses it: the directory it loads is the
+// whole directory, so assignments left over from a previous run must not
+// survive.
+func (s *Store) ReplaceDirectory(snap *DirectorySnapshot, tenantID string, assignments []*AppRoleAssignment) error {
+	now := s.Now()
 	return s.tx(func(tx *sql.Tx) error {
-		// Clear directory + grants (keep tenants, signing_keys).
-		for _, t := range []string{
-			"authorization_codes", "refresh_tokens", "sessions", "device_codes",
-			"group_members", "app_redirect_uris", "app_secrets", "app_scopes", "app_roles",
-			"app_registrations", "groups", "users",
-		} {
-			if _, err := tx.Exec(`DELETE FROM ` + t); err != nil {
-				return err
-			}
+		if err := importDirectoryTx(tx, snap, tenantID, now); err != nil {
+			return err
 		}
-
-		exec := func(q string, args ...any) error { _, err := tx.Exec(q, args...); return err }
-
-		for _, u := range snap.Users {
-			tid := u.TenantID
-			if tid == "" {
-				tid = tenantID
-			}
-			created := u.CreatedAt
-			if created == 0 {
-				created = now
-			}
-			if err := exec(`INSERT INTO users
-				(id, tenant_id, user_principal_name, display_name, given_name, surname, mail, password_hash, account_enabled, created_at)
-				VALUES (?,?,?,?,?,?,?,?,?,?)`,
-				u.ID, tid, u.UserPrincipalName, u.DisplayName,
-				nullable(u.GivenName), nullable(u.Surname), nullable(u.Mail), nullable(u.PasswordHash),
-				u.AccountEnabled, created); err != nil {
-				return err
-			}
+		if _, err := tx.Exec(`DELETE FROM app_role_assignments`); err != nil {
+			return err
 		}
-		for _, g := range snap.Groups {
-			tid := g.TenantID
-			if tid == "" {
-				tid = tenantID
-			}
-			created := g.CreatedAt
-			if created == 0 {
-				created = now
-			}
-			if err := exec(`INSERT INTO groups (id, tenant_id, display_name, description, created_at)
-				VALUES (?,?,?,?,?)`, g.ID, tid, g.DisplayName, nullable(g.Description), created); err != nil {
-				return err
-			}
-		}
-		for _, m := range snap.GroupMembers {
-			if err := exec(`INSERT OR IGNORE INTO group_members (group_id, user_id) VALUES (?,?)`,
-				m.GroupID, m.UserID); err != nil {
-				return err
-			}
-		}
-		for _, ae := range snap.Apps {
-			a := ae.App
-			tid := a.TenantID
-			if tid == "" {
-				tid = tenantID
-			}
-			created := a.CreatedAt
-			if created == 0 {
-				created = now
-			}
-			if err := exec(`INSERT INTO app_registrations
-				(app_id, tenant_id, display_name, is_confidential, app_id_uri, optional_claims, group_membership_claims, group_overage_limit, created_at)
-				VALUES (?,?,?,?,?,?,?,?,?)`,
-				a.ID, tid, a.DisplayName, a.IsConfidential, nullable(a.AppIDURI),
-				nullable(a.OptionalClaims), coalesceStr(a.GroupMembershipClaims, "None"),
-				nullableInt(a.GroupOverageLimit), created); err != nil {
-				return err
-			}
-			for _, ru := range ae.RedirectURIs {
-				if err := exec(`INSERT INTO app_redirect_uris (app_id, uri, type) VALUES (?,?,?)`,
-					a.ID, ru.URI, coalesceStr(ru.Type, "web")); err != nil {
-					return err
-				}
-			}
-			for _, sec := range ae.Secrets {
-				if err := exec(`INSERT INTO app_secrets (id, app_id, display_name, secret_hash, hint, expires_at, created_at)
-					VALUES (?,?,?,?,?,?,?)`,
-					sec.ID, a.ID, nullable(sec.DisplayName), sec.SecretHash, nullable(sec.Hint),
-					nullableInt64(sec.ExpiresAt), orNow(sec.CreatedAt, now)); err != nil {
-					return err
-				}
-			}
-			for _, sc := range ae.Scopes {
-				if err := exec(`INSERT INTO app_scopes (id, app_id, value, admin_consent_display_name, is_enabled)
-					VALUES (?,?,?,?,?)`,
-					sc.ID, a.ID, sc.Value, nullable(sc.AdminConsentDisplayName), sc.IsEnabled); err != nil {
-					return err
-				}
-			}
-			for _, role := range ae.Roles {
-				if err := exec(`INSERT INTO app_roles (id, app_id, value, display_name, allowed_member_types, is_enabled)
-					VALUES (?,?,?,?,?,?)`,
-					role.ID, a.ID, role.Value, nullable(role.DisplayName),
-					coalesceStr(role.AllowedMemberTypes, "Application"), role.IsEnabled); err != nil {
-					return err
-				}
+		for _, a := range assignments {
+			if _, err := tx.Exec(`INSERT INTO app_role_assignments
+				(id, principal_id, principal_type, resource_id, app_role_id, created_at)
+				VALUES (?,?,?,?,?,?)`,
+				a.ID, a.PrincipalID, coalesceStr(a.PrincipalType, "ServicePrincipal"),
+				a.ResourceID, a.AppRoleID, orNow(a.CreatedAt, now)); err != nil {
+				return mapConstraint(err)
 			}
 		}
 		return nil
 	})
+}
+
+func importDirectoryTx(tx *sql.Tx, snap *DirectorySnapshot, tenantID string, now int64) error {
+	// Clear directory + grants (keep tenants, signing_keys).
+	for _, t := range []string{
+		"authorization_codes", "refresh_tokens", "sessions", "device_codes",
+		"group_members", "app_redirect_uris", "app_secrets", "app_scopes", "app_roles",
+		"app_registrations", "groups", "users",
+	} {
+		if _, err := tx.Exec(`DELETE FROM ` + t); err != nil {
+			return err
+		}
+	}
+
+	exec := func(q string, args ...any) error { _, err := tx.Exec(q, args...); return err }
+
+	for _, u := range snap.Users {
+		tid := u.TenantID
+		if tid == "" {
+			tid = tenantID
+		}
+		created := u.CreatedAt
+		if created == 0 {
+			created = now
+		}
+		if err := exec(`INSERT INTO users
+			(id, tenant_id, user_principal_name, display_name, given_name, surname, mail, password_hash, account_enabled, created_at)
+			VALUES (?,?,?,?,?,?,?,?,?,?)`,
+			u.ID, tid, u.UserPrincipalName, u.DisplayName,
+			nullable(u.GivenName), nullable(u.Surname), nullable(u.Mail), nullable(u.PasswordHash),
+			u.AccountEnabled, created); err != nil {
+			return err
+		}
+	}
+	for _, g := range snap.Groups {
+		tid := g.TenantID
+		if tid == "" {
+			tid = tenantID
+		}
+		created := g.CreatedAt
+		if created == 0 {
+			created = now
+		}
+		if err := exec(`INSERT INTO groups (id, tenant_id, display_name, description, created_at)
+			VALUES (?,?,?,?,?)`, g.ID, tid, g.DisplayName, nullable(g.Description), created); err != nil {
+			return err
+		}
+	}
+	for _, m := range snap.GroupMembers {
+		if err := exec(`INSERT OR IGNORE INTO group_members (group_id, user_id) VALUES (?,?)`,
+			m.GroupID, m.UserID); err != nil {
+			return err
+		}
+	}
+	for _, ae := range snap.Apps {
+		a := ae.App
+		tid := a.TenantID
+		if tid == "" {
+			tid = tenantID
+		}
+		created := a.CreatedAt
+		if created == 0 {
+			created = now
+		}
+		if err := exec(`INSERT INTO app_registrations
+			(app_id, tenant_id, display_name, is_confidential, app_id_uri, optional_claims, group_membership_claims, group_overage_limit, created_at)
+			VALUES (?,?,?,?,?,?,?,?,?)`,
+			a.ID, tid, a.DisplayName, a.IsConfidential, nullable(a.AppIDURI),
+			nullable(a.OptionalClaims), coalesceStr(a.GroupMembershipClaims, "None"),
+			nullableInt(a.GroupOverageLimit), created); err != nil {
+			return err
+		}
+		for _, ru := range ae.RedirectURIs {
+			if err := exec(`INSERT INTO app_redirect_uris (app_id, uri, type) VALUES (?,?,?)`,
+				a.ID, ru.URI, coalesceStr(ru.Type, "web")); err != nil {
+				return err
+			}
+		}
+		for _, sec := range ae.Secrets {
+			if err := exec(`INSERT INTO app_secrets (id, app_id, display_name, secret_hash, hint, expires_at, created_at)
+				VALUES (?,?,?,?,?,?,?)`,
+				sec.ID, a.ID, nullable(sec.DisplayName), sec.SecretHash, nullable(sec.Hint),
+				nullableInt64(sec.ExpiresAt), orNow(sec.CreatedAt, now)); err != nil {
+				return err
+			}
+		}
+		for _, sc := range ae.Scopes {
+			if err := exec(`INSERT INTO app_scopes (id, app_id, value, admin_consent_display_name, is_enabled)
+				VALUES (?,?,?,?,?)`,
+				sc.ID, a.ID, sc.Value, nullable(sc.AdminConsentDisplayName), sc.IsEnabled); err != nil {
+				return err
+			}
+		}
+		for _, role := range ae.Roles {
+			if err := exec(`INSERT INTO app_roles (id, app_id, value, display_name, allowed_member_types, is_enabled)
+				VALUES (?,?,?,?,?,?)`,
+				role.ID, a.ID, role.Value, nullable(role.DisplayName),
+				coalesceStr(role.AllowedMemberTypes, "Application"), role.IsEnabled); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func orNow(v, now int64) int64 {

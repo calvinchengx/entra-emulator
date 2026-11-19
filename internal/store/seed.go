@@ -118,7 +118,7 @@ func (s *Store) Seed(tenantID, issuer string) (bool, error) {
 		if err := exec(`INSERT OR IGNORE INTO app_secrets (id, app_id, display_name, secret_hash, hint, created_at)
 			VALUES (?,?,?,?,?,?)`,
 			"a9b8116b-018c-4b45-b64f-e93d4b9e4f24", SeedAppDaemonID, "Seeded dev secret",
-			daemonHash, secretHint(SeedDaemonSecret), now); err != nil {
+			daemonHash, SecretHint(SeedDaemonSecret), now); err != nil {
 			return err
 		}
 		return exec(`INSERT OR IGNORE INTO app_roles (id, app_id, value, display_name, allowed_member_types, is_enabled)
@@ -162,8 +162,8 @@ func (s *Store) Reset(tenantID, issuer string, reseed, resetKeys bool) (bool, er
 	return reseed, nil
 }
 
-// secretHint renders the portal-facing hint: first 3 + last 2 characters.
-func secretHint(plaintext string) string {
+// SecretHint renders the portal-facing hint: first 3 + last 2 characters.
+func SecretHint(plaintext string) string {
 	if len(plaintext) <= 5 {
 		return plaintext[:1] + "…"
 	}
