@@ -40,12 +40,9 @@ func (i *Identity) grantOnBehalfOf(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// The assertion must be one of our access tokens, addressed to THIS app
-	// (aud = the middle-tier's appId or app_id_uri). Reject tokens for other
-	// resources.
-	accepted := []string{app.ID}
-	if app.AppIDURI != "" {
-		accepted = append(accepted, app.AppIDURI)
-	}
+	// (aud = the middle-tier's appId or any of its identifier URIs). Reject
+	// tokens for other resources.
+	accepted := append([]string{app.ID}, app.IdentifierURIs()...)
 	validated, err := i.Tokens.ValidateAccessToken(assertion, accepted)
 	if err != nil {
 		httpx.WriteOAuthError(w, "invalid_grant",

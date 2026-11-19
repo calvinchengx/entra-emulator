@@ -355,9 +355,9 @@ func insertAppExportTx(tx *sql.Tx, ae AppExport, now int64) error {
 	}
 	exec := func(q string, args ...any) error { _, err := tx.Exec(q, args...); return err }
 	if _, err := tx.Exec(`INSERT INTO app_registrations
-		(app_id, tenant_id, display_name, is_confidential, app_id_uri, optional_claims, group_membership_claims, group_overage_limit, created_at)
-		VALUES (?,?,?,?,?,?,?,?,?)`,
-		a.ID, a.TenantID, a.DisplayName, a.IsConfidential, nullable(a.AppIDURI),
+		(app_id, tenant_id, display_name, is_confidential, app_id_uri, additional_identifier_uris, optional_claims, group_membership_claims, group_overage_limit, created_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?)`,
+		a.ID, a.TenantID, a.DisplayName, a.IsConfidential, nullable(a.AppIDURI), additionalURIsColumn(a),
 		nullable(a.OptionalClaims), coalesceStr(a.GroupMembershipClaims, "None"),
 		nullableInt(a.GroupOverageLimit), created); err != nil {
 		return mapConstraint(err)

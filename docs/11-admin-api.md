@@ -88,11 +88,13 @@ on add → 400 `invalid_reference`.
 | GET / POST | `/admin/api/apps` | paged / 201 |
 | GET / PATCH / DELETE | `/admin/api/apps/{id}` | 200 (with sub-collections) / 200 / 204 cascade |
 
-App DTO: `{ id, displayName, isConfidential, appIdUri?, redirectUris[{id,uri,type}],
+App DTO: `{ id, displayName, isConfidential, appIdUri?, identifierUris[], redirectUris[{id,uri,type}],
 exposedScopes[{id,value,adminConsentDisplayName,isEnabled}],
 appRoles[{id,value,displayName,allowedMemberTypes,isEnabled}],
 secrets[{id,displayName,hint,expiresAt,createdAt}], createdAt }` — secrets list **hint
-only**. Non-null `appIdUri` must be unique (409) for `.default` resolution. Create accepts
+only**. `identifierUris` lists every identifier URI with `appIdUri` first. On create/PATCH,
+`identifierUris` replaces the whole set, and `appIdUri` replaces only the first (the
+others are kept). Every URI must be unique across apps (409) for `.default` resolution. Create accepts
 an optional `tenantId` to register the app in a non-home tenant (unknown → 400
 `invalid_reference`); it defaults to the home tenant. PATCH covers scalars only;
 sub-collections use:

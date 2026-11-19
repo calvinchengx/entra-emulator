@@ -2,29 +2,91 @@ package store
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/url"
 )
 
 const appCols = `app_id, tenant_id, display_name, is_confidential, COALESCE(app_id_uri,''),
+	COALESCE(additional_identifier_uris,''),
 	COALESCE(optional_claims,''), group_membership_claims, COALESCE(group_overage_limit,0), created_at`
 
 func scanApp(row interface{ Scan(...any) error }) (*App, error) {
 	a := &App{}
-	err := row.Scan(&a.ID, &a.TenantID, &a.DisplayName, &a.IsConfidential, &a.AppIDURI,
+	var additional string
+	err := row.Scan(&a.ID, &a.TenantID, &a.DisplayName, &a.IsConfidential, &a.AppIDURI, &additional,
 		&a.OptionalClaims, &a.GroupMembershipClaims, &a.GroupOverageLimit, &a.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
+	if err == nil && additional != "" {
+		err = json.Unmarshal([]byte(additional), &a.AdditionalIdentifierURIs)
+	}
 	return a, err
 }
+
+// IdentifierURIs returns every identifier URI of the app, primary first
+// (Graph: application.identifierUris).
+func (a *App) IdentifierURIs() []string {
+	out := []string{}
+	if a.AppIDURI != "" {
+		out = append(out, a.AppIDURI)
+	}
+	return append(out, a.AdditionalIdentifierURIs...)
+}
+
+// HasIdentifierURI reports whether uri is one of the app's identifier URIs.
+func (a *App) HasIdentifierURI(uri string) bool {
+	for _, u := range a.IdentifierURIs() {
+		if u == uri {
+			return true
+		}
+	}
+	return false
+}
+
+// SetIdentifierURIs replaces the app's identifier URIs: the first becomes
+// AppIDURI, the rest AdditionalIdentifierURIs. Empty and repeated values are
+// dropped, keeping order.
+func (a *App) SetIdentifierURIs(uris []string) {
+	seen := map[string]bool{}
+	clean := []string{}
+	for _, u := range uris {
+		if u != "" && !seen[u] {
+			seen[u] = true
+			clean = append(clean, u)
+		}
+	}
+	a.AppIDURI, a.AdditionalIdentifierURIs = "", nil
+	if len(clean) > 0 {
+		a.AppIDURI = clean[0]
+		if len(clean) > 1 {
+			a.AdditionalIdentifierURIs = clean[1:]
+		}
+	}
+}
+
+// additionalURIsColumn encodes AdditionalIdentifierURIs for storage (NULL
+// when there are none).
+func additionalURIsColumn(a *App) any {
+	if len(a.AdditionalIdentifierURIs) == 0 {
+		return nil
+	}
+	raw, _ := json.Marshal(a.AdditionalIdentifierURIs)
+	return string(raw)
+}
+
+// identifierURIMatch is the WHERE fragment matching an app by any of its
+// identifier URIs; it binds the URI twice.
+const identifierURIMatch = `(app_id_uri=? OR EXISTS (SELECT 1 FROM
+	json_each(app_registrations.additional_identifier_uris) WHERE value=?))`
 
 func (s *Store) GetApp(appID string) (*App, error) {
 	return scanApp(s.db.QueryRow(`SELECT `+appCols+` FROM app_registrations WHERE app_id=?`, appID))
 }
 
 func (s *Store) GetAppByIDURI(uri string) (*App, error) {
-	return scanApp(s.db.QueryRow(`SELECT `+appCols+` FROM app_registrations WHERE app_id_uri=?`, uri))
+	return scanApp(s.db.QueryRow(`SELECT `+appCols+` FROM app_registrations WHERE `+identifierURIMatch, uri, uri))
 }
 
 func (s *Store) ListApps(top, skip int, search string) ([]*App, int, error) {
@@ -54,42 +116,44 @@ func (s *Store) ListApps(top, skip int, search string) ([]*App, int, error) {
 	return out, count, rows.Err()
 }
 
-// appIDURITaken reports whether another app already claims the URI
-// (uniqueness required for unambiguous `.default` resolution).
-func (s *Store) appIDURITaken(uri, exceptAppID string) (bool, error) {
-	if uri == "" {
-		return false, nil
+// identifierURIsTaken reports whether another app already claims any of the
+// app's identifier URIs (uniqueness required for unambiguous `.default`
+// resolution).
+func (s *Store) identifierURIsTaken(a *App) (bool, error) {
+	for _, uri := range a.IdentifierURIs() {
+		var n int
+		if err := s.db.QueryRow(`SELECT COUNT(*) FROM app_registrations WHERE `+identifierURIMatch+` AND app_id<>?`,
+			uri, uri, a.ID).Scan(&n); err != nil || n > 0 {
+			return n > 0, err
+		}
 	}
-	var n int
-	err := s.db.QueryRow(`SELECT COUNT(*) FROM app_registrations WHERE app_id_uri=? AND app_id<>?`,
-		uri, exceptAppID).Scan(&n)
-	return n > 0, err
+	return false, nil
 }
 
 func (s *Store) CreateApp(a *App) error {
-	if taken, err := s.appIDURITaken(a.AppIDURI, a.ID); err != nil {
+	if taken, err := s.identifierURIsTaken(a); err != nil {
 		return err
 	} else if taken {
 		return ErrConflict
 	}
 	_, err := s.db.Exec(`INSERT INTO app_registrations
-		(app_id, tenant_id, display_name, is_confidential, app_id_uri, optional_claims, group_membership_claims, group_overage_limit, created_at)
-		VALUES (?,?,?,?,?,?,?,?,?)`,
-		a.ID, a.TenantID, a.DisplayName, a.IsConfidential, nullable(a.AppIDURI),
+		(app_id, tenant_id, display_name, is_confidential, app_id_uri, additional_identifier_uris, optional_claims, group_membership_claims, group_overage_limit, created_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?)`,
+		a.ID, a.TenantID, a.DisplayName, a.IsConfidential, nullable(a.AppIDURI), additionalURIsColumn(a),
 		nullable(a.OptionalClaims), coalesceStr(a.GroupMembershipClaims, "None"),
 		nullableInt(a.GroupOverageLimit), a.CreatedAt)
 	return mapConstraint(err)
 }
 
 func (s *Store) UpdateApp(a *App) error {
-	if taken, err := s.appIDURITaken(a.AppIDURI, a.ID); err != nil {
+	if taken, err := s.identifierURIsTaken(a); err != nil {
 		return err
 	} else if taken {
 		return ErrConflict
 	}
 	res, err := s.db.Exec(`UPDATE app_registrations SET display_name=?, is_confidential=?,
-		app_id_uri=?, optional_claims=?, group_membership_claims=?, group_overage_limit=? WHERE app_id=?`,
-		a.DisplayName, a.IsConfidential, nullable(a.AppIDURI), nullable(a.OptionalClaims),
+		app_id_uri=?, additional_identifier_uris=?, optional_claims=?, group_membership_claims=?, group_overage_limit=? WHERE app_id=?`,
+		a.DisplayName, a.IsConfidential, nullable(a.AppIDURI), additionalURIsColumn(a), nullable(a.OptionalClaims),
 		coalesceStr(a.GroupMembershipClaims, "None"), nullableInt(a.GroupOverageLimit), a.ID)
 	if err != nil {
 		return mapConstraint(err)
