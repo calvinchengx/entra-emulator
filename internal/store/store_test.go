@@ -1676,10 +1676,10 @@ func TestNullableHelpers(t *testing.T) {
 	if orNow(0, 99) != 99 || orNow(5, 99) != 5 {
 		t.Fatal("orNow")
 	}
-	if secretHint("ab") != "a…" {
-		t.Fatalf("secretHint short = %q", secretHint("ab"))
+	if SecretHint("ab") != "a…" {
+		t.Fatalf("SecretHint short = %q", SecretHint("ab"))
 	}
-	if secretHint("abcdefgh") != "abc…gh" {
-		t.Fatalf("secretHint long = %q", secretHint("abcdefgh"))
+	if SecretHint("abcdefgh") != "abc…gh" {
+		t.Fatalf("SecretHint long = %q", SecretHint("abcdefgh"))
 	}
 }

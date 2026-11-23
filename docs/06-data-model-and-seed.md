@@ -56,6 +56,8 @@ One struct per entity in `internal/store`, methods taking `*sql.Tx`-or-DB via a 
 
 ## Deterministic seed (fixed GUIDs)
 
+A [manifest](04-configuration.md#manifest) (`MANIFEST_FILE`) replaces this seed with a directory you describe.
+
 | Entity | GUID | Values |
 |---|---|---|
 | Tenant | `6f89cf12-978b-4d23-ac18-9ef0c127cf87` | `Entra Emulator` (display), issuer derived |

@@ -40,6 +40,71 @@ key(s)** — no partial boot.
 | `LOG_LEVEL` | `logLevel` | enum | `info` | `error|warn|info|debug`. |
 | `RECORD_RESPONSES` | — | path | unset | Append one JSON line per Microsoft Graph response (method, path, query, status, body; **never a header**, so no bearer token) to this file. Diagnostic for CI: the recording is the input to `scripts/check_graph_conformance.py`, which holds real-SDK traffic to Microsoft's published Graph OpenAPI. Environment only, deliberately not a config-file key. An unwritable path logs and records nothing rather than stopping the emulator. |
 | `CONFIG_FILE` | — | path | `./entra-emulator.config.json` | Config-file location. |
+| `MANIFEST_FILE` | `manifestFile` | path | unset | Load the directory from a [manifest](#manifest) instead of the deterministic seed. Its `tenantId` and `tokenLifetimes` replace `TENANT_ID` and `TOKEN_LIFETIME_*`, and `SEED_ON_START` is ignored. |
+
+## Manifest
+
+A manifest is a JSON file describing the whole directory: one tenant, its applications,
+users and groups, their app-role assignments, and token lifetimes. Point `MANIFEST_FILE`
+(or `manifestFile` in the config file) at one, and on every start the emulator replaces
+the directory with the manifest's contents instead of applying the deterministic seed.
+
+- **Replaced by the manifest:** `TENANT_ID`, `TOKEN_LIFETIME_*` and `SEED_ON_START`, from
+  the environment and the config file alike. A lifetime the manifest leaves out uses the
+  default, not the environment value.
+- **Still from the environment or config file:** everything else, including the port,
+  TLS (`TLS_CERT`/`TLS_KEY`), origins and the issuer.
+- **Every start re-applies it:** users, groups, apps and app-role assignments created
+  at runtime (Graph, admin API, portal) are discarded at the next start, as are
+  sessions and refresh tokens. The tenant row and signing keys are kept.
+- **Errors stop startup**, each named by its JSON path, for example
+  `MANIFEST_FILE: applications[0].appId: must be a GUID`. Unknown properties are errors,
+  so a misspelt property is reported rather than ignored.
+
+Property names are camelCase and follow Microsoft Graph's application, user and group
+resources (`identifierUris`, `api.oauth2PermissionScopes`, `appRoles`,
+`web`/`spa`/`publicClient.redirectUris`). The JSON Schema is
+[`schemas/manifest.schema.json`](../schemas/manifest.schema.json): reference it from the
+manifest's `$schema` for completion and validation in editors. A complete example
+(an API, an SPA, a BFF web app, a worker using client credentials, users and a group) is
+[`samples/manifest/entra-emulator.manifest.json`](../samples/manifest/entra-emulator.manifest.json):
+
+```jsonc
+{
+  "$schema": "../../schemas/manifest.schema.json",
+  "tenantId": "3c8f2a91-6d4e-4b7a-9e15-0a2b7c4d8e6f",
+  "applications": [
+    {
+      "appId": "8a1d5e7c-2f4b-4c9a-b3e6-5d7f9a1c3e2b",
+      "displayName": "Contoso API",
+      "identifierUris": ["api://contoso-api"],
+      "api": { "oauth2PermissionScopes": [{ "value": "access_as_user" }] },
+      "appRoles": [{ "value": "Tasks.Admin", "allowedMemberTypes": ["User"] }]
+    }
+  ],
+  "users": [
+    {
+      "userPrincipalName": "alice@contoso.local",
+      "displayName": "Alice Admin",
+      "password": "Password1!",
+      "appRoleAssignments": [{ "resourceAppId": "8a1d5e7c-2f4b-4c9a-b3e6-5d7f9a1c3e2b", "appRole": "Tasks.Admin" }]
+    }
+  ]
+}
+```
+
+- `tenantId` and each `appId` are GUIDs. Users, groups, scopes and roles may leave out
+  `id`: it is then derived from the tenant and the object's name (UPN, display name or
+  value), so it is stable across restarts.
+- An application with `clientSecrets` is a confidential client; secrets and passwords
+  are given in plain text and stored hashed.
+- `appRoleAssignments` name the resource by `appId` and the role by `value`, and can sit
+  on a user, a group (for its direct members) or an application (application
+  permissions). Leaving out `appRole` gives the default access assignment, which carries
+  no role. The role must allow the holder's member type: `User` for users and groups,
+  `Application` for applications.
+- Group `members` are users, named by `userPrincipalName` or `id`.
+- `identifierUris` holds at most one URI.
 
 ## Origin derivation (order of precedence per surface)
 

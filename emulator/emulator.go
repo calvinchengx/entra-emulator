@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 
 	"github.com/calvinchengx/entra-emulator/internal/config"
+	"github.com/calvinchengx/entra-emulator/internal/manifest"
 	"github.com/calvinchengx/entra-emulator/internal/server"
 	"github.com/calvinchengx/entra-emulator/internal/store"
 	"github.com/calvinchengx/entra-emulator/internal/tlscert"
@@ -154,7 +155,13 @@ func Start(opts ...Option) (*Emulator, error) {
 		_ = os.RemoveAll(dataDir)
 		return nil, err
 	}
-	if !o.NoSeed {
+	if cfg.Manifest != nil {
+		if err := manifest.Apply(st, cfg.Manifest); err != nil {
+			_ = st.Close()
+			_ = os.RemoveAll(dataDir)
+			return nil, fmt.Errorf("manifest %s: %w", cfg.ManifestPath, err)
+		}
+	} else if !o.NoSeed {
 		if _, err := st.Seed(cfg.TenantID, cfg.Issuer); err != nil {
 			_ = st.Close()
 			_ = os.RemoveAll(dataDir)
