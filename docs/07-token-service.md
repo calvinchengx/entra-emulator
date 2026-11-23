@@ -59,7 +59,12 @@ device code); **omitted** for client credentials. `Cache-Control: no-store`,
 | `oid` | user id | **omitted** |
 | `azp` / `appid` | client appId | client appId |
 | `scp` | space-delimited granted scope **names** | **omitted** |
-| `roles` | omitted | array of auto-granted app roles (may be `[]`) |
+| `roles` | app roles the user holds on the resource app (directly or through a group); omitted when none | array of auto-granted app roles (may be `[]`) |
+
+The ID token carries the same `roles` claim for the user's roles on the **client** app
+(its audience), omitted when none. Users are never auto-granted: only a specific
+`appRoleAssignment` to the user, or to a group the user is a direct member of
+(`docs/20-stateful-directory.md`), produces a role value.
 
 **Audience rule:** resource scope `api://<x>/<scope>` or app GUID → `aud` = that
 `app_id_uri`/GUID. Graph scopes (`https://graph.microsoft.com/...` or known bare names
