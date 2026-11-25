@@ -337,9 +337,7 @@ func (g *Graph) createApplication(w http.ResponseWriter, r *http.Request, tok *t
 	}
 	app := &store.App{ID: store.NewGUID(), TenantID: g.tenantOf(tok),
 		DisplayName: *b.DisplayName, GroupMembershipClaims: "None", CreatedAt: g.Store.Now()}
-	if len(b.IdentifierUris) > 0 {
-		app.AppIDURI = b.IdentifierUris[0]
-	}
+	app.SetIdentifierURIs(b.IdentifierUris)
 	if err := g.Store.CreateApp(app); err != nil {
 		writeStoreErrGraph(w, err)
 		return
@@ -364,11 +362,7 @@ func (g *Graph) updateApplication(w http.ResponseWriter, r *http.Request, tok *t
 		app.DisplayName = *b.DisplayName
 	}
 	if b.IdentifierUris != nil {
-		if len(b.IdentifierUris) > 0 {
-			app.AppIDURI = b.IdentifierUris[0]
-		} else {
-			app.AppIDURI = ""
-		}
+		app.SetIdentifierURIs(b.IdentifierUris) // replaces; [] clears
 	}
 	if err := g.Store.UpdateApp(app); err != nil {
 		writeStoreErrGraph(w, err)

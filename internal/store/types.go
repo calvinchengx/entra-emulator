@@ -54,15 +54,18 @@ type Group struct {
 }
 
 type App struct {
-	ID                    string // app_id / client_id
-	TenantID              string
-	DisplayName           string
-	IsConfidential        bool
-	AppIDURI              string // empty = null
-	OptionalClaims        string // raw JSON or empty
-	GroupMembershipClaims string // None|SecurityGroup|DirectoryRole|ApplicationGroup|All
-	GroupOverageLimit     int    // 0 = unset (use global default)
-	CreatedAt             int64
+	ID             string // app_id / client_id
+	TenantID       string
+	DisplayName    string
+	IsConfidential bool
+	AppIDURI       string // empty = null; the first of identifierUris
+	// AdditionalIdentifierURIs are identifierUris after the first. Every
+	// identifier URI resolves the app as a resource (scope prefix, audience).
+	AdditionalIdentifierURIs []string
+	OptionalClaims           string // raw JSON or empty
+	GroupMembershipClaims    string // None|SecurityGroup|DirectoryRole|ApplicationGroup|All
+	GroupOverageLimit        int    // 0 = unset (use global default)
+	CreatedAt                int64
 }
 
 type RedirectURI struct {

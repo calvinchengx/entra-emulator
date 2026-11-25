@@ -73,16 +73,12 @@ func (g *Graph) appRoleShapes(appID string) []map[string]any {
 
 // applicationDTO renders an application object. object id == appId.
 func (g *Graph) applicationDTO(a *store.App) map[string]any {
-	uris := []string{}
-	if a.AppIDURI != "" {
-		uris = []string{a.AppIDURI}
-	}
 	return map[string]any{
 		"id":             a.ID,
 		"appId":          a.ID,
 		"displayName":    a.DisplayName,
 		"signInAudience": "AzureADMyOrg",
-		"identifierUris": uris,
+		"identifierUris": a.IdentifierURIs(),
 		"appRoles":       g.appRoleShapes(a.ID),
 		"api":            map[string]any{"oauth2PermissionScopes": g.oauth2ScopeShapes(a.ID)},
 	}
@@ -90,10 +86,7 @@ func (g *Graph) applicationDTO(a *store.App) map[string]any {
 
 // servicePrincipalDTO renders the SP view of an app registration.
 func (g *Graph) servicePrincipalDTO(a *store.App) map[string]any {
-	names := []string{a.ID}
-	if a.AppIDURI != "" {
-		names = append(names, a.AppIDURI)
-	}
+	names := append([]string{a.ID}, a.IdentifierURIs()...)
 	return map[string]any{
 		"id":                     a.ID,
 		"appId":                  a.ID,

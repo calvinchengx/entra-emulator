@@ -181,7 +181,8 @@ func (a *Admin) appDTO(app *store.App) map[string]any {
 	}
 	return map[string]any{
 		"id": app.ID, "displayName": app.DisplayName, "isConfidential": app.IsConfidential,
-		"appIdUri": nullable(app.AppIDURI), "redirectUris": redirectDTOs,
+		"appIdUri": nullable(app.AppIDURI), "identifierUris": app.IdentifierURIs(),
+		"redirectUris":  redirectDTOs,
 		"exposedScopes": scopeDTOs, "appRoles": roleDTOs, "secrets": secretDTOs,
 		"groupMembershipClaims": app.GroupMembershipClaims,
 		"createdAt":             iso(app.CreatedAt),
@@ -217,14 +218,17 @@ func (a *Admin) listApps(w http.ResponseWriter, r *http.Request) {
 }
 
 type appBody struct {
-	DisplayName           *string `json:"displayName"`
-	TenantID              *string `json:"tenantId"` // multi-tenant (roadmap #15b); defaults to home
-	IsConfidential        *bool   `json:"isConfidential"`
-	AppIDURI              *string `json:"appIdUri"`
-	GroupMembershipClaims *string `json:"groupMembershipClaims"`
-	GroupOverageLimit     *int    `json:"groupOverageLimit"`
-	OptionalClaims        any     `json:"optionalClaims"`
-	FrontchannelLogoutURI *string `json:"frontchannelLogoutUri"`
+	DisplayName    *string `json:"displayName"`
+	TenantID       *string `json:"tenantId"` // multi-tenant (roadmap #15b); defaults to home
+	IsConfidential *bool   `json:"isConfidential"`
+	AppIDURI       *string `json:"appIdUri"`
+	// IdentifierURIs replaces every identifier URI (the first is appIdUri);
+	// it wins over appIdUri when both are sent.
+	IdentifierURIs        *[]string `json:"identifierUris"`
+	GroupMembershipClaims *string   `json:"groupMembershipClaims"`
+	GroupOverageLimit     *int      `json:"groupOverageLimit"`
+	OptionalClaims        any       `json:"optionalClaims"`
+	FrontchannelLogoutURI *string   `json:"frontchannelLogoutUri"`
 	RedirectUris          []struct {
 		URI  string `json:"uri"`
 		Type string `json:"type"`
@@ -275,8 +279,11 @@ func applyAppBody(app *store.App, b *appBody) {
 	if b.IsConfidential != nil {
 		app.IsConfidential = *b.IsConfidential
 	}
-	if b.AppIDURI != nil {
-		app.AppIDURI = *b.AppIDURI
+	if b.IdentifierURIs != nil {
+		app.SetIdentifierURIs(*b.IdentifierURIs)
+	} else if b.AppIDURI != nil {
+		// Replace the primary URI, keeping the others ("" drops it).
+		app.SetIdentifierURIs(append([]string{*b.AppIDURI}, app.AdditionalIdentifierURIs...))
 	}
 	if b.GroupMembershipClaims != nil {
 		app.GroupMembershipClaims = *b.GroupMembershipClaims

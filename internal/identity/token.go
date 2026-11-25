@@ -366,8 +366,8 @@ func (i *Identity) grantClientCredentials(w http.ResponseWriter, r *http.Request
 				"AADSTS500011: The resource principal named "+resource+" was not found in the tenant named "+i.Cfg.TenantID+". This can happen if the application has not been installed by the administrator of the tenant or consented to by any user in the tenant. You might have sent your authentication request to the wrong tenant.")
 			return
 		}
-		if resourceApp.AppIDURI == resource {
-			aud = resourceApp.AppIDURI
+		if resourceApp.HasIdentifierURI(resource) {
+			aud = resource // the identifier URI the client asked for
 		} else {
 			aud = resourceApp.ID
 		}
