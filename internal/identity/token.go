@@ -231,7 +231,7 @@ func (i *Identity) grantAuthorizationCode(w http.ResponseWriter, r *http.Request
 	noteAuditSubject(r, user.ID, user.UserPrincipalName)
 	resp, err := i.Tokens.BuildDelegatedResponse(tokens.DelegatedGrant{
 		App: app, User: user, Scopes: grantScopes, Resource: row.Resource, Nonce: row.Nonce, AMR: row.AMR,
-		AuthTime: row.AuthTime, MaxAgeRequested: row.MaxAgeRequested,
+		AuthTime: row.AuthTime, MaxAgeRequested: row.MaxAgeRequested, SessionID: row.SessionID,
 		AuthCode: code, ScopeEcho: scopeEcho,
 	})
 	if err != nil {
@@ -285,7 +285,7 @@ func (i *Identity) grantRefreshToken(w http.ResponseWriter, r *http.Request) {
 	// property of the app, so it holds for every token the app receives.
 	resp, err := i.Tokens.BuildDelegatedResponse(tokens.DelegatedGrant{
 		App: app, User: user, Scopes: redeemed.Scopes, Resource: redeemed.Resource,
-		AMR: redeemed.AMR, AuthTime: redeemed.AuthTime,
+		AMR: redeemed.AMR, AuthTime: redeemed.AuthTime, SessionID: redeemed.SessionID,
 		ScopeEcho: scopeEcho, SkipRefreshToken: true,
 	})
 	if err != nil {

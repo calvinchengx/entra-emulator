@@ -77,9 +77,12 @@ func (i *Identity) handleDiscovery(w http.ResponseWriter, r *http.Request) {
 		// Both are real: RP-initiated logout at end_session_endpoint, and
 		// front-channel notification of the relying parties this session signed
 		// into (each app registers its own frontchannel_logout_uri).
-		"http_logout_supported":            true,
-		"frontchannel_logout_supported":    true,
-		"code_challenge_methods_supported": []string{"S256", "plain"},
+		"http_logout_supported":         true,
+		"frontchannel_logout_supported": true,
+		// Advertise the implemented session correlation so strict RPs can
+		// discover it; this is a capability claim, not an exact metadata clone.
+		"frontchannel_logout_session_supported": true,
+		"code_challenge_methods_supported":      []string{"S256", "plain"},
 		// JAR by reference (RFC 9101). Inline `request` is not accepted, and
 		// request_parameter_supported is therefore left absent — which is also
 		// what real Entra advertises.
@@ -91,7 +94,7 @@ func (i *Identity) handleDiscovery(w http.ResponseWriter, r *http.Request) {
 		// request carried max_age or the app opted in via optionalClaims.
 		"claims_supported": []string{
 			"sub", "iss", "aud", "exp", "iat", "nbf", "tid", "oid",
-			"name", "preferred_username", "email", "nonce", "ver", "auth_time",
+			"name", "preferred_username", "email", "nonce", "ver", "auth_time", "sid",
 		},
 		// Cloud-instance metadata. Real Entra advertises the sovereign-cloud
 		// coordinates here (microsoftonline.com / graph.microsoft.com / pas.windows.net);

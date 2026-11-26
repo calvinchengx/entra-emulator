@@ -111,6 +111,7 @@ type SigningKey struct {
 }
 
 type AuthCode struct {
+	SessionID           string // public sid for front-channel logout correlation
 	Code                string
 	AppID               string
 	UserID              string
@@ -136,6 +137,7 @@ type AuthCode struct {
 }
 
 type RefreshToken struct {
+	SessionID string // inherited public sid; never a provider session credential
 	TokenHash string // SHA-256 hex of the plaintext; PK
 	AppID     string
 	UserID    string

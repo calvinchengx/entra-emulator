@@ -379,6 +379,8 @@ func (s *Store) migrate() error {
 	// present — ignored so re-runs are idempotent.
 	for _, alter := range []string{
 		`ALTER TABLE authorization_codes ADD COLUMN amr TEXT`,
+		`ALTER TABLE authorization_codes ADD COLUMN session_id TEXT`,
+		`ALTER TABLE refresh_tokens ADD COLUMN session_id TEXT`,
 		`ALTER TABLE authorization_codes ADD COLUMN auth_time INTEGER`,
 		`ALTER TABLE refresh_tokens ADD COLUMN amr TEXT`,
 		`ALTER TABLE refresh_tokens ADD COLUMN auth_time INTEGER`,

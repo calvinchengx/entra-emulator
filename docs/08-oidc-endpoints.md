@@ -49,8 +49,9 @@ UserInfo lives on the **Graph** surface: `GET|POST /oidc/userinfo` (compat origi
 }
 ```
 
-No Microsoft cloud-host fields (`tenant_region_scope` etc.); no front-channel-logout
-capability flags (not implemented).
+The example above is abbreviated. Discovery also advertises front-channel logout
+and session correlation (`frontchannel_logout_supported` and
+`frontchannel_logout_session_supported`), with `sid` in `claims_supported`.
 
 ## Canonical OAuth error convention (token-shaped endpoints)
 
@@ -200,7 +201,18 @@ Query: `post_logout_redirect_uri`, `client_id`, `id_token_hint` (unverified, use
 infer client_id), `state`. Behavior: delete the session row + expire the cookie
 (idempotent). Redirect only when `post_logout_redirect_uri` exactly matches a registered
 redirect URI of a resolvable client — else render the "signed out" page (200). `state`
-appended on redirect.
+appended on redirect, including when logout first renders a front-channel page.
+Only relying parties used by this session receive hidden iframe notifications;
+each notification's `sid` matches the signed browser ID token and its refresh
+descendants. Existing notification query parameters are retained, except `iss`
+and `sid`, which the provider supplies. Unsafe URLs in
+legacy registrations are skipped. The final redirect's original query encoding
+is retained when `state` is appended.
+
+Provider sign-out clears the SSO session, but does not revoke refresh grants.
+Legacy refresh chains retain their original absence of `sid` after an upgrade;
+a fresh sign-in is needed for session-correlated logout. Re-authentication that
+creates a new provider session does not transfer other RPs from the old session.
 
 ## Managed identity — `GET /msi/token` (App Service protocol)
 

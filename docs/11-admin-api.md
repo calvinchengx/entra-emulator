@@ -88,7 +88,7 @@ on add → 400 `invalid_reference`.
 | GET / POST | `/admin/api/apps` | paged / 201 |
 | GET / PATCH / DELETE | `/admin/api/apps/{id}` | 200 (with sub-collections) / 200 / 204 cascade |
 
-App DTO: `{ id, displayName, isConfidential, appIdUri?, redirectUris[{id,uri,type}],
+App DTO: `{ id, displayName, isConfidential, appIdUri?, frontchannelLogoutUri?, redirectUris[{id,uri,type}],
 exposedScopes[{id,value,adminConsentDisplayName,isEnabled}],
 appRoles[{id,value,displayName,allowedMemberTypes,isEnabled}],
 secrets[{id,displayName,hint,expiresAt,createdAt}], createdAt }` — secrets list **hint
@@ -131,6 +131,13 @@ not verify, or a deleted credential each fail with `invalid_client` (AADSTS70021
 
 Token configuration (optional claims / group claims) is managed via app PATCH fields
 `optionalClaims`, `groupMembershipClaims`, `groupOverageLimit` (see 04).
+
+`frontchannelLogoutUri` is accepted on app creation and PATCH and returned on reads
+(`null` when unset). On PATCH, absent or `null` leaves it unchanged; an empty
+string clears it. Nonempty values must be
+absolute HTTP(S) URLs without userinfo or fragments; unsafe values are rejected
+before the app is changed. The registered notification URL receives `iss` and
+`sid` when a provider session that signed into the app signs out.
 
 ## Token forge (roadmap #2 — testing superpower)
 
